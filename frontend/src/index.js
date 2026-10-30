@@ -267,3 +267,21 @@ app.ports.jsRemoveMember.subscribe(async ({ apiaryId, memberKey }) => {
         app.ports.operationError.send(error.message);
     }
 });
+
+app.ports.jsUpdateHiveName.subscribe(async ({ apiaryId, hiveId, newName }) => {
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        await updateDoc(docRef, { name: newName });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteHive.subscribe(async ({ apiaryId, hiveId }) => {
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});

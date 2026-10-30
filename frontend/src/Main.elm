@@ -86,6 +86,9 @@ type alias Model =
     , editNoteText : String
     , shareEmailInput : String
     , shareRoleInput : String
+    , showRenameHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
+    , renameHiveInput : String
+    , showDeleteHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
     }
 
 init : () -> ( Model, Cmd Msg )
@@ -111,6 +114,9 @@ init _ =
       , editNoteText = ""
       , shareEmailInput = ""
       , shareRoleInput = "view"
+      , showRenameHiveModal = Nothing
+      , renameHiveInput = ""
+      , showDeleteHiveModal = Nothing
       }
     , Cmd.none
     )
@@ -134,6 +140,8 @@ port jsUpdateNote : { apiaryId : String, hiveId : String, noteId : String, text 
 port jsDeleteNote : { apiaryId : String, hiveId : String, noteId : String } -> Cmd msg
 port jsShareApiary : { apiaryId : String, email : String, role : String } -> Cmd msg
 port jsRemoveMember : { apiaryId : String, memberKey : String } -> Cmd msg
+port jsUpdateHiveName : { apiaryId : String, hiveId : String, newName : String } -> Cmd msg
+port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -193,6 +201,14 @@ type Msg
     | UpdateShareRole String
     | SubmitShareApiary String String String
     | SubmitRemoveMember String String
+    -- Hive Management actions
+    | OpenRenameHiveModal String Hive
+    | CloseRenameHiveModal
+    | UpdateRenameHiveInput String
+    | SubmitRenameHive String String
+    | OpenDeleteHiveModal String Hive
+    | CloseDeleteHiveModal
+    | SubmitDeleteHive String String
     -- Feedback
     | HandleError String
     | ClearMessages
@@ -390,6 +406,31 @@ update msg model =
 
         SubmitRemoveMember apiaryId memberKey ->
             ( model, jsRemoveMember { apiaryId = apiaryId, memberKey = memberKey } )
+
+        OpenRenameHiveModal apiaryId hive ->
+            ( { model | showRenameHiveModal = Just { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name }, renameHiveInput = hive.name }, Cmd.none )
+
+        CloseRenameHiveModal ->
+            ( { model | showRenameHiveModal = Nothing, renameHiveInput = "" }, Cmd.none )
+
+        UpdateRenameHiveInput val ->
+            ( { model | renameHiveInput = val }, Cmd.none )
+
+        SubmitRenameHive apiaryId hiveId ->
+            ( { model | showRenameHiveModal = Nothing, renameHiveInput = "" }
+            , jsUpdateHiveName { apiaryId = apiaryId, hiveId = hiveId, newName = model.renameHiveInput }
+            )
+
+        OpenDeleteHiveModal apiaryId hive ->
+            ( { model | showDeleteHiveModal = Just { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name } }, Cmd.none )
+
+        CloseDeleteHiveModal ->
+            ( { model | showDeleteHiveModal = Nothing }, Cmd.none )
+
+        SubmitDeleteHive apiaryId hiveId ->
+            ( { model | showDeleteHiveModal = Nothing }
+            , jsDeleteHive { apiaryId = apiaryId, hiveId = hiveId }
+            )
 
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
@@ -608,14 +649,18 @@ hiveListView user info model =
 
 hiveCardView : String -> Hive -> Html Msg
 hiveCardView apiaryId hive =
-    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer"
+    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" "#333"
         , onClick (NavigateTo (HiveDetailView { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name }))
         ]
         [ h3 [ style "margin-top" "0", style "color" "#2c3e50" ] [ text hive.name ]
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" "#555" ] [ text ("Typ ramki: " ++ hive.frameType) ]
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" "#555" ] [ text ("Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)) ]
-        , div [ style "margin-top" "10px", style "font-size" "12px", style "background" "#f1f2f6", style "padding" "5px", style "border-radius" "4px" ]
+        , div [ style "margin-top" "10px", style "font-size" "12px", style "background" "#f1f2f6", style "padding" "5px", style "border-radius" "4px", style "color" "#333" ]
             [ text ("Matka: " ++ (if hive.queen.hasOpalit then "Opalitek " ++ hive.queen.color ++ " #" ++ hive.queen.number else "Brak opalitka")) ]
+        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "8px", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
+            [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę ula" ] [ text "✏️" ]
+            , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń ul" ] [ text "🗑️" ]
+            ]
         ]
 
 hiveDetailView : User -> { apiaryId : String, hiveId : String, hiveName : String } -> Model -> Html Msg
@@ -815,4 +860,32 @@ modalsView model =
                 ]
           else
             text ""
+        , case model.showRenameHiveModal of
+            Just info ->
+                div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" "#333" ]
+                        [ h3 [] [ text "Zmień nazwę ula" ]
+                        , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ] []
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                            [ button [ onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            ]
+                        ]
+                    ]
+            Nothing ->
+                text ""
+        , case model.showDeleteHiveModal of
+            Just info ->
+                div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" "#333" ]
+                        [ h3 [] [ text "Usuń ul" ]
+                        , p [] [ text ("Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ "\" wraz ze wszystkimi notatkami?") ]
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                            [ button [ onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            , button [ onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            ]
+                        ]
+                    ]
+            Nothing ->
+                text ""
         ]
