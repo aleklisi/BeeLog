@@ -1,25 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Funkcja pomocnicza sprawdzająca, czy użytkownik jest na liście edytorów
-    function isEditor(apiaryData) {
-      return request.auth != null && (request.auth.uid in apiaryData.editors);
-    }
-
     match /apiaries/{apiaryId} {
-      allow read, write: if request.auth != null && (request.auth.uid == resource.data.adminId || isEditor(resource.data));
-      
-      match /yards/{yardId} {
-        allow read, write: if request.auth != null && isEditor(get(/databases/$(database)/documents/apiaries/$(apiaryId)).data);
-        
-        match /hives/{hiveId} {
-          allow read, write: if request.auth != null && isEditor(get(/databases/$(database)/documents/apiaries/$(apiaryId)).data);
-          
-          match /notes/{noteId} {
-            allow read, write: if request.auth != null && isEditor(get(/databases/$(database)/documents/apiaries/$(apiaryId)).data);
-          }
-        }
+      allow read, write: if request.auth != null;
+
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null;
       }
     }
   }

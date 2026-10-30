@@ -71,6 +71,7 @@ type alias Model =
     , notes : List Note
     , errorMessage : Maybe String
     , successMessage : Maybe String
+    , darkMode : Bool
     -- Modals & Inputs
     , showNewApiaryModal : Bool
     , newApiaryName : String
@@ -94,6 +95,7 @@ init _ =
       , notes = []
       , errorMessage = Nothing
       , successMessage = Nothing
+      , darkMode = False
       , showNewApiaryModal = False
       , newApiaryName = ""
       , showEditApiaryModal = Nothing
@@ -142,6 +144,7 @@ port operationError : (String -> msg) -> Sub msg
 type Msg
     = ClickLoginGoogle
     | ClickLogout
+    | ToggleDarkMode
     | AuthStateUpdated { uid : String, email : String }
     | LoadApiariesData String
     | ApiariesDecoded (Result String (List Apiary))
@@ -195,6 +198,9 @@ update msg model =
             ( { model | authState = LoggedOut, viewState = LoginView, apiaries = [] }
             , jsLogout ()
             )
+
+        ToggleDarkMode ->
+            ( { model | darkMode = not model.darkMode }, Cmd.none )
 
         AuthStateUpdated { uid, email } ->
             if uid == "" then
@@ -419,8 +425,13 @@ decodeNotes =
 
 view : Model -> Html Msg
 view model =
-    div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto" ]
-        [ headerView model
+    let
+        bgColor = if model.darkMode then "#121212" else "#f7f9fa"
+        textColor = if model.darkMode then "#e0e0e0" else "#333333"
+    in
+    div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto", style "background-color" bgColor, style "color" textColor, style "min-height" "100vh", style "position" "relative" ]
+        [ darkModeToggleView model.darkMode
+        , headerView model
         , notificationsView model
         , case model.authState of
             LoggedOut ->
@@ -444,6 +455,25 @@ view model =
                         sharingView user info model
         , modalsView model
         ]
+
+darkModeToggleView : Bool -> Html Msg
+darkModeToggleView darkMode =
+    button
+        [ onClick ToggleDarkMode
+        , style "position" "fixed"
+        , style "top" "20px"
+        , style "right" "20px"
+        , style "z-index" "9999"
+        , style "padding" "8px 14px"
+        , style "background-color" (if darkMode then "#f1c40f" else "#2c3e50")
+        , style "color" (if darkMode then "#121212" else "#ffffff")
+        , style "border" "none"
+        , style "border-radius" "20px"
+        , style "cursor" "pointer"
+        , style "font-size" "14px"
+        , style "box-shadow" "0 2px 6px rgba(0,0,0,0.3)"
+        ]
+        [ text (if darkMode then "☀️ Tryb Jasny" else "🌙 Tryb Ciemny") ]
 
 headerView : Model -> Html Msg
 headerView model =
