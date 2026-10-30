@@ -61,6 +61,32 @@ suite =
                         Err err ->
                             Expect.fail ("Failed to decode apiaries: " ++ Decode.errorToString err)
             ]
+        , describe "Robust Queen Decoder (String hasOpalit)"
+            [ test "decodes queen with string hasOpalit \"false\"" <|
+                \() ->
+                    let
+                        json = "{\"hasOpalit\": \"false\", \"color\": \"niebieski\", \"number\": \"10\"}"
+                        robustDecodeQueen =
+                            Decode.map3 (\h c n -> { hasOpalit = h, color = c, number = n })
+                                (Decode.field "hasOpalit"
+                                    (Decode.oneOf
+                                        [ Decode.bool
+                                        , Decode.string |> Decode.map (\s -> String.toLower s == "true")
+                                        , Decode.int |> Decode.map (\i -> i /= 0)
+                                        ]
+                                        |> Decode.nullable
+                                        |> Decode.map (Maybe.withDefault False)
+                                    )
+                                )
+                                (Decode.field "color" Decode.string)
+                                (Decode.field "number" Decode.string)
+                    in
+                    case Decode.decodeString robustDecodeQueen json of
+                        Ok queen ->
+                            Expect.equal False queen.hasOpalit
+                        Err _ ->
+                            Expect.fail "Failed to decode queen with string hasOpalit"
+            ]
         ]
 
 -- Helper decoders copied from Main.elm (since it's a port module, direct import might be tricky for internals)
