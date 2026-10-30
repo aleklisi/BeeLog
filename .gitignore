@@ -17,5 +17,7 @@ firestore-debug.log
 .DS_Store
 .Thumbs.db
 
-# Temporary files
-firebase_sdk
+# Environment files
+.env
+.env.*
+*.local

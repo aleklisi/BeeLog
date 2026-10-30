@@ -209,6 +209,10 @@ type Msg
     | OpenDeleteHiveModal String Hive
     | CloseDeleteHiveModal
     | SubmitDeleteHive String String
+    | MoveApiaryUp String
+    | MoveApiaryDown String
+    | MoveHiveUp String
+    | MoveHiveDown String
     -- Feedback
     | HandleError String
     | ClearMessages
@@ -432,6 +436,18 @@ update msg model =
             , jsDeleteHive { apiaryId = apiaryId, hiveId = hiveId }
             )
 
+        MoveApiaryUp id ->
+            ( { model | apiaries = moveUp id model.apiaries }, Cmd.none )
+
+        MoveApiaryDown id ->
+            ( { model | apiaries = moveDown id model.apiaries }, Cmd.none )
+
+        MoveHiveUp id ->
+            ( { model | hives = moveUp id model.hives }, Cmd.none )
+
+        MoveHiveDown id ->
+            ( { model | hives = moveDown id model.hives }, Cmd.none )
+
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -615,20 +631,26 @@ apiaryCardView user apiary =
     let
         isAdmin = apiary.adminId == user.uid
     in
-    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer" ]
+    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" "#333" ]
         [ div [ onClick (NavigateTo (HiveListView { apiaryId = apiary.id, apiaryName = apiary.name })) ]
             [ h3 [ style "margin-top" "0", style "color" "#2c3e50" ] [ text apiary.name ]
             , p [ style "font-size" "12px", style "color" "#7f8c8d" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
             ]
-        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "8px", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
-            [ button [ onClick (NavigateTo (SharingView { apiaryId = apiary.id, apiaryName = apiary.name })), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Udostępnij" ] [ text "👥" ]
-            , if isAdmin then
-                div [ style "display" "flex", style "gap" "8px" ]
-                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px" ] [ text "✏️" ]
-                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px" ] [ text "🗑️" ]
-                    ]
-              else
-                text ""
+        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
+            [ div [ style "display" "flex", style "gap" "4px" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryUp apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryDown apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                ]
+            , div [ style "display" "flex", style "gap" "8px" ]
+                [ button [ onClick (NavigateTo (SharingView { apiaryId = apiary.id, apiaryName = apiary.name })), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Udostępnij" ] [ text "👥" ]
+                , if isAdmin then
+                    div [ style "display" "flex", style "gap" "8px" ]
+                        [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px" ] [ text "✏️" ]
+                        , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px" ] [ text "🗑️" ]
+                        ]
+                  else
+                    text ""
+                ]
             ]
         ]
 
@@ -657,9 +679,15 @@ hiveCardView apiaryId hive =
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" "#555" ] [ text ("Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)) ]
         , div [ style "margin-top" "10px", style "font-size" "12px", style "background" "#f1f2f6", style "padding" "5px", style "border-radius" "4px", style "color" "#333" ]
             [ text ("Matka: " ++ (if hive.queen.hasOpalit then "Opalitek " ++ hive.queen.color ++ " #" ++ hive.queen.number else "Brak opalitka")) ]
-        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "8px", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
-            [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę ula" ] [ text "✏️" ]
-            , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń ul" ] [ text "🗑️" ]
+        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
+            [ div [ style "display" "flex", style "gap" "4px" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveHiveUp hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveHiveDown hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                ]
+            , div [ style "display" "flex", style "gap" "8px" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę ula" ] [ text "✏️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń ul" ] [ text "🗑️" ]
+                ]
             ]
         ]
 
@@ -889,3 +917,33 @@ modalsView model =
             Nothing ->
                 text ""
         ]
+
+
+moveUp : String -> List { r | id : String } -> List { r | id : String }
+moveUp targetId list =
+    let
+        helper acc prev rest =
+            case rest of
+                [] ->
+                    List.reverse acc
+                x :: y :: xs ->
+                    if y.id == targetId then
+                        List.reverse acc ++ y :: x :: xs
+                    else
+                        helper (x :: acc) y (y :: xs)
+                [x] ->
+                    List.reverse acc ++ [x]
+    in
+    case list of
+        x :: y :: xs ->
+            if y.id == targetId then
+                y :: x :: xs
+            else
+                helper [x] y (y :: xs)
+        _ ->
+            list
+
+
+moveDown : String -> List { r | id : String } -> List { r | id : String }
+moveDown targetId list =
+    List.reverse (moveUp targetId (List.reverse list))
