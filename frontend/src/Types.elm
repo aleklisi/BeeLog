@@ -41,9 +41,18 @@ type alias Apiary =
 decodeQueen : Decode.Decoder Queen
 decodeQueen =
     Decode.map3 Queen
-        (Decode.field "hasOpalit" Decode.bool)
-        (Decode.field "color" Decode.string)
-        (Decode.field "number" Decode.string)
+        (Decode.field "hasOpalit"
+            (Decode.oneOf
+                [ Decode.bool
+                , Decode.string |> Decode.map (\s -> String.toLower s == "true")
+                , Decode.int |> Decode.map (\i -> i /= 0)
+                ]
+                |> Decode.nullable
+                |> Decode.map (Maybe.withDefault False)
+            )
+        )
+        (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
 
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =

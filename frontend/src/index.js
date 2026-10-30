@@ -103,7 +103,7 @@ app.ports.jsLoadHives.subscribe(async ({ apiaryId }) => {
                 hives.push({
                     id: docSnap.id,
                     name: data.name || "",
-                    frameType: data.frameType || "Dadant",
+                    frameType: data.frameType || "Wielkopolskie",
                     nfcTagId: data.nfcTagId || "",
                     queen: data.queen || { hasOpalit: false, color: "biały", number: "" }
                 });
@@ -123,6 +123,24 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
             nfcTagId: "",
             queen: { hasOpalit: false, color: "biały", number: "" }
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateNote.subscribe(async ({ apiaryId, hiveId, noteId, text }) => {
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes", noteId);
+        await updateDoc(docRef, { text: text });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteNote.subscribe(async ({ apiaryId, hiveId, noteId }) => {
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes", noteId);
+        await deleteDoc(docRef);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

@@ -82,6 +82,8 @@ type alias Model =
     , newHiveName : String
     , newHiveFrameType : String
     , newNoteText : String
+    , editingNoteId : Maybe String
+    , editNoteText : String
     , shareEmailInput : String
     , shareRoleInput : String
     }
@@ -103,8 +105,10 @@ init _ =
       , showDeleteApiaryModal = Nothing
       , showNewHiveModal = False
       , newHiveName = ""
-      , newHiveFrameType = "Dadant"
+      , newHiveFrameType = "Wielkopolskie"
       , newNoteText = ""
+      , editingNoteId = Nothing
+      , editNoteText = ""
       , shareEmailInput = ""
       , shareRoleInput = "view"
       }
@@ -126,6 +130,8 @@ port jsStartNfcScan : () -> Cmd msg
 port jsStartSpeechRecognition : () -> Cmd msg
 port jsLoadNotes : { apiaryId : String, hiveId : String } -> Cmd msg
 port jsSaveNote : { apiaryId : String, hiveId : String, text : String, authorId : String, authorEmail : String } -> Cmd msg
+port jsUpdateNote : { apiaryId : String, hiveId : String, noteId : String, text : String } -> Cmd msg
+port jsDeleteNote : { apiaryId : String, hiveId : String, noteId : String } -> Cmd msg
 port jsShareApiary : { apiaryId : String, email : String, role : String } -> Cmd msg
 port jsRemoveMember : { apiaryId : String, memberKey : String } -> Cmd msg
 
@@ -177,6 +183,11 @@ type Msg
     | StartSpeechDictation
     | SpeechResultReceived String
     | SubmitSaveNote String String String String String -- apiaryId, hiveId, text, authorId, authorEmail
+    | StartEditNote Note
+    | CancelEditNote
+    | UpdateEditNoteText String
+    | SubmitUpdateNote String String String -- apiaryId, hiveId, noteId
+    | SubmitDeleteNote String String String -- apiaryId, hiveId, noteId
     -- Sharing actions
     | UpdateShareEmail String
     | UpdateShareRole String
@@ -346,6 +357,26 @@ update msg model =
                 , jsSaveNote { apiaryId = apiaryId, hiveId = hiveId, text = text, authorId = authorId, authorEmail = authorEmail }
                 )
 
+        StartEditNote note ->
+            ( { model | editingNoteId = Just note.id, editNoteText = note.text }, Cmd.none )
+
+        CancelEditNote ->
+            ( { model | editingNoteId = Nothing, editNoteText = "" }, Cmd.none )
+
+        UpdateEditNoteText text ->
+            ( { model | editNoteText = text }, Cmd.none )
+
+        SubmitUpdateNote apiaryId hiveId noteId ->
+            if String.isEmpty model.editNoteText then
+                ( model, Cmd.none )
+            else
+                ( { model | editingNoteId = Nothing, editNoteText = "" }
+                , jsUpdateNote { apiaryId = apiaryId, hiveId = hiveId, noteId = noteId, text = model.editNoteText }
+                )
+
+        SubmitDeleteNote apiaryId hiveId noteId ->
+            ( model, jsDeleteNote { apiaryId = apiaryId, hiveId = hiveId, noteId = noteId } )
+
         UpdateShareEmail email ->
             ( { model | shareEmailInput = email }, Cmd.none )
 
@@ -406,9 +437,18 @@ decodeHives =
 decodeQueen : Decode.Decoder Queen
 decodeQueen =
     Decode.map3 Queen
-        (Decode.field "hasOpalit" Decode.bool)
-        (Decode.field "color" Decode.string)
-        (Decode.field "number" Decode.string)
+        (Decode.field "hasOpalit"
+            (Decode.oneOf
+                [ Decode.bool
+                , Decode.string |> Decode.map (\s -> String.toLower s == "true")
+                , Decode.int |> Decode.map (\i -> i /= 0)
+                ]
+                |> Decode.nullable
+                |> Decode.map (Maybe.withDefault False)
+            )
+        )
+        (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
 
 decodeNotes : Decode.Decoder (List Note)
 decodeNotes =
@@ -597,10 +637,9 @@ hiveDetailView user info model =
                         , input [ type_ "text", value hive.name, onInput (\val -> UpdateHiveField info.apiaryId hive.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
                         , label [] [ text "Typ Ramki:" ]
                         , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "frameType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
-                            [ option [ value "Dadant", selected (hive.frameType == "Dadant") ] [ text "Dadant" ]
-                            , option [ value "Wielkopolski", selected (hive.frameType == "Wielkopolski") ] [ text "Wielkopolski" ]
-                            , option [ value "Langstroth", selected (hive.frameType == "Langstroth") ] [ text "Langstroth" ]
-                            , option [ value "Warszawski", selected (hive.frameType == "Warszawski") ] [ text "Warszawski poszerzany" ]
+                            [ option [ value "Wielkopolskie", selected (hive.frameType == "Wielkopolskie") ] [ text "Wielkopolskie" ]
+                            , option [ value "Wielkopolskie 18", selected (hive.frameType == "Wielkopolskie 18") ] [ text "Wielkopolskie 18" ]
+                            , option [ value "Wielkopolskie 1/2", selected (hive.frameType == "Wielkopolskie 1/2") ] [ text "Wielkopolskie 1/2" ]
                             ]
                         , label [] [ text "Tag NFC:" ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
@@ -637,20 +676,38 @@ hiveDetailView user info model =
                         ]
                     ]
                 , div []
-                    (List.map noteItemView model.notes)
+                    (List.map (noteItemView info.apiaryId info.hiveId model) model.notes)
                 ]
         _ ->
             div [] [ text "Ładowanie ula..." ]
 
-noteItemView : Note -> Html Msg
-noteItemView note =
-    div [ style "background" "#f8f9f9", style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "10px", style "border-left" "4px solid #27ae60" ]
-        [ p [ style "margin" "0 0 5px 0" ] [ text note.text ]
-        , div [ style "font-size" "11px", style "color" "#7f8c8d", style "display" "flex", style "justify-content" "space-between" ]
-            [ span [] [ text ("Autor: " ++ note.authorEmail) ]
-            , span [] [ text note.timestamp ]
+noteItemView : String -> String -> Model -> Note -> Html Msg
+noteItemView apiaryId hiveId model note =
+    let
+        isEditing = model.editingNoteId == Just note.id
+    in
+    div [ style "background" "#f8f9f9", style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "10px", style "border-left" "4px solid #27ae60", style "color" "#333" ]
+        (if isEditing then
+            [ textarea [ value model.editNoteText, onInput UpdateEditNoteText, style "width" "100%", style "height" "60px", style "padding" "6px", style "margin-bottom" "8px" ] []
+            , div [ style "display" "flex", style "gap" "8px" ]
+                [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id), style "padding" "4px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                , button [ onClick CancelEditNote, style "padding" "4px 10px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                ]
             ]
-        ]
+         else
+            [ p [ style "margin" "0 0 5px 0" ] [ text note.text ]
+            , div [ style "font-size" "11px", style "color" "#7f8c8d", style "display" "flex", style "justify-content" "space-between", style "align-items" "center" ]
+                [ div []
+                    [ span [ style "margin-right" "10px" ] [ text ("Autor: " ++ note.authorEmail) ]
+                    , span [] [ text note.timestamp ]
+                    ]
+                , div [ style "display" "flex", style "gap" "6px" ]
+                    [ button [ onClick (StartEditNote note), style "background" "none", style "border" "none", style "cursor" "pointer", title "Edytuj" ] [ text "✏️" ]
+                    , button [ onClick (SubmitDeleteNote apiaryId hiveId note.id), style "background" "none", style "border" "none", style "cursor" "pointer", title "Usuń" ] [ text "🗑️" ]
+                    ]
+                ]
+            ]
+        )
 
 sharingView : User -> { apiaryId : String, apiaryName : String } -> Model -> Html Msg
 sharingView user info model =
