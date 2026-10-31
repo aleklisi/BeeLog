@@ -786,7 +786,6 @@ hiveListView user info model =
             ]
         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "20px" ]
             [ button [ onClick OpenNewHiveModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Nowy Ul" ]
-            , button [ onClick StartNfcScan, style "padding" "10px 16px", style "background-color" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "📶 Skanuj NFC" ]
             ]
         , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(220px, 1fr))", style "gap" "15px" ]
             (List.map (hiveCardView info.apiaryId) model.hives)
