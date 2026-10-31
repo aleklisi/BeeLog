@@ -121,8 +121,21 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
             name: name,
             frameType: frameType,
             nfcTagId: "",
-            queen: { hasOpalit: false, color: "biały", number: "" }
+            queen: { hasOpalit: false, color: "biały", number: "" },
+            pollenTrap: "brak",
+            bodies: [
+                { frameCount: 10, hasQueen: false, hasExcluderAbove: false }
+            ]
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateHiveBodies.subscribe(async ({ apiaryId, hiveId, bodies }) => {
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        await updateDoc(docRef, { bodies: bodies });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

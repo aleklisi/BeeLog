@@ -40,12 +40,20 @@ type alias Queen =
     , number : String
     }
 
+type alias HiveBody =
+    { frameCount : Int
+    , hasQueen : Bool
+    , hasExcluderAbove : Bool
+    }
+
 type alias Hive =
     { id : String
     , name : String
     , frameType : String
     , nfcTagId : String
     , queen : Queen
+    , pollenTrap : String
+    , bodies : List HiveBody
     }
 
 type alias Note =
@@ -142,6 +150,7 @@ port jsShareApiary : { apiaryId : String, email : String, role : String } -> Cmd
 port jsRemoveMember : { apiaryId : String, memberKey : String } -> Cmd msg
 port jsUpdateHiveName : { apiaryId : String, hiveId : String, newName : String } -> Cmd msg
 port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
+port jsUpdateHiveBodies : { apiaryId : String, hiveId : String, bodies : List HiveBody } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -213,6 +222,14 @@ type Msg
     | MoveApiaryDown String
     | MoveHiveUp String
     | MoveHiveDown String
+    -- Hive Body & Pollen Trap actions
+    | UpdatePollenTrap String String String
+    | AddBodyAbove Int String String
+    | AddBodyBelow Int String String
+    | RemoveBody Int String String
+    | UpdateBodyFrames Int String String String
+    | ToggleBodyQueen Int String String
+    | ToggleBodyExcluder Int String String
     -- Feedback
     | HandleError String
     | ClearMessages
@@ -448,6 +465,139 @@ update msg model =
         MoveHiveDown id ->
             ( { model | hives = moveDown id model.hives }, Cmd.none )
 
+        UpdatePollenTrap apiaryId hiveId trap ->
+            ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
+
+        AddBodyAbove idx apiaryId hiveId ->
+            let
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBody = { frameCount = 10, hasQueen = False, hasExcluderAbove = False }
+                                    newBodies = insertAt idx newBody h.bodies
+                                in
+                                { h | bodies = newBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
+        AddBodyBelow idx apiaryId hiveId ->
+            let
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBody = { frameCount = 10, hasQueen = False, hasExcluderAbove = False }
+                                    newBodies = insertAt (idx + 1) newBody h.bodies
+                                in
+                                { h | bodies = newBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
+        RemoveBody idx apiaryId hiveId ->
+            let
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBodies = removeAt idx h.bodies
+                                    finalBodies = if List.isEmpty newBodies then [ { frameCount = 10, hasQueen = False, hasExcluderAbove = False } ] else newBodies
+                                in
+                                { h | bodies = finalBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
+        UpdateBodyFrames idx frames apiaryId hiveId ->
+            let
+                fCount = Maybe.withDefault 10 (String.toInt frames)
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBodies = updateAt idx (\b -> { b | frameCount = fCount }) h.bodies
+                                in
+                                { h | bodies = newBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
+        ToggleBodyQueen idx apiaryId hiveId ->
+            let
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBodies = updateAt idx (\b -> { b | hasQueen = not b.hasQueen }) h.bodies
+                                in
+                                { h | bodies = newBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
+        ToggleBodyExcluder idx apiaryId hiveId ->
+            let
+                updatedHives =
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                let
+                                    newBodies = updateAt idx (\b -> { b | hasExcluderAbove = not b.hasExcluderAbove }) h.bodies
+                                in
+                                { h | bodies = newBodies }
+                            else
+                                h
+                        )
+                        model.hives
+                targetHive = List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+                cmd = case targetHive of
+                    Just h -> jsUpdateHiveBodies { apiaryId = apiaryId, hiveId = hiveId, bodies = h.bodies }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = updatedHives }, cmd )
+
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -472,51 +622,19 @@ subscriptions _ =
 
 decodeApiaries : Decode.Decoder (List Apiary)
 decodeApiaries =
-    Decode.list
-        (Decode.map4 Apiary
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "adminId" Decode.string)
-            (Decode.field "members" (Decode.keyValuePairs Decode.string))
-        )
+    Types.decodeApiaries
 
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
-    Decode.list
-        (Decode.map5 Hive
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "frameType" Decode.string)
-            (Decode.field "nfcTagId" Decode.string)
-            (Decode.field "queen" decodeQueen)
-        )
+    Types.decodeHives
 
 decodeQueen : Decode.Decoder Queen
 decodeQueen =
-    Decode.map3 Queen
-        (Decode.field "hasOpalit"
-            (Decode.oneOf
-                [ Decode.bool
-                , Decode.string |> Decode.map (\s -> String.toLower s == "true")
-                , Decode.int |> Decode.map (\i -> i /= 0)
-                ]
-                |> Decode.nullable
-                |> Decode.map (Maybe.withDefault False)
-            )
-        )
-        (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
-        (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+    Types.decodeQueen
 
 decodeNotes : Decode.Decoder (List Note)
 decodeNotes =
-    Decode.list
-        (Decode.map5 Note
-            (Decode.field "id" Decode.string)
-            (Decode.field "text" Decode.string)
-            (Decode.field "authorId" Decode.string)
-            (Decode.field "authorEmail" Decode.string)
-            (Decode.field "timestamp" Decode.string)
-        )
+    Types.decodeNotes
 
 -- VIEW
 
@@ -698,7 +816,7 @@ hiveDetailView user info model =
     in
     case maybeHive of
         Just hive ->
-            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)" ]
+            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" "#333" ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
                     [ button [ onClick (NavigateTo (HiveListView { apiaryId = info.apiaryId, apiaryName = "Pasieka" })), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
                     , h2 [ style "margin" "0" ] [ text ("Karta Ula: " ++ hive.name) ]
@@ -713,6 +831,12 @@ hiveDetailView user info model =
                             [ option [ value "Wielkopolskie", selected (hive.frameType == "Wielkopolskie") ] [ text "Wielkopolskie" ]
                             , option [ value "Wielkopolskie 18", selected (hive.frameType == "Wielkopolskie 18") ] [ text "Wielkopolskie 18" ]
                             , option [ value "Wielkopolskie 1/2", selected (hive.frameType == "Wielkopolskie 1/2") ] [ text "Wielkopolskie 1/2" ]
+                            ]
+                        , label [] [ text "Poławiacz pyłku:" ]
+                        , select [ onInput (\val -> UpdatePollenTrap info.apiaryId hive.id val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                            [ option [ value "brak", selected (hive.pollenTrap == "brak") ] [ text "Brak" ]
+                            , option [ value "powałkowy", selected (hive.pollenTrap == "powałkowy") ] [ text "Powałkowy" ]
+                            , option [ value "dennicowy", selected (hive.pollenTrap == "dennicowy") ] [ text "Dennicowy" ]
                             ]
                         , label [] [ text "Tag NFC:" ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
@@ -739,6 +863,7 @@ hiveDetailView user info model =
                         , input [ type_ "text", value hive.queen.number, onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
                         ]
                     ]
+                , hiveBodiesEditorView info.apiaryId hive.id hive.bodies
                 , hr [] []
                 , h3 [] [ text "Notatki" ]
                 , div [ style "margin-bottom" "15px" ]
@@ -947,3 +1072,75 @@ moveUp targetId list =
 moveDown : String -> List { r | id : String } -> List { r | id : String }
 moveDown targetId list =
     List.reverse (moveUp targetId (List.reverse list))
+
+
+updateAt : Int -> (a -> a) -> List a -> List a
+updateAt targetIndex updateFn list =
+    List.indexedMap
+        (\i item ->
+            if i == targetIndex then
+                updateFn item
+            else
+                item
+        )
+        list
+
+
+removeAt : Int -> List a -> List a
+removeAt targetIndex list =
+    List.indexedMap (\i item -> (i, item)) list
+        |> List.filter (\(i, _) -> i /= targetIndex)
+        |> List.map Tuple.second
+
+
+insertAt : Int -> a -> List a -> List a
+insertAt targetIndex newItem list =
+    let
+        indexed = List.indexedMap (\i item -> (i, item)) list
+        before = List.filter (\(i, _) -> i < targetIndex) indexed |> List.map Tuple.second
+        after = List.filter (\(i, _) -> i >= targetIndex) indexed |> List.map Tuple.second
+    in
+    before ++ [newItem] ++ after
+
+
+hiveBodiesEditorView : String -> String -> List HiveBody -> Html Msg
+hiveBodiesEditorView apiaryId hiveId bodies =
+    div [ style "margin-top" "20px", style "padding" "15px", style "background" "#fdfbf7", style "border-radius" "8px", style "border" "1px solid #e0d8c3", style "color" "#333" ]
+        [ h3 [ style "margin-top" "0", style "color" "#d35400" ] [ text "Edytor Korpusów (Schemat Ula)" ]
+        , p [ style "font-size" "13px", style "color" "#666" ] [ text "Układaj korpusy od góry do dołu. Możesz dodawać/usuwać korpusy, zmieniać liczbę ramek (0-10), oznaczać obecność matki (👑) oraz dodawać kratę odgrodową (⊞)." ]
+        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "align-items" "center", style "margin-top" "15px" ]
+            (List.indexedMap (hiveBodyView apiaryId hiveId (List.length bodies)) bodies)
+        ]
+
+
+hiveBodyView : String -> String -> Int -> Int -> HiveBody -> Html Msg
+hiveBodyView apiaryId hiveId totalCount idx body =
+    let
+        korpusNr = totalCount - idx
+    in
+    div [ style "width" "100%", style "max-width" "500px", style "display" "flex", style "flex-direction" "column", style "align-items" "center" ]
+        [ if body.hasExcluderAbove then
+            div [ style "width" "100%", style "text-align" "center", style "padding" "4px 0", style "font-weight" "bold", style "color" "#e67e22", style "border-bottom" "2px dashed #e67e22", style "margin-bottom" "5px" ]
+                [ text "⊞ Krata Odgrodowa" ]
+          else
+            text ""
+        , div [ style "width" "100%", style "background" (if body.hasQueen then "#fef9e7" else "white"), style "border" (if body.hasQueen then "2px solid #f1c40f" else "2px solid #bdc3c7"), style "border-radius" "6px", style "padding" "12px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" "#333" ]
+            [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px" ]
+                [ span [ style "font-weight" "bold", style "color" "#2c3e50" ] [ text ("Korpus " ++ String.fromInt korpusNr) ]
+                , div [ style "display" "flex", style "gap" "6px" ]
+                    [ button [ onClick (ToggleBodyQueen idx apiaryId hiveId), style "background" (if body.hasQueen then "#f1c40f" else "#ecf0f1"), style "border" "1px solid #d35400", style "border-radius" "4px", style "padding" "2px 6px", style "cursor" "pointer", title "Obecność matki" ] [ text "👑 Matka" ]
+                    , button [ onClick (ToggleBodyExcluder idx apiaryId hiveId), style "background" (if body.hasExcluderAbove then "#e67e22" else "#ecf0f1"), style "border" "1px solid #d35400", style "border-radius" "4px", style "padding" "2px 6px", style "cursor" "pointer", title "Krata nad korpusem" ] [ text "⊞ Krata" ]
+                    ]
+                ]
+            , div [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "margin-bottom" "8px" ]
+                [ span [ style "font-size" "13px" ] [ text "Ramek:" ]
+                , input [ type_ "number", Html.Attributes.min "0", Html.Attributes.max "10", value (String.fromInt body.frameCount), onInput (\val -> UpdateBodyFrames idx val apiaryId hiveId), style "width" "60px", style "padding" "4px" ] []
+                , span [ style "font-size" "13px", style "color" "#666" ] [ text "/ 10" ]
+                ]
+            , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "6px" ]
+                [ button [ onClick (AddBodyAbove idx apiaryId hiveId), style "padding" "2px 6px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "12px" ] [ text "+ Dodaj wyżej" ]
+                , button [ onClick (AddBodyBelow idx apiaryId hiveId), style "padding" "2px 6px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "12px" ] [ text "+ Dodaj niżej" ]
+                , button [ onClick (RemoveBody idx apiaryId hiveId), style "padding" "2px 6px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "12px" ] [ text "🗑️ Usuń" ]
+                ]
+            ]
+        ]
