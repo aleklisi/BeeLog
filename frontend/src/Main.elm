@@ -218,6 +218,7 @@ type Msg
     -- Pollen Trap actions
     | UpdatePollenTrap String String String
     | CopyUserId String
+    | SubmitHiveSnapshot String String User
     -- Feedback
     | HandleError String
     | ClearMessages
@@ -459,6 +460,23 @@ update msg model =
         CopyUserId uid ->
             ( model, jsCopyText uid )
 
+        SubmitHiveSnapshot apiaryId hiveId user ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                snapshotText = case maybeHive of
+                    Just hive -> hiveSnapshotText hive
+                    Nothing -> "Brak danych ula"
+            in
+            ( model
+            , jsSaveNote
+                { apiaryId = apiaryId
+                , hiveId = hiveId
+                , text = snapshotText
+                , authorId = user.uid
+                , authorEmail = user.email
+                }
+            )
+
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -601,7 +619,7 @@ apiariesView user model =
             [ h2 [ style "margin" "0" ] [ text "Twoje Pasieczyska" ]
             , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Pasieczysko" ]
             ]
-        , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(250px, 1fr))", style "gap" "15px" ]
+        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
             (List.map (apiaryCardView user) model.apiaries)
         ]
 
@@ -735,6 +753,7 @@ hiveDetailView user info model =
                     , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px" ]
                         [ button [ onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🎤 Dyktuj" ]
                         , button [ onClick (SubmitSaveNote info.apiaryId hive.id model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
+                        , button [ onClick (SubmitHiveSnapshot info.apiaryId hive.id user), style "padding" "8px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Zapisz pełny stan ula jako notatkę" ] [ text "📸 Zrzut Ula" ]
                         ]
                     ]
                 , div []
@@ -946,3 +965,22 @@ moveUp targetId list =
 moveDown : String -> List { r | id : String } -> List { r | id : String }
 moveDown targetId list =
     List.reverse (moveUp targetId (List.reverse list))
+
+
+hiveSnapshotText : Hive -> String
+hiveSnapshotText hive =
+    let
+        opalitText = if hive.queen.hasOpalit then "Tak (Kolor: " ++ hive.queen.color ++ ", Nr: " ++ hive.queen.number ++ ")" else "Nie"
+        pollenText = case hive.pollenTrap of
+            "powałkowy" -> "Powałkowy"
+            "dennicowy" -> "Dennicowy"
+            _ -> "Brak"
+    in
+    String.join "\n"
+        [ "📸 Zrzut Stanu Ula:"
+        , "• Nazwa: " ++ hive.name
+        , "• Typ ramki: " ++ hive.frameType
+        , "• Poławiacz pyłku: " ++ pollenText
+        , "• Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)
+        , "• Matka pszczela (opalitek): " ++ opalitText
+        ]
