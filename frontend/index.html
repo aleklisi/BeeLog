@@ -4,23 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BeeLog - Aplikacja Pasieczna</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f7f9fa;
-            color: #333;
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0ebfe',
+                            200: '#bae0fd',
+                            300: '#7ccbfb',
+                            400: '#38b2f8',
+                            500: '#0e94ea',
+                            600: '#0075c6',
+                            700: '#015fa1',
+                            800: '#065184',
+                            900: '#0b436d',
+                        }
+                    }
+                }
+            }
         }
-        #app {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-    </style>
+    </script>
 </head>
-<body>
-    <div id="app"></div>
+<body class="bg-blue-50 text-blue-950 min-h-screen">
+    <div id="app" class="max-w-4xl mx-auto p-4 sm:p-6"></div>
     <script src="/frontend/src/index.js" type="module"></script>
 </body>
 </html>

@@ -151,6 +151,7 @@ port jsRemoveMember : { apiaryId : String, memberKey : String } -> Cmd msg
 port jsUpdateHiveName : { apiaryId : String, hiveId : String, newName : String } -> Cmd msg
 port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
 port jsUpdateHiveBodies : { apiaryId : String, hiveId : String, bodies : List HiveBody } -> Cmd msg
+port jsCopyText : String -> Cmd msg
 
 -- PORTS (IN)
 
@@ -230,6 +231,7 @@ type Msg
     | UpdateBodyFrames Int String String String
     | ToggleBodyQueen Int String String
     | ToggleBodyExcluder Int String String
+    | CopyUserId String
     -- Feedback
     | HandleError String
     | ClearMessages
@@ -598,6 +600,9 @@ update msg model =
             in
             ( { model | hives = updatedHives }, cmd )
 
+        CopyUserId uid ->
+            ( model, jsCopyText uid )
+
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -821,7 +826,7 @@ hiveDetailView user info model =
                     [ button [ onClick (NavigateTo (HiveListView { apiaryId = info.apiaryId, apiaryName = "Pasieka" })), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
                     , h2 [ style "margin" "0" ] [ text ("Karta Ula: " ++ hive.name) ]
                     ]
-                , div [ style "display" "grid", style "grid-template-columns" "1fr 1fr", style "gap" "20px", style "margin-bottom" "20px" ]
+                , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
                     [ div []
                         [ h3 [] [ text "Dane Techniczne" ]
                         , label [] [ text "Nazwa Ula:" ]
@@ -851,16 +856,21 @@ hiveDetailView user info model =
                             [ option [ value "true", selected hive.queen.hasOpalit ] [ text "Tak (Opalitka)" ]
                             , option [ value "false", selected (not hive.queen.hasOpalit) ] [ text "Nie / Czarny opalitek" ]
                             ]
-                        , label [] [ text "Kolor Opalitka:" ]
-                        , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.color" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
-                            [ option [ value "Biały", selected (hive.queen.color == "Biały") ] [ text "Biały" ]
-                            , option [ value "Żółty", selected (hive.queen.color == "Żółty") ] [ text "Żółty" ]
-                            , option [ value "Czerwony", selected (hive.queen.color == "Czerwony") ] [ text "Czerwony" ]
-                            , option [ value "Zielony", selected (hive.queen.color == "Zielony") ] [ text "Zielony" ]
-                            , option [ value "Niebieski", selected (hive.queen.color == "Niebieski") ] [ text "Niebieski" ]
-                            ]
-                        , label [] [ text "Numer Opalitka:" ]
-                        , input [ type_ "text", value hive.queen.number, onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
+                        , if hive.queen.hasOpalit then
+                            div []
+                                [ label [] [ text "Kolor Opalitka:" ]
+                                , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.color" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                                    [ option [ value "Biały", selected (hive.queen.color == "Biały") ] [ text "Biały" ]
+                                    , option [ value "Żółty", selected (hive.queen.color == "Żółty") ] [ text "Żółty" ]
+                                    , option [ value "Czerwony", selected (hive.queen.color == "Czerwony") ] [ text "Czerwony" ]
+                                    , option [ value "Zielony", selected (hive.queen.color == "Zielony") ] [ text "Zielony" ]
+                                    , option [ value "Niebieski", selected (hive.queen.color == "Niebieski") ] [ text "Niebieski" ]
+                                    ]
+                                , label [] [ text "Numer Opalitka:" ]
+                                , input [ type_ "text", value hive.queen.number, onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
+                                ]
+                          else
+                            text ""
                         ]
                     ]
                 , hiveBodiesEditorView info.apiaryId hive.id hive.bodies
@@ -914,10 +924,17 @@ sharingView user info model =
     in
     case maybeApiary of
         Just apiary ->
-            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)" ]
+            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" "#333" ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
                     [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
                     , h2 [ style "margin" "0" ] [ text ("Udostępnianie pasieki: " ++ info.apiaryName) ]
+                    ]
+                , div [ style "margin-bottom" "20px", style "padding" "15px", style "background" "#f1f2f6", style "border-radius" "6px" ]
+                    [ h3 [ style "margin-top" "0" ] [ text "Identyfikator Pasiecznika (Właściciela)" ]
+                    , div [ style "display" "flex", style "gap" "10px", style "align-items" "center" ]
+                        [ input [ type_ "text", value user.uid, readonly True, style "flex" "1", style "padding" "8px" ] []
+                        , button [ onClick (CopyUserId user.uid), style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "📋 Kopiuj ID" ]
+                        ]
                     ]
                 , div [ style "margin-bottom" "20px" ]
                     [ h3 [] [ text "Przyznaj dostęp nowemu użytkownikowi" ]
@@ -941,7 +958,10 @@ memberItemView : String -> ( String, String ) -> Html Msg
 memberItemView apiaryId ( email, role ) =
     li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "10px", style "border-bottom" "1px solid #eee" ]
         [ span [] [ text (email ++ " (" ++ role ++ ")") ]
-        , button [ onClick (SubmitRemoveMember apiaryId email), style "background" "#e74c3c", style "color" "white", style "border" "none", style "padding" "4px 8px", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Cofnij dostęp" ]
+        , if role /= "owner" then
+            button [ onClick (SubmitRemoveMember apiaryId email), style "background" "#e74c3c", style "color" "white", style "border" "none", style "padding" "4px 8px", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Cofnij dostęp" ]
+          else
+            span [ style "font-size" "12px", style "color" "#7f8c8d" ] [ text "Właściciel (stały)" ]
         ]
 
 modalsView : Model -> Html Msg

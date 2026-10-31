@@ -298,3 +298,12 @@ app.ports.jsDeleteHive.subscribe(async ({ apiaryId, hiveId }) => {
         app.ports.operationError.send(error.message);
     }
 });
+
+app.ports.jsCopyText.subscribe(async (text) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        app.ports.operationError.send("Skopiowano identyfikator do schowka!");
+    } catch (e) {
+        app.ports.operationError.send("Nie udało się skopiować do schowka");
+    }
+});
