@@ -13,12 +13,6 @@ type alias Queen =
     , number : String
     }
 
-type alias HiveBody =
-    { frameCount : Int
-    , hasQueen : Bool
-    , hasExcluderAbove : Bool
-    }
-
 type alias Hive =
     { id : String
     , name : String
@@ -26,7 +20,6 @@ type alias Hive =
     , nfcTagId : String
     , queen : Queen
     , pollenTrap : String
-    , bodies : List HiveBody
     }
 
 type alias Note =
@@ -62,24 +55,16 @@ decodeQueen =
         (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
         (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
 
-decodeHiveBody : Decode.Decoder HiveBody
-decodeHiveBody =
-    Decode.map3 HiveBody
-        (Decode.field "frameCount" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 10))
-        (Decode.field "hasQueen" Decode.bool |> Decode.maybe |> Decode.map (Maybe.withDefault False))
-        (Decode.field "hasExcluderAbove" Decode.bool |> Decode.maybe |> Decode.map (Maybe.withDefault False))
-
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
     Decode.list
-        (Decode.map7 (\i n f nf q pt bs -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt, bodies = bs })
+        (Decode.map6 (\i n f nf q pt -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt })
             (Decode.field "id" Decode.string)
             (Decode.field "name" Decode.string)
             (Decode.field "frameType" Decode.string)
             (Decode.field "nfcTagId" Decode.string)
             (Decode.field "queen" decodeQueen)
             (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
-            (Decode.field "bodies" (Decode.list decodeHiveBody) |> Decode.maybe |> Decode.map (Maybe.withDefault [ { frameCount = 10, hasQueen = False, hasExcluderAbove = False } ]))
         )
 
 decodeApiaries : Decode.Decoder (List Apiary)
