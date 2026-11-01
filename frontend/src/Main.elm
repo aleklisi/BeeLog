@@ -144,6 +144,8 @@ port jsRemoveMember : { apiaryId : String, memberKey : String } -> Cmd msg
 port jsUpdateHiveName : { apiaryId : String, hiveId : String, newName : String } -> Cmd msg
 port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
 port jsCopyText : String -> Cmd msg
+port jsSaveApiaryOrders : List Apiary -> Cmd msg
+port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -154,6 +156,7 @@ port notesReceived : (Value -> msg) -> Sub msg
 port nfcScanned : (String -> msg) -> Sub msg
 port speechRecognized : (String -> msg) -> Sub msg
 port operationError : (String -> msg) -> Sub msg
+port successMessageReceived : (String -> msg) -> Sub msg
 
 -- MESSAGES
 
@@ -221,6 +224,7 @@ type Msg
     | SubmitHiveSnapshot String String User
     -- Feedback
     | HandleError String
+    | SuccessMessageReceived String
     | ClearMessages
 
 -- UPDATE
@@ -443,16 +447,44 @@ update msg model =
             )
 
         MoveApiaryUp id ->
-            ( { model | apiaries = moveUp id model.apiaries }, Cmd.none )
+            let
+                newApiaries = moveUp id model.apiaries
+            in
+            ( { model | apiaries = newApiaries }, jsSaveApiaryOrders newApiaries )
 
         MoveApiaryDown id ->
-            ( { model | apiaries = moveDown id model.apiaries }, Cmd.none )
+            let
+                newApiaries = moveDown id model.apiaries
+            in
+            ( { model | apiaries = newApiaries }, jsSaveApiaryOrders newApiaries )
 
         MoveHiveUp id ->
-            ( { model | hives = moveUp id model.hives }, Cmd.none )
+            let
+                newHives = moveUp id model.hives
+                maybeApiaryId = case model.viewState of
+                    HiveListView info -> Just info.apiaryId
+                    HiveDetailView info -> Just info.apiaryId
+                    SharingView info -> Just info.apiaryId
+                    _ -> Nothing
+                cmd = case maybeApiaryId of
+                    Just aid -> jsSaveHiveOrders { apiaryId = aid, hives = newHives }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = newHives }, cmd )
 
         MoveHiveDown id ->
-            ( { model | hives = moveDown id model.hives }, Cmd.none )
+            let
+                newHives = moveDown id model.hives
+                maybeApiaryId = case model.viewState of
+                    HiveListView info -> Just info.apiaryId
+                    HiveDetailView info -> Just info.apiaryId
+                    SharingView info -> Just info.apiaryId
+                    _ -> Nothing
+                cmd = case maybeApiaryId of
+                    Just aid -> jsSaveHiveOrders { apiaryId = aid, hives = newHives }
+                    Nothing -> Cmd.none
+            in
+            ( { model | hives = newHives }, cmd )
 
         UpdatePollenTrap apiaryId hiveId trap ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
@@ -480,6 +512,9 @@ update msg model =
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
+        SuccessMessageReceived successText ->
+            ( { model | successMessage = Just successText }, Cmd.none )
+
         ClearMessages ->
             ( { model | errorMessage = Nothing, successMessage = Nothing }, Cmd.none )
 
@@ -495,25 +530,59 @@ subscriptions _ =
         , nfcScanned NfcResultReceived
         , speechRecognized SpeechResultReceived
         , operationError HandleError
+        , successMessageReceived SuccessMessageReceived
         ]
 
 -- DECODERS
 
-decodeApiaries : Decode.Decoder (List Apiary)
-decodeApiaries =
-    Types.decodeApiaries
+decodeQueen : Decode.Decoder Queen
+decodeQueen =
+    Decode.map3 Queen
+        (Decode.field "hasOpalit"
+            (Decode.oneOf
+                [ Decode.bool
+                , Decode.string |> Decode.map (\s -> String.toLower s == "true")
+                , Decode.int |> Decode.map (\i -> i /= 0)
+                ]
+                |> Decode.nullable
+                |> Decode.map (Maybe.withDefault False)
+            )
+        )
+        (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
 
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
-    Types.decodeHives
+    Decode.list
+        (Decode.map6 (\i n f nf q pt -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt })
+            (Decode.field "id" Decode.string)
+            (Decode.field "name" Decode.string)
+            (Decode.field "frameType" Decode.string)
+            (Decode.field "nfcTagId" Decode.string)
+            (Decode.field "queen" decodeQueen)
+            (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
+        )
 
-decodeQueen : Decode.Decoder Queen
-decodeQueen =
-    Types.decodeQueen
+decodeApiaries : Decode.Decoder (List Apiary)
+decodeApiaries =
+    Decode.list
+        (Decode.map4 Apiary
+            (Decode.field "id" Decode.string)
+            (Decode.field "name" Decode.string)
+            (Decode.field "adminId" Decode.string)
+            (Decode.field "members" (Decode.keyValuePairs Decode.string))
+        )
 
 decodeNotes : Decode.Decoder (List Note)
 decodeNotes =
-    Types.decodeNotes
+    Decode.list
+        (Decode.map5 Note
+            (Decode.field "id" Decode.string)
+            (Decode.field "text" Decode.string)
+            (Decode.field "authorId" Decode.string)
+            (Decode.field "authorEmail" Decode.string)
+            (Decode.field "timestamp" Decode.string)
+        )
 
 -- VIEW
 
@@ -706,9 +775,11 @@ hiveDetailView user info model =
                         , input [ type_ "text", value hive.name, onInput (\val -> UpdateHiveField info.apiaryId hive.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
                         , label [] [ text "Typ Ramki:" ]
                         , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "frameType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
-                            [ option [ value "Wielkopolskie", selected (hive.frameType == "Wielkopolskie") ] [ text "Wielkopolskie" ]
-                            , option [ value "Wielkopolskie 18", selected (hive.frameType == "Wielkopolskie 18") ] [ text "Wielkopolskie 18" ]
-                            , option [ value "Wielkopolskie 1/2", selected (hive.frameType == "Wielkopolskie 1/2") ] [ text "Wielkopolskie 1/2" ]
+                            [ option [ value "Wielkopolska", selected (hive.frameType == "Wielkopolska") ] [ text "Wielkopolska" ]
+                            , option [ value "Wielkopolska 18", selected (hive.frameType == "Wielkopolska 18") ] [ text "Wielkopolska 18" ]
+                            , option [ value "Wielkopolska 1/2", selected (hive.frameType == "Wielkopolska 1/2") ] [ text "Wielkopolska 1/2" ]
+                            , option [ value "Warszawska zwykła", selected (hive.frameType == "Warszawska zwykła") ] [ text "Warszawska zwykła" ]
+                            , option [ value "MiniPlus", selected (hive.frameType == "MiniPlus") ] [ text "MiniPlus" ]
                             ]
                         , label [] [ text "Poławiacz pyłku:" ]
                         , select [ onInput (\val -> UpdatePollenTrap info.apiaryId hive.id val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
@@ -889,10 +960,11 @@ modalsView model =
                     , input [ type_ "text", placeholder "np. Ul #04", value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box" ] []
                     , label [] [ text "Typ ramki:" ]
                     , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ]
-                        [ option [ value "Dadant" ] [ text "Dadant" ]
-                        , option [ value "Wielkopolski" ] [ text "Wielkopolski" ]
-                        , option [ value "Langstroth" ] [ text "Langstroth" ]
-                        , option [ value "Warszawski" ] [ text "Warszawski poszerzany" ]
+                        [ option [ value "Wielkopolska" ] [ text "Wielkopolska" ]
+                        , option [ value "Wielkopolska 18" ] [ text "Wielkopolska 18" ]
+                        , option [ value "Wielkopolska 1/2" ] [ text "Wielkopolska 1/2" ]
+                        , option [ value "Warszawska zwykła" ] [ text "Warszawska zwykła" ]
+                        , option [ value "MiniPlus" ] [ text "MiniPlus" ]
                         ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]

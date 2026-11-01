@@ -45,18 +45,30 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
             const apiaries = [];
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
-                // Check if user is admin or member
                 if (data.adminId === uid || (data.members && data.members[uid])) {
                     apiaries.push({
                         id: docSnap.id,
                         name: data.name || "",
                         adminId: data.adminId || "",
-                        members: data.members || {}
+                        members: data.members || {},
+                        order: data.order !== undefined ? data.order : 0
                     });
                 }
             });
+            apiaries.sort((a, b) => a.order - b.order);
             app.ports.apiariesReceived.send(apiaries);
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsSaveApiaryOrders.subscribe(async (apiaries) => {
+    try {
+        for (let i = 0; i < apiaries.length; i++) {
+            const docRef = doc(db, "apiaries", apiaries[i].id);
+            await updateDoc(docRef, { order: i });
+        }
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -69,7 +81,8 @@ app.ports.jsCreateApiary.subscribe(async ({ name, uid }) => {
             adminId: uid,
             members: {
                 [uid]: "owner"
-            }
+            },
+            order: 0
         });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -103,13 +116,27 @@ app.ports.jsLoadHives.subscribe(async ({ apiaryId }) => {
                 hives.push({
                     id: docSnap.id,
                     name: data.name || "",
-                    frameType: data.frameType || "Wielkopolskie",
+                    frameType: data.frameType || "Wielkopolska",
                     nfcTagId: data.nfcTagId || "",
-                    queen: data.queen || { hasOpalit: false, color: "biały", number: "" }
+                    queen: data.queen || { hasOpalit: false, color: "biały", number: "" },
+                    pollenTrap: data.pollenTrap || "brak",
+                    order: data.order !== undefined ? data.order : 0
                 });
             });
+            hives.sort((a, b) => a.order - b.order);
             app.ports.hivesReceived.send(hives);
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsSaveHiveOrders.subscribe(async ({ apiaryId, hives }) => {
+    try {
+        for (let i = 0; i < hives.length; i++) {
+            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hives[i].id);
+            await updateDoc(docRef, { order: i });
+        }
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -123,19 +150,8 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
             nfcTagId: "",
             queen: { hasOpalit: false, color: "biały", number: "" },
             pollenTrap: "brak",
-            bodies: [
-                { frameCount: 10, hasQueen: false, hasExcluderAbove: false }
-            ]
+            order: 0
         });
-    } catch (error) {
-        app.ports.operationError.send(error.message);
-    }
-});
-
-app.ports.jsUpdateHiveBodies.subscribe(async ({ apiaryId, hiveId, bodies }) => {
-    try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
-        await updateDoc(docRef, { bodies: bodies });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -182,7 +198,6 @@ app.ports.jsStartNfcScan.subscribe(async () => {
                         break;
                     }
                 }
-                // Also send serial number if available
                 if (event.serialNumber) {
                     app.ports.nfcScanned.send(event.serialNumber);
                 }
@@ -251,14 +266,12 @@ app.ports.jsSaveNote.subscribe(async ({ apiaryId, hiveId, text, authorId, author
 
 app.ports.jsShareApiary.subscribe(async ({ apiaryId, email, role }) => {
     try {
-        // Find user by email or update members map with email as key/value or lookup uid.
-        // For simplicity, store email in members or lookup in users collection.
         const docRef = doc(db, "apiaries", apiaryId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
             const members = data.members || {};
-            members[email] = role; // Using email as key for simplicity in sharing
+            members[email] = role;
             await updateDoc(docRef, { members: members });
         }
     } catch (error) {
@@ -301,9 +314,24 @@ app.ports.jsDeleteHive.subscribe(async ({ apiaryId, hiveId }) => {
 
 app.ports.jsCopyText.subscribe(async (text) => {
     try {
-        await navigator.clipboard.writeText(text);
-        app.ports.operationError.send("Skopiowano identyfikator do schowka!");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+        if (app.ports.successMessageReceived) {
+            app.ports.successMessageReceived.send("Skopiowano ID pasiecznika do schowka!");
+        } else {
+            alert("Skopiowano ID do schowka: " + text);
+        }
     } catch (e) {
-        app.ports.operationError.send("Nie udało się skopiować do schowka");
+        prompt("Skopiuj ID pasiecznika (zaznacz i skopiuj):", text);
     }
 });
