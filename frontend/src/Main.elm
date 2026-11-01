@@ -499,7 +499,7 @@ update msg model =
                     Just hive -> hiveSnapshotText hive
                     Nothing -> "Brak danych ula"
             in
-            ( model
+            ( { model | successMessage = Just "📸 Zapisano zrzut ula jako notatkę!" }
             , jsSaveNote
                 { apiaryId = apiaryId
                 , hiveId = hiveId
