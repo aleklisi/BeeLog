@@ -1050,9 +1050,9 @@ hiveSnapshotText hive =
     in
     String.join "\n"
         [ "📸 Zrzut Stanu Ula:"
-        , "• Nazwa: " ++ hive.name
-        , "• Typ ramki: " ++ hive.frameType
-        , "• Poławiacz pyłku: " ++ pollenText
-        , "• Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)
-        , "• Matka pszczela (opalitek): " ++ opalitText
+        , "Nazwa: " ++ hive.name
+        , "Typ ramki: " ++ hive.frameType
+        , "Poławiacz pyłku: " ++ pollenText
+        , "Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)
+        , "Matka pszczela (opalitek): " ++ opalitText
         ]
