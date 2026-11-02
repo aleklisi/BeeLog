@@ -20,6 +20,7 @@ type alias Hive =
     , nfcTagId : String
     , queen : Queen
     , pollenTrap : String
+    , order : Int
     }
 
 type alias Note =
@@ -35,6 +36,7 @@ type alias Apiary =
     , name : String
     , adminId : String
     , members : List ( String, String )
+    , order : Int
     }
 
 -- DECODERS
@@ -58,23 +60,25 @@ decodeQueen =
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
     Decode.list
-        (Decode.map6 (\i n f nf q pt -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt })
+        (Decode.map7 (\i n f nf q pt o -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt, order = o })
             (Decode.field "id" Decode.string)
             (Decode.field "name" Decode.string)
             (Decode.field "frameType" Decode.string)
             (Decode.field "nfcTagId" Decode.string)
             (Decode.field "queen" decodeQueen)
             (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
+            (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
         )
 
 decodeApiaries : Decode.Decoder (List Apiary)
 decodeApiaries =
     Decode.list
-        (Decode.map4 Apiary
+        (Decode.map5 (\i n a m o -> { id = i, name = n, adminId = a, members = m, order = o })
             (Decode.field "id" Decode.string)
             (Decode.field "name" Decode.string)
             (Decode.field "adminId" Decode.string)
             (Decode.field "members" (Decode.keyValuePairs Decode.string))
+            (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
         )
 
 decodeNotes : Decode.Decoder (List Note)

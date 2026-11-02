@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "vite build && cp -r dist/frontend/* dist/ && rm -rf dist/frontend",
     "preview": "vite preview",
-    "test": "cd frontend && elm-test"
+    "test:elm": "cd frontend && elm-test",
+    "test:e2e": "npx playwright test",
+    "test": "npm run test:elm && npm run test:e2e"
   },
   "repository": {
     "type": "git",
@@ -28,6 +30,7 @@
     "firebase": "^13.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "vite": "^8.3.5",
     "vite-plugin-elm": "^3.0.1"
   }

@@ -2,23 +2,28 @@ name: Elm Tests CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Install dependencies
+      - name: Setup Elm
+        uses: jcollion/setup-elm@v4
+        with:
+          elm-version: '0.19.1'
+
+      - name: Install Node dependencies
         run: npm install
 
-      - name: Run Elm Tests
-        run: npm test
+      - name: Run Elm Tests via Makefile
+        run: make elm_test

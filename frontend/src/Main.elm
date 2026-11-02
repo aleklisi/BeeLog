@@ -598,7 +598,7 @@ view model =
         , notificationsView model
         , case model.authState of
             LoggedOut ->
-                loginView
+                loginView model
 
             LoggedIn user ->
                 case model.viewState of
@@ -641,11 +641,11 @@ darkModeToggleView darkMode =
 headerView : Model -> Html Msg
 headerView model =
     div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "border-bottom" "1px solid #ddd", style "padding-bottom" "10px", style "margin-bottom" "20px" ]
-        [ h1 [ style "margin" "0", style "color" " #2c3e50" ] [ text "BeeLog 🐝" ]
+        [ h1 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "#2c3e50") ] [ text "BeeLog 🐝" ]
         , case model.authState of
             LoggedIn user ->
                 div [ style "display" "flex", style "align-items" "center", style "gap" "10px" ]
-                    [ span [ style "font-size" "14px", style "color" "#666" ] [ text user.email ]
+                    [ span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text user.email ]
                     , button [ onClick ClickLogout, style "padding" "6px 12px", style "background-color" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Wyloguj się" ]
                     ]
             LoggedOut ->
@@ -673,11 +673,16 @@ notificationsView model =
                 text ""
         ]
 
-loginView : Html Msg
-loginView =
-    div [ style "text-align" "center", style "padding" "40px", style "background" "white", style "border-radius" "8px", style "box-shadow" "0 2px 4px rgba(0,0,0,0.1)" ]
-        [ h2 [] [ text "Witaj w BeeLog" ]
-        , p [ style "color" "666", style "margin-bottom" "30px" ] [ text "Zarządzaj pasieką, ulami i notatkami głosowymi w terenie." ]
+loginView : Model -> Html Msg
+loginView model =
+    let
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+    in
+    div [ style "text-align" "center", style "padding" "40px", style "background" cardBg, style "color" textColor, style "border-radius" "8px", style "box-shadow" "0 2px 4px rgba(0,0,0,0.1)" ]
+        [ h2 [ style "color" headingColor ] [ text "Witaj w BeeLog" ]
+        , p [ style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin-bottom" "30px" ] [ text "Zarządzaj pasieką, ulami i notatkami głosowymi w terenie." ]
         , button [ onClick ClickLoginGoogle, style "padding" "12px 24px", style "background-color" "#4285F4", style "color" "white", style "border" "none", style "border-radius" "4px", style "font-size" "16px", style "cursor" "pointer" ] [ text "Zaloguj przez Google" ]
         ]
 
@@ -685,24 +690,28 @@ apiariesView : User -> Model -> Html Msg
 apiariesView user model =
     div []
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "20px" ]
-            [ h2 [ style "margin" "0" ] [ text "Twoje Pasieczyska" ]
+            [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text "Twoje Pasieczyska" ]
             , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Pasieczysko" ]
             ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (apiaryCardView user) model.apiaries)
+            (List.map (apiaryCardView user model) model.apiaries)
         ]
 
-apiaryCardView : User -> Apiary -> Html Msg
-apiaryCardView user apiary =
+apiaryCardView : User -> Model -> Apiary -> Html Msg
+apiaryCardView user model apiary =
     let
         isAdmin = apiary.adminId == user.uid
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        borderColor = if model.darkMode then "#333" else "#eee"
     in
-    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" "#333" ]
+    div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor ]
         [ div [ onClick (NavigateTo (HiveListView { apiaryId = apiary.id, apiaryName = apiary.name })) ]
-            [ h3 [ style "margin-top" "0", style "color" "#2c3e50" ] [ text apiary.name ]
-            , p [ style "font-size" "12px", style "color" "#7f8c8d" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
+            [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text apiary.name ]
+            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
             ]
-        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
+        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryUp apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
                 , button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryDown apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
@@ -725,26 +734,33 @@ hiveListView user info model =
     div []
         [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
             [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
-            , h2 [ style "margin" "0" ] [ text ("Pasieka: " ++ info.apiaryName) ]
+            , h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text ("Pasieka: " ++ info.apiaryName) ]
             ]
         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "20px" ]
             [ button [ onClick OpenNewHiveModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Nowy Ul" ]
             ]
         , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(220px, 1fr))", style "gap" "15px" ]
-            (List.map (hiveCardView info.apiaryId) model.hives)
+            (List.map (hiveCardView info.apiaryId model) model.hives)
         ]
 
-hiveCardView : String -> Hive -> Html Msg
-hiveCardView apiaryId hive =
-    div [ style "background" "white", style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" "#333"
+hiveCardView : String -> Model -> Hive -> Html Msg
+hiveCardView apiaryId model hive =
+    let
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        borderColor = if model.darkMode then "#333" else "#eee"
+        metaBg = if model.darkMode then "#2d2d2d" else "#f1f2f6"
+    in
+    div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor
         , onClick (NavigateTo (HiveDetailView { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name }))
         ]
-        [ h3 [ style "margin-top" "0", style "color" "#2c3e50" ] [ text hive.name ]
-        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" "#555" ] [ text ("Typ ramki: " ++ hive.frameType) ]
-        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" "#555" ] [ text ("Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)) ]
-        , div [ style "margin-top" "10px", style "font-size" "12px", style "background" "#f1f2f6", style "padding" "5px", style "border-radius" "4px", style "color" "#333" ]
+        [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text hive.name ]
+        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text ("Typ ramki: " ++ hive.frameType) ]
+        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text ("Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)) ]
+        , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "5px", style "border-radius" "4px", style "color" textColor ]
             [ text ("Matka: " ++ (if hive.queen.hasOpalit then "Opalitek " ++ hive.queen.color ++ " #" ++ hive.queen.number else "Brak opalitka")) ]
-        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" "1px solid #eee", style "padding-top" "10px" ]
+        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (MoveHiveUp hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
                 , button [ stopPropagationOn "click" (Decode.succeed (MoveHiveDown hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
@@ -760,21 +776,27 @@ hiveDetailView : User -> { apiaryId : String, hiveId : String, hiveName : String
 hiveDetailView user info model =
     let
         maybeHive = List.head (List.filter (\h -> h.id == info.hiveId) model.hives)
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
     in
     case maybeHive of
         Just hive ->
-            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" "#333" ]
+            div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
                     [ button [ onClick (NavigateTo (HiveListView { apiaryId = info.apiaryId, apiaryName = "Pasieka" })), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
-                    , h2 [ style "margin" "0" ] [ text ("Karta Ula: " ++ hive.name) ]
+                    , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Karta Ula: " ++ hive.name) ]
                     ]
                 , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
                     [ div []
-                        [ h3 [] [ text "Dane Techniczne" ]
+                        [ h3 [ style "color" headingColor ] [ text "Dane Techniczne" ]
                         , label [] [ text "Nazwa Ula:" ]
-                        , input [ type_ "text", value hive.name, onInput (\val -> UpdateHiveField info.apiaryId hive.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
+                        , input [ type_ "text", value hive.name, onInput (\val -> UpdateHiveField info.apiaryId hive.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , label [] [ text "Typ Ramki:" ]
-                        , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "frameType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                        , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "frameType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                             [ option [ value "Wielkopolska", selected (hive.frameType == "Wielkopolska") ] [ text "Wielkopolska" ]
                             , option [ value "Wielkopolska 18", selected (hive.frameType == "Wielkopolska 18") ] [ text "Wielkopolska 18" ]
                             , option [ value "Wielkopolska 1/2", selected (hive.frameType == "Wielkopolska 1/2") ] [ text "Wielkopolska 1/2" ]
@@ -782,28 +804,28 @@ hiveDetailView user info model =
                             , option [ value "MiniPlus", selected (hive.frameType == "MiniPlus") ] [ text "MiniPlus" ]
                             ]
                         , label [] [ text "Poławiacz pyłku:" ]
-                        , select [ onInput (\val -> UpdatePollenTrap info.apiaryId hive.id val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                        , select [ onInput (\val -> UpdatePollenTrap info.apiaryId hive.id val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                             [ option [ value "brak", selected (hive.pollenTrap == "brak") ] [ text "Brak" ]
                             , option [ value "powałkowy", selected (hive.pollenTrap == "powałkowy") ] [ text "Powałkowy" ]
                             , option [ value "dennicowy", selected (hive.pollenTrap == "dennicowy") ] [ text "Dennicowy" ]
                             ]
                         , label [] [ text "Tag NFC:" ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
-                            [ input [ type_ "text", value hive.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px" ] []
+                            [ input [ type_ "text", value hive.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             , button [ onClick StartNfcScan, style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🔗 Przypisz NFC" ]
                             ]
                         ]
                     , div []
-                        [ h3 [] [ text "Matka Pszczela" ]
+                        [ h3 [ style "color" headingColor ] [ text "Matka Pszczela" ]
                         , label [] [ text "Obecność Opalitka:" ]
-                        , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.hasOpalit" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                        , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.hasOpalit" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                             [ option [ value "true", selected hive.queen.hasOpalit ] [ text "Tak (Opalitka)" ]
                             , option [ value "false", selected (not hive.queen.hasOpalit) ] [ text "Nie / Czarny opalitek" ]
                             ]
                         , if hive.queen.hasOpalit then
                             div []
                                 [ label [] [ text "Kolor Opalitka:" ]
-                                , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.color" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ]
+                                , select [ onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.color" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                     [ option [ value "Biały", selected (hive.queen.color == "Biały") ] [ text "Biały" ]
                                     , option [ value "Żółty", selected (hive.queen.color == "Żółty") ] [ text "Żółty" ]
                                     , option [ value "Czerwony", selected (hive.queen.color == "Czerwony") ] [ text "Czerwony" ]
@@ -811,16 +833,16 @@ hiveDetailView user info model =
                                     , option [ value "Niebieski", selected (hive.queen.color == "Niebieski") ] [ text "Niebieski" ]
                                     ]
                                 , label [] [ text "Numer Opalitka:" ]
-                                , input [ type_ "text", value hive.queen.number, onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px" ] []
+                                , input [ type_ "text", value hive.queen.number, onInput (\val -> UpdateHiveField info.apiaryId hive.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                 ]
                           else
                             text ""
                         ]
                     ]
                 , hr [] []
-                , h3 [] [ text "Notatki" ]
+                , h3 [ style "color" headingColor ] [ text "Notatki" ]
                 , div [ style "margin-bottom" "15px" ]
-                    [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px" ] []
+                    [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px" ]
                         [ button [ onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🎤 Dyktuj" ]
                         , button [ onClick (SubmitSaveNote info.apiaryId hive.id model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
@@ -837,10 +859,15 @@ noteItemView : String -> String -> Model -> Note -> Html Msg
 noteItemView apiaryId hiveId model note =
     let
         isEditing = model.editingNoteId == Just note.id
+        cardBg = if model.darkMode then "#242424" else "#f8f9f9"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
     in
-    div [ style "background" "#f8f9f9", style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "10px", style "border-left" "4px solid #27ae60", style "color" "#333" ]
+    div [ style "background" cardBg, style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "10px", style "border-left" "4px solid #27ae60", style "color" textColor ]
         (if isEditing then
-            [ textarea [ value model.editNoteText, onInput UpdateEditNoteText, style "width" "100%", style "height" "60px", style "padding" "6px", style "margin-bottom" "8px" ] []
+            [ textarea [ value model.editNoteText, onInput UpdateEditNoteText, style "width" "100%", style "height" "60px", style "padding" "6px", style "margin-bottom" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
             , div [ style "display" "flex", style "gap" "8px" ]
                 [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id), style "padding" "4px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
                 , button [ onClick CancelEditNote, style "padding" "4px 10px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
@@ -848,7 +875,7 @@ noteItemView apiaryId hiveId model note =
             ]
          else
             [ p [ style "margin" "0 0 5px 0" ] [ text note.text ]
-            , div [ style "font-size" "11px", style "color" "#7f8c8d", style "display" "flex", style "justify-content" "space-between", style "align-items" "center" ]
+            , div [ style "font-size" "11px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "display" "flex", style "justify-content" "space-between", style "align-items" "center" ]
                 [ div []
                     [ span [ style "margin-right" "10px" ] [ text ("Autor: " ++ note.authorEmail) ]
                     , span [] [ text note.timestamp ]
@@ -865,57 +892,75 @@ sharingView : User -> { apiaryId : String, apiaryName : String } -> Model -> Htm
 sharingView user info model =
     let
         maybeApiary = List.head (List.filter (\a -> a.id == info.apiaryId) model.apiaries)
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
+        metaBg = if model.darkMode then "#2d2d2d" else "#f1f2f6"
     in
     case maybeApiary of
         Just apiary ->
-            div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" "#333" ]
+            div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
                     [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
-                    , h2 [ style "margin" "0" ] [ text ("Udostępnianie pasieki: " ++ info.apiaryName) ]
+                    , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Udostępnianie pasieki: " ++ info.apiaryName) ]
                     ]
-                , div [ style "margin-bottom" "20px", style "padding" "15px", style "background" "#f1f2f6", style "border-radius" "6px" ]
-                    [ h3 [ style "margin-top" "0" ] [ text "Identyfikator Pasiecznika (Właściciela)" ]
+                , div [ style "margin-bottom" "20px", style "padding" "15px", style "background" metaBg, style "border-radius" "6px" ]
+                    [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text "Identyfikator Pasiecznika (Właściciela)" ]
                     , div [ style "display" "flex", style "gap" "10px", style "align-items" "center" ]
-                        [ input [ type_ "text", value user.uid, readonly True, style "flex" "1", style "padding" "8px" ] []
+                        [ input [ type_ "text", value user.uid, readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , button [ onClick (CopyUserId user.uid), style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "📋 Kopiuj ID" ]
                         ]
                     ]
                 , div [ style "margin-bottom" "20px" ]
-                    [ h3 [] [ text "Przyznaj dostęp nowemu użytkownikowi" ]
+                    [ h3 [ style "color" headingColor ] [ text "Przyznaj dostęp nowemu użytkownikowi" ]
                     , div [ style "display" "flex", style "gap" "10px" ]
-                        [ input [ type_ "email", placeholder "Adres e-mail użytkownika", value model.shareEmailInput, onInput UpdateShareEmail, style "flex" "1", style "padding" "8px" ] []
-                        , select [ value model.shareRoleInput, onInput UpdateShareRole, style "padding" "8px" ]
+                        [ input [ type_ "email", placeholder "Adres e-mail użytkownika", value model.shareEmailInput, onInput UpdateShareEmail, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                        , select [ value model.shareRoleInput, onInput UpdateShareRole, style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                             [ option [ value "edit" ] [ text "Edytor" ]
                             , option [ value "view" ] [ text "Tylko podgląd" ]
                             ]
                         , button [ onClick (SubmitShareApiary info.apiaryId model.shareEmailInput model.shareRoleInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Przyznaj dostęp" ]
                         ]
                     ]
-                , h3 [] [ text "Aktualni członkowie i uprawnienia" ]
+                , h3 [ style "color" headingColor ] [ text "Aktualni członkowie i uprawnienia" ]
                 , ul [ style "list-style" "none", style "padding" "0" ]
-                    (List.map (memberItemView info.apiaryId) apiary.members)
+                    (List.map (memberItemView model info.apiaryId) apiary.members)
                 ]
         _ ->
             div [] [ text "Ładowanie pasieki..." ]
 
-memberItemView : String -> ( String, String ) -> Html Msg
-memberItemView apiaryId ( email, role ) =
-    li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "10px", style "border-bottom" "1px solid #eee" ]
+memberItemView : Model -> String -> ( String, String ) -> Html Msg
+memberItemView model apiaryId ( email, role ) =
+    let
+        borderColor = if model.darkMode then "#333" else "#eee"
+    in
+    li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "10px", style "border-bottom" ("1px solid " ++ borderColor) ]
         [ span [] [ text (email ++ " (" ++ role ++ ")") ]
         , if role /= "owner" then
             button [ onClick (SubmitRemoveMember apiaryId email), style "background" "#e74c3c", style "color" "white", style "border" "none", style "padding" "4px 8px", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Cofnij dostęp" ]
           else
-            span [ style "font-size" "12px", style "color" "#7f8c8d" ] [ text "Właściciel (stały)" ]
+            span [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text "Właściciel (stały)" ]
         ]
 
 modalsView : Model -> Html Msg
 modalsView model =
+    let
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
+    in
     div []
         [ if model.showNewApiaryModal then
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px" ]
-                    [ h3 [] [ text "Nowe Pasieczysko" ]
-                    , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ] []
+                [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                    [ h3 [ style "color" headingColor ] [ text "Nowe Pasieczysko" ]
+                    , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                         , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
@@ -927,9 +972,9 @@ modalsView model =
         , case model.showEditApiaryModal of
             Just apiary ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px" ]
-                        [ h3 [] [ text "Edytuj Nazwę Pasieczyska" ]
-                        , input [ type_ "text", value model.editApiaryNameInput, onInput UpdateEditApiaryNameInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ] []
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Edytuj Nazwę Pasieczyska" ]
+                        , input [ type_ "text", value model.editApiaryNameInput, onInput UpdateEditApiaryNameInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                             , button [ onClick SubmitUpdateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
@@ -941,8 +986,8 @@ modalsView model =
         , case model.showDeleteApiaryModal of
             Just apiary ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px" ]
-                        [ h3 [] [ text "Usuń Pasieczysko" ]
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Usuń Pasieczysko" ]
                         , p [] [ text ("Czy na pewno chcesz usunąć pasieczysko \"" ++ apiary.name ++ "\" wraz ze wszystkimi ulami i notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
@@ -954,12 +999,12 @@ modalsView model =
                 text ""
         , if model.showNewHiveModal then
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px" ]
-                    [ h3 [] [ text "Nowy Ul" ]
+                [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                    [ h3 [ style "color" headingColor ] [ text "Nowy Ul" ]
                     , label [] [ text "Nazwa / Numer ula:" ]
-                    , input [ type_ "text", placeholder "np. Ul #04", value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box" ] []
+                    , input [ type_ "text", placeholder "np. Ul #04", value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , label [] [ text "Typ ramki:" ]
-                    , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ]
+                    , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                         [ option [ value "Wielkopolska" ] [ text "Wielkopolska" ]
                         , option [ value "Wielkopolska 18" ] [ text "Wielkopolska 18" ]
                         , option [ value "Wielkopolska 1/2" ] [ text "Wielkopolska 1/2" ]
@@ -981,9 +1026,9 @@ modalsView model =
         , case model.showRenameHiveModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" "#333" ]
-                        [ h3 [] [ text "Zmień nazwę ula" ]
-                        , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box" ] []
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Zmień nazwę ula" ]
+                        , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                             , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
@@ -995,8 +1040,8 @@ modalsView model =
         , case model.showDeleteHiveModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                    [ div [ style "background" "white", style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" "#333" ]
-                        [ h3 [] [ text "Usuń ul" ]
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Usuń ul" ]
                         , p [] [ text ("Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
