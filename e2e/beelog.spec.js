@@ -142,4 +142,52 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('h3:has-text("Ul 3")')).not.toBeVisible();
   });
 
+  test('7. Trutowisko i Uliki Weselne', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Trutowisko
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Testowe');
+    await page.selectOption('select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Trutowisko Testowe')).toBeVisible();
+
+    // Wejdź do trutowiska
+    await page.click('text=Trutowisko Testowe');
+    await expect(page.locator('text=Trutowisko: Trutowisko Testowe')).toBeVisible();
+
+    // Dodaj Ulik Weselny
+    await page.click('text=+ Dodaj Ulik Weselny');
+    await page.fill('input[placeholder="np. Ulik #01"]', 'Ulik 1');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ulik 1')).toBeVisible();
+
+    // Wejdź do szczegółów uliku
+    await page.click('text=Ulik 1');
+    await expect(page.locator('text=Ulik Weselny: Ulik 1')).toBeVisible();
+
+    // Test przejść stanów
+    await expect(page.locator('text=Aktualny stan: (1) Bezmatek')).toBeVisible();
+    await page.click('text=➕ Poddano matecznik (2)');
+    await expect(page.locator('text=Aktualny stan: (2) Z matecznikiem')).toBeVisible();
+
+    await page.click('text=🦋 Matka się wygryzła (3)');
+    await expect(page.locator('text=Aktualny stan: (3) Matka wygryziona ale nie unasienniona')).toBeVisible();
+
+    await page.click('text=👑 Matka się unasienniła (4)');
+    await expect(page.locator('text=Aktualny stan: (4) Matka czerwi')).toBeVisible();
+
+    // Zrzut uliku
+    await page.click('text=📸 Zrzut Uliku');
+    await expect(page.locator('text=Zrzut Stanu Uliku Weselnego')).toBeVisible();
+  });
+
 });

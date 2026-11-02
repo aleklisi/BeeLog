@@ -97,6 +97,7 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
                     apiaries.push({
                         id: docSnap.id,
                         name: data.name || "",
+                        apiaryType: data.apiaryType || "towarowe",
                         adminId: data.adminId || "",
                         members: data.members || {},
                         order: data.order !== undefined ? data.order : 0
@@ -129,12 +130,13 @@ app.ports.jsSaveApiaryOrders.subscribe(async (apiaries) => {
     }
 });
 
-app.ports.jsCreateApiary.subscribe(async ({ name, uid }) => {
+app.ports.jsCreateApiary.subscribe(async ({ name, apiaryType, uid }) => {
     if (window.__E2E__) {
         const state = getE2EState();
         state.apiaries.push({
             id: 'apiary-' + Math.random().toString(36).substr(2, 9),
             name: name,
+            apiaryType: apiaryType || "towarowe",
             adminId: uid,
             members: { [uid]: 'owner' },
             order: state.apiaries.length
@@ -146,12 +148,168 @@ app.ports.jsCreateApiary.subscribe(async ({ name, uid }) => {
     try {
         await addDoc(collection(db, "apiaries"), {
             name: name,
+            apiaryType: apiaryType || "towarowe",
             adminId: uid,
             members: {
                 [uid]: "owner"
             },
             order: 0
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsLoadUliki.subscribe(async ({ apiaryId }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (!state.uliki) state.uliki = {};
+        app.ports.ulikiReceived.send(state.uliki[apiaryId] || []);
+        return;
+    }
+    try {
+        const q = collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki");
+        onSnapshot(q, (snapshot) => {
+            const uliki = [];
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                uliki.push({
+                    id: docSnap.id,
+                    name: data.name || "",
+                    hiveType: data.hiveType || "Mini plus",
+                    hasQueen: !!data.hasQueen,
+                    queen: data.queen || { breedLine: "", hasOpalit: false, color: "", number: "" },
+                    state: data.state || "bezmatek",
+                    nfcTagId: data.nfcTagId || "",
+                    order: data.order !== undefined ? data.order : 0
+                });
+            });
+            uliki.sort((a, b) => a.order - b.order);
+            app.ports.ulikiReceived.send(uliki);
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsSaveUlikOrders.subscribe(async ({ apiaryId, uliki }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (!state.uliki) state.uliki = {};
+        state.uliki[apiaryId] = uliki;
+        saveE2EState(state);
+        app.ports.ulikiReceived.send(state.uliki[apiaryId]);
+        return;
+    }
+    try {
+        for (let i = 0; i < uliki.length; i++) {
+            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", uliki[i].id);
+            await updateDoc(docRef, { order: i });
+        }
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsCreateUlik.subscribe(async ({ apiaryId, name, hiveType }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (!state.uliki) state.uliki = {};
+        if (!state.uliki[apiaryId]) state.uliki[apiaryId] = [];
+        state.uliki[apiaryId].push({
+            id: 'ulik-' + Math.random().toString(36).substr(2, 9),
+            name: name,
+            hiveType: hiveType || "Mini plus",
+            hasQueen: false,
+            queen: { breedLine: "", hasOpalit: false, color: "", number: "" },
+            state: "bezmatek",
+            nfcTagId: "",
+            order: state.uliki[apiaryId].length
+        });
+        saveE2EState(state);
+        app.ports.ulikiReceived.send(state.uliki[apiaryId]);
+        return;
+    }
+    try {
+        await addDoc(collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki"), {
+            name: name,
+            hiveType: hiveType || "Mini plus",
+            hasQueen: false,
+            queen: { breedLine: "", hasOpalit: false, color: "", number: "" },
+            state: "bezmatek",
+            nfcTagId: "",
+            order: 0
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateUlik.subscribe(async ({ apiaryId, ulikId, field, value }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (state.uliki && state.uliki[apiaryId]) {
+            state.uliki[apiaryId] = state.uliki[apiaryId].map(u => {
+                if (u.id === ulikId) {
+                    if (field.startsWith('queen.')) {
+                        const qField = field.split('.')[1];
+                        return { ...u, queen: { ...u.queen, [qField]: value } };
+                    }
+                    if (field === 'hasOpalit' || field === 'hasQueen') {
+                        const boolVal = value === true || value === "true";
+                        return { ...u, [field]: boolVal };
+                    }
+                    return { ...u, [field]: value };
+                }
+                return u;
+            });
+            saveE2EState(state);
+            app.ports.ulikiReceived.send(state.uliki[apiaryId]);
+        }
+        return;
+    }
+    try {
+        let val = value;
+        if (field === 'hasOpalit' || field === 'hasQueen') {
+            val = value === true || value === "true";
+        }
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId);
+        await updateDoc(docRef, { [field]: val });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateUlikName.subscribe(async ({ apiaryId, ulikId, newName }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (state.uliki && state.uliki[apiaryId]) {
+            state.uliki[apiaryId] = state.uliki[apiaryId].map(u => u.id === ulikId ? { ...u, name: newName } : u);
+            saveE2EState(state);
+            app.ports.ulikiReceived.send(state.uliki[apiaryId]);
+        }
+        return;
+    }
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId);
+        await updateDoc(docRef, { name: newName });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteUlik.subscribe(async ({ apiaryId, ulikId }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (state.uliki && state.uliki[apiaryId]) {
+            state.uliki[apiaryId] = state.uliki[apiaryId].filter(u => u.id !== ulikId);
+            saveE2EState(state);
+            app.ports.ulikiReceived.send(state.uliki[apiaryId]);
+        }
+        return;
+    }
+    try {
+        await deleteDoc(doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId));
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

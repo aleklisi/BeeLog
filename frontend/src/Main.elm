@@ -18,11 +18,6 @@ main =
 
 -- MODEL
 
-type alias User =
-    { uid : String
-    , email : String
-    }
-
 type AuthState
     = LoggedOut
     | LoggedIn User
@@ -32,43 +27,16 @@ type ViewState
     | ApiariesView
     | HiveListView { apiaryId : String, apiaryName : String }
     | HiveDetailView { apiaryId : String, hiveId : String, hiveName : String }
+    | UlikListView { apiaryId : String, apiaryName : String }
+    | UlikDetailView { apiaryId : String, ulikId : String, ulikName : String }
     | SharingView { apiaryId : String, apiaryName : String }
-
-type alias Queen =
-    { hasOpalit : Bool
-    , color : String
-    , number : String
-    }
-
-type alias Hive =
-    { id : String
-    , name : String
-    , frameType : String
-    , nfcTagId : String
-    , queen : Queen
-    , pollenTrap : String
-    }
-
-type alias Note =
-    { id : String
-    , text : String
-    , authorId : String
-    , authorEmail : String
-    , timestamp : String
-    }
-
-type alias Apiary =
-    { id : String
-    , name : String
-    , adminId : String
-    , members : List ( String, String )
-    }
 
 type alias Model =
     { authState : AuthState
     , viewState : ViewState
     , apiaries : List Apiary
     , hives : List Hive
+    , uliki : List UlikWeselny
     , notes : List Note
     , errorMessage : Maybe String
     , successMessage : Maybe String
@@ -76,12 +44,16 @@ type alias Model =
     -- Modals & Inputs
     , showNewApiaryModal : Bool
     , newApiaryName : String
+    , newApiaryType : String
     , showEditApiaryModal : Maybe Apiary
     , editApiaryNameInput : String
     , showDeleteApiaryModal : Maybe Apiary
     , showNewHiveModal : Bool
     , newHiveName : String
     , newHiveFrameType : String
+    , showNewUlikModal : Bool
+    , newUlikName : String
+    , newUlikHiveType : String
     , newNoteText : String
     , editingNoteId : Maybe String
     , editNoteText : String
@@ -90,6 +62,9 @@ type alias Model =
     , showRenameHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
     , renameHiveInput : String
     , showDeleteHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
+    , showRenameUlikModal : Maybe { apiaryId : String, ulikId : String, ulikName : String }
+    , renameUlikInput : String
+    , showDeleteUlikModal : Maybe { apiaryId : String, ulikId : String, ulikName : String }
     }
 
 init : () -> ( Model, Cmd Msg )
@@ -98,18 +73,23 @@ init _ =
       , viewState = LoginView
       , apiaries = []
       , hives = []
+      , uliki = []
       , notes = []
       , errorMessage = Nothing
       , successMessage = Nothing
       , darkMode = False
       , showNewApiaryModal = False
       , newApiaryName = ""
+      , newApiaryType = "towarowe"
       , showEditApiaryModal = Nothing
       , editApiaryNameInput = ""
       , showDeleteApiaryModal = Nothing
       , showNewHiveModal = False
       , newHiveName = ""
-      , newHiveFrameType = "Wielkopolskie"
+      , newHiveFrameType = "Wielkopolska"
+      , showNewUlikModal = False
+      , newUlikName = ""
+      , newUlikHiveType = "Mini plus"
       , newNoteText = ""
       , editingNoteId = Nothing
       , editNoteText = ""
@@ -118,6 +98,9 @@ init _ =
       , showRenameHiveModal = Nothing
       , renameHiveInput = ""
       , showDeleteHiveModal = Nothing
+      , showRenameUlikModal = Nothing
+      , renameUlikInput = ""
+      , showDeleteUlikModal = Nothing
       }
     , Cmd.none
     )
@@ -127,12 +110,17 @@ init _ =
 port jsLoginGoogle : () -> Cmd msg
 port jsLogout : () -> Cmd msg
 port jsLoadApiaries : String -> Cmd msg
-port jsCreateApiary : { name : String, uid : String } -> Cmd msg
+port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cmd msg
 port jsUpdateApiary : { apiaryId : String, name : String } -> Cmd msg
 port jsDeleteApiary : { apiaryId : String } -> Cmd msg
 port jsLoadHives : { apiaryId : String } -> Cmd msg
 port jsCreateHive : { apiaryId : String, name : String, frameType : String } -> Cmd msg
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
+port jsLoadUliki : { apiaryId : String } -> Cmd msg
+port jsCreateUlik : { apiaryId : String, name : String, hiveType : String } -> Cmd msg
+port jsUpdateUlik : { apiaryId : String, ulikId : String, field : String, value : String } -> Cmd msg
+port jsUpdateUlikName : { apiaryId : String, ulikId : String, newName : String } -> Cmd msg
+port jsDeleteUlik : { apiaryId : String, ulikId : String } -> Cmd msg
 port jsStartNfcScan : () -> Cmd msg
 port jsStartSpeechRecognition : () -> Cmd msg
 port jsLoadNotes : { apiaryId : String, hiveId : String } -> Cmd msg
@@ -146,12 +134,14 @@ port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
 port jsCopyText : String -> Cmd msg
 port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
+port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 
 -- PORTS (IN)
 
 port authStateChanged : ({ uid : String, email : String } -> msg) -> Sub msg
 port apiariesReceived : (Value -> msg) -> Sub msg
 port hivesReceived : (Value -> msg) -> Sub msg
+port ulikiReceived : (Value -> msg) -> Sub msg
 port notesReceived : (Value -> msg) -> Sub msg
 port nfcScanned : (String -> msg) -> Sub msg
 port speechRecognized : (String -> msg) -> Sub msg
@@ -172,6 +162,7 @@ type Msg
     | OpenNewApiaryModal
     | CloseNewApiaryModal
     | UpdateNewApiaryName String
+    | UpdateNewApiaryType String
     | SubmitCreateApiary
     | OpenEditApiaryModal Apiary
     | CloseEditApiaryModal
@@ -187,20 +178,29 @@ type Msg
     | UpdateNewHiveName String
     | UpdateNewHiveFrameType String
     | SubmitCreateHive String
-    | UpdateHiveField String String String String -- apiaryId, hiveId, field, value
+    | UpdateHiveField String String String String
+    -- Ulik actions
+    | UlikiDecoded (Result String (List UlikWeselny))
+    | OpenNewUlikModal
+    | CloseNewUlikModal
+    | UpdateNewUlikName String
+    | UpdateNewUlikHiveType String
+    | SubmitCreateUlik String
+    | UpdateUlikField String String String String
+    | TransitionUlikState String String UlikState
+    -- NFC & Notes
     | StartNfcScan
     | NfcResultReceived String
-    -- Notes actions
     | NotesDecoded (Result String (List Note))
     | UpdateNewNoteText String
     | StartSpeechDictation
     | SpeechResultReceived String
-    | SubmitSaveNote String String String String String -- apiaryId, hiveId, text, authorId, authorEmail
+    | SubmitSaveNote String String String String String
     | StartEditNote Note
     | CancelEditNote
     | UpdateEditNoteText String
-    | SubmitUpdateNote String String String -- apiaryId, hiveId, noteId
-    | SubmitDeleteNote String String String -- apiaryId, hiveId, noteId
+    | SubmitUpdateNote String String String
+    | SubmitDeleteNote String String String
     -- Sharing actions
     | UpdateShareEmail String
     | UpdateShareRole String
@@ -214,14 +214,25 @@ type Msg
     | OpenDeleteHiveModal String Hive
     | CloseDeleteHiveModal
     | SubmitDeleteHive String String
+    -- Ulik Management actions
+    | OpenRenameUlikModal String UlikWeselny
+    | CloseRenameUlikModal
+    | UpdateRenameUlikInput String
+    | SubmitRenameUlik String String
+    | OpenDeleteUlikModal String UlikWeselny
+    | CloseDeleteUlikModal
+    | SubmitDeleteUlik String String
     | MoveApiaryUp String
     | MoveApiaryDown String
     | MoveHiveUp String
     | MoveHiveDown String
-    -- Pollen Trap actions
+    | MoveUlikUp String
+    | MoveUlikDown String
+    -- Pollen Trap & Snapshots
     | UpdatePollenTrap String String String
     | CopyUserId String
     | SubmitHiveSnapshot String String User
+    | SubmitUlikSnapshot String String User
     -- Feedback
     | HandleError String
     | SuccessMessageReceived String
@@ -270,15 +281,19 @@ update msg model =
                     case state of
                         HiveListView { apiaryId } ->
                             jsLoadHives { apiaryId = apiaryId }
+                        UlikListView { apiaryId } ->
+                            jsLoadUliki { apiaryId = apiaryId }
                         HiveDetailView { apiaryId, hiveId } ->
                             jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
+                        UlikDetailView { apiaryId, ulikId } ->
+                            jsLoadNotes { apiaryId = apiaryId, hiveId = ulikId }
                         _ ->
                             Cmd.none
             in
             ( { model | viewState = state }, cmds )
 
         OpenNewApiaryModal ->
-            ( { model | showNewApiaryModal = True, newApiaryName = "" }, Cmd.none )
+            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = "towarowe" }, Cmd.none )
 
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
@@ -286,11 +301,14 @@ update msg model =
         UpdateNewApiaryName name ->
             ( { model | newApiaryName = name }, Cmd.none )
 
+        UpdateNewApiaryType t ->
+            ( { model | newApiaryType = t }, Cmd.none )
+
         SubmitCreateApiary ->
             case model.authState of
                 LoggedIn user ->
                     ( { model | showNewApiaryModal = False }
-                    , jsCreateApiary { name = model.newApiaryName, uid = user.uid }
+                    , jsCreateApiary { name = model.newApiaryName, apiaryType = model.newApiaryType, uid = user.uid }
                     )
                 _ ->
                     ( model, Cmd.none )
@@ -331,6 +349,13 @@ update msg model =
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania uli: " ++ err) }, Cmd.none )
 
+        UlikiDecoded result ->
+            case result of
+                Ok list ->
+                    ( { model | uliki = list }, Cmd.none )
+                Err err ->
+                    ( { model | errorMessage = Just ("Błąd dekodowania ulików weselnych: " ++ err) }, Cmd.none )
+
         OpenNewHiveModal ->
             ( { model | showNewHiveModal = True, newHiveName = "", newHiveFrameType = "Dadant" }, Cmd.none )
 
@@ -348,8 +373,31 @@ update msg model =
             , jsCreateHive { apiaryId = apiaryId, name = model.newHiveName, frameType = model.newHiveFrameType }
             )
 
+        OpenNewUlikModal ->
+            ( { model | showNewUlikModal = True, newUlikName = "", newUlikHiveType = "Mini plus" }, Cmd.none )
+
+        CloseNewUlikModal ->
+            ( { model | showNewUlikModal = False }, Cmd.none )
+
+        UpdateNewUlikName name ->
+            ( { model | newUlikName = name }, Cmd.none )
+
+        UpdateNewUlikHiveType ht ->
+            ( { model | newUlikHiveType = ht }, Cmd.none )
+
+        SubmitCreateUlik apiaryId ->
+            ( { model | showNewUlikModal = False }
+            , jsCreateUlik { apiaryId = apiaryId, name = model.newUlikName, hiveType = model.newUlikHiveType }
+            )
+
         UpdateHiveField apiaryId hiveId field value ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
+
+        UpdateUlikField apiaryId ulikId field value ->
+            ( model, jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = field, value = value } )
+
+        TransitionUlikState apiaryId ulikId newState ->
+            ( model, jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "state", value = ulikStateToString newState } )
 
         StartNfcScan ->
             ( model, jsStartNfcScan () )
@@ -359,6 +407,10 @@ update msg model =
                 HiveDetailView info ->
                     ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }
                     , jsUpdateHive { apiaryId = info.apiaryId, hiveId = info.hiveId, field = "nfcTagId", value = tagId }
+                    )
+                UlikDetailView info ->
+                    ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }
+                    , jsUpdateUlik { apiaryId = info.apiaryId, ulikId = info.ulikId, field = "nfcTagId", value = tagId }
                     )
                 _ ->
                     ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }, Cmd.none )
@@ -446,6 +498,31 @@ update msg model =
             , jsDeleteHive { apiaryId = apiaryId, hiveId = hiveId }
             )
 
+        OpenRenameUlikModal apiaryId ulik ->
+            ( { model | showRenameUlikModal = Just { apiaryId = apiaryId, ulikId = ulik.id, ulikName = ulik.name }, renameUlikInput = ulik.name }, Cmd.none )
+
+        CloseRenameUlikModal ->
+            ( { model | showRenameUlikModal = Nothing, renameUlikInput = "" }, Cmd.none )
+
+        UpdateRenameUlikInput val ->
+            ( { model | renameUlikInput = val }, Cmd.none )
+
+        SubmitRenameUlik apiaryId ulikId ->
+            ( { model | showRenameUlikModal = Nothing, renameUlikInput = "" }
+            , jsUpdateUlikName { apiaryId = apiaryId, ulikId = ulikId, newName = model.renameUlikInput }
+            )
+
+        OpenDeleteUlikModal apiaryId ulik ->
+            ( { model | showDeleteUlikModal = Just { apiaryId = apiaryId, ulikId = ulik.id, ulikName = ulik.name } }, Cmd.none )
+
+        CloseDeleteUlikModal ->
+            ( { model | showDeleteUlikModal = Nothing }, Cmd.none )
+
+        SubmitDeleteUlik apiaryId ulikId ->
+            ( { model | showDeleteUlikModal = Nothing }
+            , jsDeleteUlik { apiaryId = apiaryId, ulikId = ulikId }
+            )
+
         MoveApiaryUp id ->
             let
                 newApiaries = moveUp id model.apiaries
@@ -464,7 +541,6 @@ update msg model =
                 maybeApiaryId = case model.viewState of
                     HiveListView info -> Just info.apiaryId
                     HiveDetailView info -> Just info.apiaryId
-                    SharingView info -> Just info.apiaryId
                     _ -> Nothing
                 cmd = case maybeApiaryId of
                     Just aid -> jsSaveHiveOrders { apiaryId = aid, hives = newHives }
@@ -478,13 +554,38 @@ update msg model =
                 maybeApiaryId = case model.viewState of
                     HiveListView info -> Just info.apiaryId
                     HiveDetailView info -> Just info.apiaryId
-                    SharingView info -> Just info.apiaryId
                     _ -> Nothing
                 cmd = case maybeApiaryId of
                     Just aid -> jsSaveHiveOrders { apiaryId = aid, hives = newHives }
                     Nothing -> Cmd.none
             in
             ( { model | hives = newHives }, cmd )
+
+        MoveUlikUp id ->
+            let
+                newUliki = moveUp id model.uliki
+                maybeApiaryId = case model.viewState of
+                    UlikListView info -> Just info.apiaryId
+                    UlikDetailView info -> Just info.apiaryId
+                    _ -> Nothing
+                cmd = case maybeApiaryId of
+                    Just aid -> jsSaveUlikOrders { apiaryId = aid, uliki = newUliki }
+                    Nothing -> Cmd.none
+            in
+            ( { model | uliki = newUliki }, cmd )
+
+        MoveUlikDown id ->
+            let
+                newUliki = moveDown id model.uliki
+                maybeApiaryId = case model.viewState of
+                    UlikListView info -> Just info.apiaryId
+                    UlikDetailView info -> Just info.apiaryId
+                    _ -> Nothing
+                cmd = case maybeApiaryId of
+                    Just aid -> jsSaveUlikOrders { apiaryId = aid, uliki = newUliki }
+                    Nothing -> Cmd.none
+            in
+            ( { model | uliki = newUliki }, cmd )
 
         UpdatePollenTrap apiaryId hiveId trap ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
@@ -509,6 +610,23 @@ update msg model =
                 }
             )
 
+        SubmitUlikSnapshot apiaryId ulikId user ->
+            let
+                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
+                snapshotText = case maybeUlik of
+                    Just ulik -> ulikSnapshotText ulik
+                    Nothing -> "Brak danych uliku"
+            in
+            ( { model | successMessage = Just "📸 Zapisano zrzut uliku weselnego jako notatkę!" }
+            , jsSaveNote
+                { apiaryId = apiaryId
+                , hiveId = ulikId
+                , text = snapshotText
+                , authorId = user.uid
+                , authorEmail = user.email
+                }
+            )
+
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -526,63 +644,13 @@ subscriptions _ =
         [ authStateChanged (\val -> AuthStateUpdated val)
         , apiariesReceived (\val -> ApiariesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeApiaries val)))
         , hivesReceived (\val -> HivesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeHives val)))
+        , ulikiReceived (\val -> UlikiDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeUliki val)))
         , notesReceived (\val -> NotesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeNotes val)))
         , nfcScanned NfcResultReceived
         , speechRecognized SpeechResultReceived
         , operationError HandleError
         , successMessageReceived SuccessMessageReceived
         ]
-
--- DECODERS
-
-decodeQueen : Decode.Decoder Queen
-decodeQueen =
-    Decode.map3 Queen
-        (Decode.field "hasOpalit"
-            (Decode.oneOf
-                [ Decode.bool
-                , Decode.string |> Decode.map (\s -> String.toLower s == "true")
-                , Decode.int |> Decode.map (\i -> i /= 0)
-                ]
-                |> Decode.nullable
-                |> Decode.map (Maybe.withDefault False)
-            )
-        )
-        (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
-        (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
-
-decodeHives : Decode.Decoder (List Hive)
-decodeHives =
-    Decode.list
-        (Decode.map6 (\i n f nf q pt -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "frameType" Decode.string)
-            (Decode.field "nfcTagId" Decode.string)
-            (Decode.field "queen" decodeQueen)
-            (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
-        )
-
-decodeApiaries : Decode.Decoder (List Apiary)
-decodeApiaries =
-    Decode.list
-        (Decode.map4 Apiary
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "adminId" Decode.string)
-            (Decode.field "members" (Decode.keyValuePairs Decode.string))
-        )
-
-decodeNotes : Decode.Decoder (List Note)
-decodeNotes =
-    Decode.list
-        (Decode.map5 Note
-            (Decode.field "id" Decode.string)
-            (Decode.field "text" Decode.string)
-            (Decode.field "authorId" Decode.string)
-            (Decode.field "authorEmail" Decode.string)
-            (Decode.field "timestamp" Decode.string)
-        )
 
 -- VIEW
 
@@ -613,6 +681,12 @@ view model =
 
                     HiveDetailView info ->
                         hiveDetailView user info model
+
+                    UlikListView info ->
+                        ulikListView user info model
+
+                    UlikDetailView info ->
+                        ulikDetailView user info model
 
                     SharingView info ->
                         sharingView user info model
@@ -705,11 +779,21 @@ apiaryCardView user model apiary =
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         borderColor = if model.darkMode then "#333" else "#eee"
+        isTrutowisko = apiary.apiaryType == "trutowisko"
+        typeLabel = if isTrutowisko then "Trutowisko" else "Pasieczysko Towarowe"
+        typeBadgeBg = if isTrutowisko then "#8e44ad" else "#2980b9"
+        navTarget = if isTrutowisko then
+                        UlikListView { apiaryId = apiary.id, apiaryName = apiary.name }
+                    else
+                        HiveListView { apiaryId = apiary.id, apiaryName = apiary.name }
     in
     div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor ]
-        [ div [ onClick (NavigateTo (HiveListView { apiaryId = apiary.id, apiaryName = apiary.name })) ]
-            [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text apiary.name ]
-            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
+        [ div [ onClick (NavigateTo navTarget) ]
+            [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px" ]
+                [ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ]
+                , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
+                ]
+            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
             ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
@@ -741,6 +825,49 @@ hiveListView user info model =
             ]
         , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(220px, 1fr))", style "gap" "15px" ]
             (List.map (hiveCardView info.apiaryId model) model.hives)
+        ]
+
+ulikListView : User -> { apiaryId : String, apiaryName : String } -> Model -> Html Msg
+ulikListView user info model =
+    div []
+        [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
+            [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
+            , h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text ("Trutowisko: " ++ info.apiaryName) ]
+            ]
+        , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "20px" ]
+            [ button [ onClick OpenNewUlikModal, style "padding" "10px 16px", style "background-color" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Ulik Weselny" ]
+            ]
+        , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(240px, 1fr))", style "gap" "15px" ]
+            (List.map (ulikCardView info.apiaryId model) model.uliki)
+        ]
+
+ulikCardView : String -> Model -> UlikWeselny -> Html Msg
+ulikCardView apiaryId model ulik =
+    let
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        borderColor = if model.darkMode then "#333" else "#eee"
+        metaBg = if model.darkMode then "#2d2d2d" else "#f1f2f6"
+    in
+    div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor
+        , onClick (NavigateTo (UlikDetailView { apiaryId = apiaryId, ulikId = ulik.id, ulikName = ulik.name }))
+        ]
+        [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text ulik.name ]
+        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text ("Typ ula: " ++ ulik.hiveType) ]
+        , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text ("Stan: " ++ ulikStateLabel (getUlikState ulik)) ]
+        , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "5px", style "border-radius" "4px", style "color" textColor ]
+            [ text ("Matka: " ++ (if ulik.hasQueen then (if ulik.queen.hasOpalit then "Opalit " ++ ulik.queen.color ++ " #" ++ ulik.queen.number else "Bez opalitka") ++ (if ulik.queen.breedLine /= "" then " (" ++ ulik.queen.breedLine ++ ")" else "") else "Brak matki")) ]
+        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
+            [ div [ style "display" "flex", style "gap" "4px" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveUlikUp ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveUlikDown ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                ]
+            , div [ style "display" "flex", style "gap" "8px" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę uliku" ] [ text "✏️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń ulik" ] [ text "🗑️" ]
+                ]
+            ]
         ]
 
 hiveCardView : String -> Model -> Hive -> Html Msg
@@ -845,8 +972,8 @@ hiveDetailView user info model =
                     [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px" ]
                         [ button [ onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🎤 Dyktuj" ]
-                        , button [ onClick (SubmitSaveNote info.apiaryId hive.id model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
-                        , button [ onClick (SubmitHiveSnapshot info.apiaryId hive.id user), style "padding" "8px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Zapisz pełny stan ula jako notatkę" ] [ text "📸 Zrzut Ula" ]
+                        , button [ onClick (SubmitSaveNote info.apiaryId info.hiveId model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
+                        , button [ onClick (SubmitHiveSnapshot info.apiaryId info.hiveId user), style "padding" "8px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Zapisz pełny stan ula jako notatkę" ] [ text "📸 Zrzut Ula" ]
                         ]
                     ]
                 , div []
@@ -854,6 +981,111 @@ hiveDetailView user info model =
                 ]
         _ ->
             div [] [ text "Ładowanie ula..." ]
+
+ulikDetailView : User -> { apiaryId : String, ulikId : String, ulikName : String } -> Model -> Html Msg
+ulikDetailView user info model =
+    let
+        maybeUlik = List.head (List.filter (\u -> u.id == info.ulikId) model.uliki)
+        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
+    in
+    case maybeUlik of
+        Just ulik ->
+            div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
+                [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
+                    [ button [ onClick (NavigateTo (UlikListView { apiaryId = info.apiaryId, apiaryName = "Trutowisko" })), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
+                    , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Ulik Weselny: " ++ ulik.name) ]
+                    ]
+                , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
+                    [ div []
+                        [ h3 [ style "color" headingColor ] [ text "Dane Uliku Weselnego" ]
+                        , label [] [ text "Nazwa / Numer uliku:" ]
+                        , input [ type_ "text", value ulik.name, onInput (\val -> UpdateUlikField info.apiaryId ulik.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                        , label [] [ text "Typ ula:" ]
+                        , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "hiveType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                            [ option [ value "Mini plus", selected (ulik.hiveType == "Mini plus") ] [ text "Mini plus" ]
+                            , option [ value "Odkład wielkopolski", selected (ulik.hiveType == "Odkład wielkopolski") ] [ text "Odkład wielkopolski" ]
+                            , option [ value "Apidea", selected (ulik.hiveType == "Apidea") ] [ text "Apidea" ]
+                            ]
+                        , label [] [ text "Tag NFC:" ]
+                        , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
+                            [ input [ type_ "text", value ulik.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , button [ onClick StartNfcScan, style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🔗 Przypisz NFC" ]
+                            ]
+                        ]
+                    , div []
+                        [ h3 [ style "color" headingColor ] [ text "Stan i Matka Pszczela" ]
+                        , p [ style "font-weight" "bold" ] [ text ("Aktualny stan: " ++ ulikStateLabel (getUlikState ulik)) ]
+                        , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "8px", style "margin-bottom" "15px" ]
+                            (case getUlikState ulik of
+                                Bezmatek ->
+                                    [ button [ onClick (TransitionUlikState info.apiaryId ulik.id ZMatecznikiem), style "padding" "6px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "➕ Poddano matecznik (2)" ]
+                                    , button [ onClick (TransitionUlikState info.apiaryId ulik.id MatkaWygryziona), style "padding" "6px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "➕ Poddano matkę nieunasiennioną (3)" ]
+                                    ]
+                                ZMatecznikiem ->
+                                    [ button [ onClick (TransitionUlikState info.apiaryId ulik.id MatkaWygryziona), style "padding" "6px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🦋 Matka się wygryzła (3)" ]
+                                    , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "❌ Matecznik się nie wygryzł (1)" ]
+                                    ]
+                                MatkaWygryziona ->
+                                    [ button [ onClick (TransitionUlikState info.apiaryId ulik.id MatkaCzerwi), style "padding" "6px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "👑 Matka się unasienniła (4)" ]
+                                    , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "⚠️ Matka strutowiała / zniknęła (1)" ]
+                                    ]
+                                MatkaCzerwi ->
+                                    [ span [ style "color" "#27ae60", style "font-style" "italic" ] [ text "Matka czerwi (pełny sukces uliku weselnego)" ] ]
+                            )
+                        , label [] [ text "Czy jest tam matka:" ]
+                        , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "hasQueen" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                            [ option [ value "true", selected ulik.hasQueen ] [ text "Tak" ]
+                            , option [ value "false", selected (not ulik.hasQueen) ] [ text "Nie" ]
+                            ]
+                        , if ulik.hasQueen then
+                            div []
+                                [ label [] [ text "Nazwa rasy i linii matki:" ]
+                                , input [ type_ "text", value ulik.queen.breedLine, placeholder "np. Buckfast GEMA", onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.breedLine" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                , label [] [ text "Obecność Opalitka:" ]
+                                , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.hasOpalit" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                    [ option [ value "true", selected ulik.queen.hasOpalit ] [ text "Tak (Opalitka)" ]
+                                    , option [ value "false", selected (not ulik.queen.hasOpalit) ] [ text "Nie" ]
+                                    ]
+                                , if ulik.queen.hasOpalit then
+                                    div []
+                                        [ label [] [ text "Kolor Opalitka:" ]
+                                        , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.color" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                            [ option [ value "Biały", selected (ulik.queen.color == "Biały") ] [ text "Biały" ]
+                                            , option [ value "Żółty", selected (ulik.queen.color == "Żółty") ] [ text "Żółty" ]
+                                            , option [ value "Czerwony", selected (ulik.queen.color == "Czerwony") ] [ text "Czerwony" ]
+                                            , option [ value "Zielony", selected (ulik.queen.color == "Zielony") ] [ text "Zielony" ]
+                                            , option [ value "Niebieski", selected (ulik.queen.color == "Niebieski") ] [ text "Niebieski" ]
+                                            ]
+                                        , label [] [ text "Numer Opalitka:" ]
+                                        , input [ type_ "text", value ulik.queen.number, onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.number" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                        ]
+                                  else
+                                    text ""
+                                ]
+                          else
+                            text ""
+                        ]
+                    ]
+                , hr [] []
+                , h3 [ style "color" headingColor ] [ text "Notatki" ]
+                , div [ style "margin-bottom" "15px" ]
+                    [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px" ]
+                        [ button [ onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🎤 Dyktuj" ]
+                        , button [ onClick (SubmitSaveNote info.apiaryId ulik.id model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
+                        , button [ onClick (SubmitUlikSnapshot info.apiaryId ulik.id user), style "padding" "8px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Zapisz pełny stan uliku jako notatkę" ] [ text "📸 Zrzut Uliku" ]
+                        ]
+                    ]
+                , div []
+                    (List.map (noteItemView info.apiaryId ulik.id model) model.notes)
+                ]
+        _ ->
+            div [] [ text "Ładowanie uliku..." ]
 
 noteItemView : String -> String -> Model -> Note -> Html Msg
 noteItemView apiaryId hiveId model note =
@@ -960,7 +1192,13 @@ modalsView model =
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                 [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
                     [ h3 [ style "color" headingColor ] [ text "Nowe Pasieczysko" ]
-                    , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , label [] [ text "Nazwa pasieczyska:" ]
+                    , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , label [] [ text "Typ pasieczyska:" ]
+                    , select [ value model.newApiaryType, onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                        [ option [ value "towarowe" ] [ text "Pasieczysko towarowe" ]
+                        , option [ value "trutowisko" ] [ text "Trutowisko (uliki weselne)" ]
+                        ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                         , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
@@ -1023,6 +1261,30 @@ modalsView model =
                 ]
           else
             text ""
+        , if model.showNewUlikModal then
+            div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                    [ h3 [ style "color" headingColor ] [ text "Nowy Ulik Weselny" ]
+                    , label [] [ text "Nazwa / Numer uliku:" ]
+                    , input [ type_ "text", placeholder "np. Ulik #01", value model.newUlikName, onInput UpdateNewUlikName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , label [] [ text "Typ ula:" ]
+                    , select [ value model.newUlikHiveType, onInput UpdateNewUlikHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                        [ option [ value "Mini plus" ] [ text "Mini plus" ]
+                        , option [ value "Odkład wielkopolski" ] [ text "Odkład wielkopolski" ]
+                        , option [ value "Apidea" ] [ text "Apidea" ]
+                        ]
+                    , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                        [ button [ onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                        , case model.viewState of
+                            UlikListView info ->
+                                button [ onClick (SubmitCreateUlik info.apiaryId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            _ ->
+                                text ""
+                        ]
+                    ]
+                ]
+          else
+            text ""
         , case model.showRenameHiveModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
@@ -1051,8 +1313,35 @@ modalsView model =
                     ]
             Nothing ->
                 text ""
+        , case model.showRenameUlikModal of
+            Just info ->
+                div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Zmień nazwę uliku" ]
+                        , input [ type_ "text", value model.renameUlikInput, onInput UpdateRenameUlikInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                            [ button [ onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            ]
+                        ]
+                    ]
+            Nothing ->
+                text ""
+        , case model.showDeleteUlikModal of
+            Just info ->
+                div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ] [ text "Usuń ulik weselny" ]
+                        , p [] [ text ("Czy na pewno chcesz usunąć ulik \"" ++ info.ulikName ++ "\" wraz ze wszystkimi notatkami?") ]
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                            [ button [ onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            , button [ onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            ]
+                        ]
+                    ]
+            Nothing ->
+                text ""
         ]
-
 
 moveUp : String -> List { r | id : String } -> List { r | id : String }
 moveUp targetId list =
@@ -1078,11 +1367,9 @@ moveUp targetId list =
         _ ->
             list
 
-
 moveDown : String -> List { r | id : String } -> List { r | id : String }
 moveDown targetId list =
     List.reverse (moveUp targetId (List.reverse list))
-
 
 hiveSnapshotText : Hive -> String
 hiveSnapshotText hive =
@@ -1100,4 +1387,21 @@ hiveSnapshotText hive =
         , "Poławiacz pyłku: " ++ pollenText
         , "Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)
         , "Matka pszczela (opalitek): " ++ opalitText
+        ]
+
+ulikSnapshotText : UlikWeselny -> String
+ulikSnapshotText ulik =
+    let
+        queenText = if ulik.hasQueen then
+                        "Tak (Rasa/Linia: " ++ ulik.queen.breedLine ++ ", Opalit: " ++ (if ulik.queen.hasOpalit then ulik.queen.color ++ " #" ++ ulik.queen.number else "Nie") ++ ")"
+                    else
+                        "Brak"
+    in
+    String.join "\n"
+        [ "📸 Zrzut Stanu Uliku Weselnego:"
+        , "Nazwa: " ++ ulik.name
+        , "Typ ula: " ++ ulik.hiveType
+        , "Stan: " ++ ulikStateLabel (getUlikState ulik)
+        , "Tag NFC: " ++ (if ulik.nfcTagId == "" then "Brak" else ulik.nfcTagId)
+        , "Matka pszczela: " ++ queenText
         ]
