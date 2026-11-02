@@ -774,8 +774,7 @@ view model =
         textColor = if model.darkMode then "#e0e0e0" else "#333333"
     in
     div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto", style "background-color" bgColor, style "color" textColor, style "min-height" "100vh", style "position" "relative" ]
-        [ darkModeToggleView model.darkMode
-        , headerView model
+        [ headerView model
         , notificationsView model
         , case model.authState of
             LoggedOut ->
@@ -809,25 +808,6 @@ view model =
         , modalsView model
         ]
 
-darkModeToggleView : Bool -> Html Msg
-darkModeToggleView darkMode =
-    button
-        [ onClick ToggleDarkMode
-        , style "position" "fixed"
-        , style "top" "20px"
-        , style "right" "20px"
-        , style "z-index" "9999"
-        , style "padding" "8px 14px"
-        , style "background-color" (if darkMode then "#f1c40f" else "#2c3e50")
-        , style "color" (if darkMode then "#121212" else "#ffffff")
-        , style "border" "none"
-        , style "border-radius" "20px"
-        , style "cursor" "pointer"
-        , style "font-size" "14px"
-        , style "box-shadow" "0 2px 6px rgba(0,0,0,0.3)"
-        ]
-        [ text (if darkMode then "☀️ Tryb Jasny" else "🌙 Tryb Ciemny") ]
-
 headerView : Model -> Html Msg
 headerView model =
     div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "border-bottom" "1px solid #ddd", style "padding-bottom" "10px", style "margin-bottom" "20px" ]
@@ -856,10 +836,16 @@ settingsView user model =
     div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
         [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
             [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
-            , h2 [ style "margin" "0", style "color" headingColor ] [ text "⚙️ Ustawienia aplikacji" ]
+            , h2 [ style "margin" "0", style "color" headingColor ] [ text "⚙️ Ustawienia aplikacji (Per Użytkownik)" ]
             ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px" ]
             [ div []
+                [ h3 [ style "color" headingColor ] [ text "Wygląd i Motyw" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Wybierz tryb jasny lub ciemny interfejsu aplikacji." ]
+                , button [ onClick ToggleDarkMode, style "padding" "10px 16px", style "background-color" (if model.darkMode then "#f1c40f" else "#2c3e50"), style "color" (if model.darkMode then "#121212" else "#ffffff"), style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "14px" ]
+                    [ text (if model.darkMode then "☀️ Przełącz na Tryb Jasny" else "🌙 Przełącz na Tryb Ciemny") ]
+                ]
+            , div []
                 [ h3 [ style "color" headingColor ] [ text "Rodzaje ramek (Pasieka Towarowa)" ]
                 , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Skonfiguruj listę dostępnych rodzajów ramek dla uli w pasiekach towarowych." ]
                 , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px" ]
