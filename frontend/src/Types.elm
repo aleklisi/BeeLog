@@ -40,20 +40,28 @@ ulikStateToString state =
 ulikStateLabel : UlikState -> String
 ulikStateLabel state =
     case state of
-        Bezmatek -> "(1) Bezmatek"
-        ZMatecznikiem -> "(2) Z matecznikiem"
-        MatkaWygryziona -> "(3) Matka wygryziona ale nie unasienniona"
-        MatkaCzerwi -> "(4) Matka czerwi"
+        Bezmatek -> "(B) Bezmatek"
+        ZMatecznikiem -> "(M) Matecznik"
+        MatkaWygryziona -> "(N) Matka nieunasienniona"
+        MatkaCzerwi -> "(UNC) Matka unasienniona"
 
 ulikStateFromString : String -> UlikState
 ulikStateFromString s =
     case String.toLower s of
         "z_matecznikiem" -> ZMatecznikiem
         "2" -> ZMatecznikiem
+        "m" -> ZMatecznikiem
+        "matecznik" -> ZMatecznikiem
         "matka_wygryziona" -> MatkaWygryziona
         "3" -> MatkaWygryziona
+        "n" -> MatkaWygryziona
+        "matka nieunasienniona" -> MatkaWygryziona
         "matka_czerwi" -> MatkaCzerwi
         "4" -> MatkaCzerwi
+        "unc" -> MatkaCzerwi
+        "matka unasienniona" -> MatkaCzerwi
+        "b" -> Bezmatek
+        "bezmatek" -> Bezmatek
         _ -> Bezmatek
 
 type alias UlikQueen =

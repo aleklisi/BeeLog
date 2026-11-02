@@ -179,19 +179,19 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2026-11-11');
 
     // Test przejść stanów
-    await expect(page.locator('text=Aktualny stan: (1) Bezmatek')).toBeVisible();
-    await page.click('text=➕ Poddano matecznik (2)');
-    await expect(page.locator('text=Aktualny stan: (2) Z matecznikiem')).toBeVisible();
+    await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
+    await page.click('text=➕ Poddano matecznik (M)');
+    await expect(page.locator('text=Aktualny stan: (M) Matecznik')).toBeVisible();
 
-    await page.click('text=🦋 Matka się wygryzła (3)');
-    await expect(page.locator('text=Aktualny stan: (3) Matka wygryziona ale nie unasienniona')).toBeVisible();
+    await page.click('text=🦋 Matka się wygryzła (N)');
+    await expect(page.locator('text=Aktualny stan: (N) Matka nieunasienniona')).toBeVisible();
 
-    await page.click('text=👑 Matka się unasienniła (4)');
-    await expect(page.locator('text=Aktualny stan: (4) Matka czerwi')).toBeVisible();
+    await page.click('text=👑 Matka się unasienniła (UNC)');
+    await expect(page.locator('text=Aktualny stan: (UNC) Matka unasienniona')).toBeVisible();
 
     // Test przycisku "zabieram matkę" powracającego do stanu Bezmatek
-    await page.click('button:has-text("zabieram matkę")');
-    await expect(page.locator('text=Aktualny stan: (1) Bezmatek')).toBeVisible();
+    await page.click('button:has-text("zabieram matkę (B)")');
+    await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
 
     // Zrzut uliku
     await page.click('text=📸 Zrzut Uliku');
@@ -237,6 +237,61 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.selectOption('div:has-text("Filtruj typ:") select', 'all');
     await expect(page.locator('text=Pasieka Towarowa')).toBeVisible();
     await expect(page.locator('text=Trutowisko Filtr')).toBeVisible();
+  });
+
+  test('9. Filtr stanów ulików weselnych', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Trutowisko
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Stanów');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Trutowisko Stanów')).toBeVisible();
+
+    // Wejdź do trutowiska
+    await page.click('text=Trutowisko Stanów');
+    await expect(page.locator('text=Trutowisko: Trutowisko Stanów')).toBeVisible();
+
+    // Dodaj Ulik 1 (zostaje Bezmatek)
+    await page.click('text=+ Dodaj Ulik Weselny');
+    await page.fill('input[placeholder="np. Ulik #01"]', 'Ulik Bezmatek');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ulik Bezmatek')).toBeVisible();
+
+    // Dodaj Ulik 2
+    await page.click('text=+ Dodaj Ulik Weselny');
+    await page.fill('input[placeholder="np. Ulik #01"]', 'Ulik Z Matecznikiem');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ulik Z Matecznikiem')).toBeVisible();
+
+    // Zmień stan Ulik Z Matecznikiem na (M) Matecznik
+    await page.click('text=Ulik Z Matecznikiem');
+    await page.click('text=➕ Poddano matecznik (M)');
+    await page.click('text=← Powrót');
+
+    // Przetestuj filtr stanów: Bezmatek
+    await page.selectOption('div:has-text("Filtruj stan:") select', 'bezmatek');
+    await expect(page.locator('text=Ulik Bezmatek')).toBeVisible();
+    await expect(page.locator('text=Ulik Z Matecznikiem')).not.toBeVisible();
+
+    // Przetestuj filtr stanów: Z matecznikiem
+    await page.selectOption('div:has-text("Filtruj stan:") select', 'z_matecznikiem');
+    await expect(page.locator('text=Ulik Z Matecznikiem')).toBeVisible();
+    await expect(page.locator('text=Ulik Bezmatek')).not.toBeVisible();
+
+    // Przetestuj filtr stanów: Wszystkie
+    await page.selectOption('div:has-text("Filtruj stan:") select', 'all');
+    await expect(page.locator('text=Ulik Bezmatek')).toBeVisible();
+    await expect(page.locator('text=Ulik Z Matecznikiem')).toBeVisible();
   });
 
 });

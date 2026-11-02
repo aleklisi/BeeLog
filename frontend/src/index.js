@@ -86,6 +86,39 @@ app.ports.jsLogout.subscribe(async () => {
     }
 });
 
+app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
+    if (window.__E2E__) {
+        app.ports.userSettingsReceived.send({ frameTypes: ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"] });
+        return;
+    }
+    try {
+        const docRef = doc(db, "userSettings", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            app.ports.userSettingsReceived.send({ frameTypes: data.frameTypes || ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"] });
+        } else {
+            const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
+            await setDoc(docRef, { frameTypes: defaultFrameTypes });
+            app.ports.userSettingsReceived.send({ frameTypes: defaultFrameTypes });
+        }
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes }) => {
+    if (window.__E2E__) {
+        return;
+    }
+    try {
+        const docRef = doc(db, "userSettings", uid);
+        await setDoc(docRef, { frameTypes: frameTypes }, { merge: true });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
 app.ports.jsLoadApiaries.subscribe(async (uid) => {
     if (window.__E2E__) {
         const state = getE2EState();

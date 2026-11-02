@@ -25,5 +25,8 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
+      - name: Install elm-test
+        run: npm install -g elm-test
+
       - name: Run Elm Tests via Makefile
         run: make elm_test
