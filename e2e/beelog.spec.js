@@ -156,7 +156,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Dodaj Trutowisko
     await page.click('text=+ Dodaj Pasieczysko');
     await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Testowe');
-    await page.selectOption('select', 'trutowisko');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
     await page.click('button:has-text("Zapisz")');
     await expect(page.locator('text=Trutowisko Testowe')).toBeVisible();
 
@@ -174,6 +174,10 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('text=Ulik 1');
     await expect(page.locator('text=Ulik Weselny: Ulik 1')).toBeVisible();
 
+    // Test dat spodziewanego wygryzienia i unasiennienia (+10 dni)
+    await page.fill('input[type="date"]', '2026-11-01');
+    await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2026-11-11');
+
     // Test przejść stanów
     await expect(page.locator('text=Aktualny stan: (1) Bezmatek')).toBeVisible();
     await page.click('text=➕ Poddano matecznik (2)');
@@ -185,9 +189,54 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('text=👑 Matka się unasienniła (4)');
     await expect(page.locator('text=Aktualny stan: (4) Matka czerwi')).toBeVisible();
 
+    // Test przycisku "zabieram matkę" powracającego do stanu Bezmatek
+    await page.click('button:has-text("zabieram matkę")');
+    await expect(page.locator('text=Aktualny stan: (1) Bezmatek')).toBeVisible();
+
     // Zrzut uliku
     await page.click('text=📸 Zrzut Uliku');
     await expect(page.locator('text=Zrzut Stanu Uliku Weselnego')).toBeVisible();
+  });
+
+  test('8. Filtr typów pasieczysk', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Pasieka Towarowa
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Pasieka Towarowa');
+    await page.selectOption('div[style*="position: fixed"] select', 'towarowe');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Pasieka Towarowa')).toBeVisible();
+
+    // Dodaj Trutowisko Filtr
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Filtr');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Trutowisko Filtr')).toBeVisible();
+
+    // Przetestuj filtr: Towarowe
+    await page.selectOption('div:has-text("Filtruj typ:") select', 'towarowe');
+    await expect(page.locator('text=Pasieka Towarowa')).toBeVisible();
+    await expect(page.locator('text=Trutowisko Filtr')).not.toBeVisible();
+
+    // Przetestuj filtr: Trutowiska
+    await page.selectOption('div:has-text("Filtruj typ:") select', 'trutowisko');
+    await expect(page.locator('text=Trutowisko Filtr')).toBeVisible();
+    await expect(page.locator('text=Pasieka Towarowa')).not.toBeVisible();
+
+    // Przetestuj filtr: Wszystkie
+    await page.selectOption('div:has-text("Filtruj typ:") select', 'all');
+    await expect(page.locator('text=Pasieka Towarowa')).toBeVisible();
+    await expect(page.locator('text=Trutowisko Filtr')).toBeVisible();
   });
 
 });

@@ -48,6 +48,11 @@ const app = Elm.Main.init({
 });
 window.app = app;
 
+const todayStr = new Date().toISOString().split('T')[0];
+if (app.ports.todayReceived) {
+    app.ports.todayReceived.send(todayStr);
+}
+
 // Auth state observer
 onAuthStateChanged(auth, (user) => {
     if (window.__E2E__) return;

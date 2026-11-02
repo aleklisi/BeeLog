@@ -70,9 +70,92 @@ type alias UlikWeselny =
     , hasQueen : Bool
     , queen : UlikQueen
     , state : String
+    , expectedHatchDate : String
+    , expectedMatingDate : String
     , nfcTagId : String
     , order : Int
     }
+
+parseDate : String -> Maybe (Int, Int, Int)
+parseDate str =
+    case String.split "-" str of
+        [ y, m, d ] ->
+            Maybe.map3 (\year month day -> ( year, month, day ))
+                (String.toInt y)
+                (String.toInt m)
+                (String.toInt d)
+        _ ->
+            Nothing
+
+andMap : Decode.Decoder a -> Decode.Decoder (a -> b) -> Decode.Decoder b
+andMap decoder functionDecoder =
+    Decode.map2 (\f a -> f a) functionDecoder decoder
+
+daysInMonthList : Int -> List Int
+daysInMonthList y =
+    let
+        leap = (modBy 4 y == 0 && modBy 100 y /= 0) || (modBy 400 y == 0)
+    in
+    [ 31, (if leap then 29 else 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ]
+
+dateToDays : Int -> Int -> Int -> Int
+dateToDays y m d =
+    let
+        prevYears = y - 1
+        leapYears = prevYears // 4 - prevYears // 100 + prevYears // 400
+        daysInYears = prevYears * 365 + leapYears
+        daysInPrevMonths = List.sum (List.take (m - 1) (daysInMonthList y))
+    in
+    daysInYears + daysInPrevMonths + d
+
+cumulativeSum : List Int -> List Int
+cumulativeSum lst =
+    Tuple.second
+        (List.foldl
+            (\x (acc, res) ->
+                let
+                    newAcc = acc + x
+                in
+                (newAcc, res ++ [ newAcc ])
+            )
+            (0, [])
+            lst
+        )
+
+daysToDate : Int -> (Int, Int, Int)
+daysToDate totalDays =
+    let
+        approxY = max 1 (totalDays // 365)
+        findY yr =
+            if dateToDays (yr + 1) 1 1 > totalDays then yr else findY (yr + 1)
+        y = findY (approxY - 1)
+        dayOfYear = totalDays - dateToDays y 1 1 + 1
+        mList = daysInMonthList y
+        cumDays = cumulativeSum mList
+        findM mo lst prevCum =
+            case lst of
+                c :: rest ->
+                    if dayOfYear <= c then
+                        (mo, dayOfYear - prevCum)
+                    else
+                        findM (mo + 1) rest c
+                [] -> (12, 31)
+        (m, d) = findM 1 cumDays 0
+    in
+    (y, m, d)
+
+addDaysToDateString : Int -> String -> String
+addDaysToDateString days dateStr =
+    case parseDate dateStr of
+        Just (y, m, d) ->
+            let
+                total = dateToDays y m d + days
+                (ny, nm, nd) = daysToDate total
+                pad n = (if n < 10 then "0" else "") ++ String.fromInt n
+            in
+            String.fromInt ny ++ "-" ++ pad nm ++ "-" ++ pad nd
+        Nothing ->
+            ""
 
 getUlikState : UlikWeselny -> UlikState
 getUlikState u =
@@ -146,15 +229,17 @@ decodeHives =
 decodeUliki : Decode.Decoder (List UlikWeselny)
 decodeUliki =
     Decode.list
-        (Decode.map8 (\i n ht hq q st nf o -> { id = i, name = n, hiveType = ht, hasQueen = hq, queen = q, state = st, nfcTagId = nf, order = o })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "hiveType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Mini plus"))
-            (Decode.field "hasQueen" Decode.bool |> Decode.maybe |> Decode.map (Maybe.withDefault False))
-            (Decode.field "queen" decodeUlikQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { breedLine = "", hasOpalit = False, color = "", number = "" }))
-            (Decode.field "state" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "bezmatek"))
-            (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
-            (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+        (Decode.succeed UlikWeselny
+            |> andMap (Decode.field "id" Decode.string)
+            |> andMap (Decode.field "name" Decode.string)
+            |> andMap (Decode.field "hiveType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Mini plus"))
+            |> andMap (Decode.field "hasQueen" Decode.bool |> Decode.maybe |> Decode.map (Maybe.withDefault False))
+            |> andMap (Decode.field "queen" decodeUlikQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { breedLine = "", hasOpalit = False, color = "", number = "" }))
+            |> andMap (Decode.field "state" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "bezmatek"))
+            |> andMap (Decode.field "expectedHatchDate" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.field "expectedMatingDate" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
         )
 
 decodeApiaries : Decode.Decoder (List Apiary)

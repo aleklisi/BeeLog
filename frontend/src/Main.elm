@@ -65,6 +65,8 @@ type alias Model =
     , showRenameUlikModal : Maybe { apiaryId : String, ulikId : String, ulikName : String }
     , renameUlikInput : String
     , showDeleteUlikModal : Maybe { apiaryId : String, ulikId : String, ulikName : String }
+    , currentDate : String
+    , apiaryFilter : String
     }
 
 init : () -> ( Model, Cmd Msg )
@@ -78,6 +80,8 @@ init _ =
       , errorMessage = Nothing
       , successMessage = Nothing
       , darkMode = False
+      , currentDate = ""
+      , apiaryFilter = "all"
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -147,6 +151,7 @@ port nfcScanned : (String -> msg) -> Sub msg
 port speechRecognized : (String -> msg) -> Sub msg
 port operationError : (String -> msg) -> Sub msg
 port successMessageReceived : (String -> msg) -> Sub msg
+port todayReceived : (String -> msg) -> Sub msg
 
 -- MESSAGES
 
@@ -155,6 +160,7 @@ type Msg
     | ClickLogout
     | ToggleDarkMode
     | AuthStateUpdated { uid : String, email : String }
+    | CurrentDateReceived String
     | LoadApiariesData String
     | ApiariesDecoded (Result String (List Apiary))
     | NavigateTo ViewState
@@ -171,6 +177,7 @@ type Msg
     | OpenDeleteApiaryModal Apiary
     | CloseDeleteApiaryModal
     | SubmitDeleteApiary String
+    | SetApiaryFilter String
     -- Hive actions
     | HivesDecoded (Result String (List Hive))
     | OpenNewHiveModal
@@ -295,6 +302,9 @@ update msg model =
         OpenNewApiaryModal ->
             ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = "towarowe" }, Cmd.none )
 
+        SetApiaryFilter filter ->
+            ( { model | apiaryFilter = filter }, Cmd.none )
+
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
 
@@ -390,11 +400,57 @@ update msg model =
             , jsCreateUlik { apiaryId = apiaryId, name = model.newUlikName, hiveType = model.newUlikHiveType }
             )
 
+        CurrentDateReceived dateStr ->
+            ( { model | currentDate = dateStr }, Cmd.none )
+
         UpdateHiveField apiaryId hiveId field value ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
 
         UpdateUlikField apiaryId ulikId field value ->
-            ( model, jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = field, value = value } )
+            let
+                updatedUliki =
+                    List.map
+                        (\u ->
+                            if u.id == ulikId then
+                                if field == "expectedHatchDate" then
+                                    { u | expectedHatchDate = value, expectedMatingDate = addDaysToDateString 10 value }
+                                else if field == "expectedMatingDate" then
+                                    { u | expectedMatingDate = value }
+                                else if field == "name" then
+                                    { u | name = value }
+                                else if field == "hiveType" then
+                                    { u | hiveType = value }
+                                else if field == "hasQueen" then
+                                    { u | hasQueen = (String.toLower value == "true") }
+                                else if String.startsWith "queen." field then
+                                    let
+                                        q = u.queen
+                                        qField = String.dropLeft 6 field
+                                        newQ =
+                                            if qField == "breedLine" then { q | breedLine = value }
+                                            else if qField == "hasOpalit" then { q | hasOpalit = (String.toLower value == "true") }
+                                            else if qField == "color" then { q | color = value }
+                                            else if qField == "number" then { q | number = value }
+                                            else q
+                                    in
+                                    { u | queen = newQ }
+                                else
+                                    u
+                            else
+                                u
+                        )
+                        model.uliki
+
+                cmds =
+                    if field == "expectedHatchDate" then
+                        [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedHatchDate", value = value }
+                        , jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedMatingDate", value = addDaysToDateString 10 value }
+                        ]
+                    else
+                        [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = field, value = value }
+                        ]
+            in
+            ( { model | uliki = updatedUliki }, Cmd.batch cmds )
 
         TransitionUlikState apiaryId ulikId newState ->
             ( model, jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "state", value = ulikStateToString newState } )
@@ -650,6 +706,7 @@ subscriptions _ =
         , speechRecognized SpeechResultReceived
         , operationError HandleError
         , successMessageReceived SuccessMessageReceived
+        , todayReceived CurrentDateReceived
         ]
 
 -- VIEW
@@ -762,13 +819,37 @@ loginView model =
 
 apiariesView : User -> Model -> Html Msg
 apiariesView user model =
+    let
+        inputBg = if model.darkMode then "#2a2a2a" else "white"
+        inputColor = if model.darkMode then "#e0e0e0" else "#333"
+        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
+        filteredApiaries =
+            List.filter
+                (\a ->
+                    if model.apiaryFilter == "towarowe" then
+                        a.apiaryType == "towarowe"
+                    else if model.apiaryFilter == "trutowisko" then
+                        a.apiaryType == "trutowisko"
+                    else
+                        True
+                )
+                model.apiaries
+    in
     div []
-        [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "20px" ]
+        [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "15px" ]
             [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text "Twoje Pasieczyska" ]
             , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Pasieczysko" ]
             ]
+        , div [ style "display" "flex", style "gap" "10px", style "align-items" "center", style "margin-bottom" "20px" ]
+            [ span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text "Filtruj typ:" ]
+            , select [ onInput SetApiaryFilter, style "padding" "6px 10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ]
+                [ option [ value "all", selected (model.apiaryFilter == "all") ] [ text "Wszystkie pasieczyska" ]
+                , option [ value "towarowe", selected (model.apiaryFilter == "towarowe") ] [ text "Towarowe" ]
+                , option [ value "trutowisko", selected (model.apiaryFilter == "trutowisko") ] [ text "Trutowiska" ]
+                ]
+            ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (apiaryCardView user model) model.apiaries)
+            (List.map (apiaryCardView user model) filteredApiaries)
         ]
 
 apiaryCardView : User -> Model -> Apiary -> Html Msg
@@ -1016,6 +1097,34 @@ ulikDetailView user info model =
                             [ input [ type_ "text", value ulik.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             , button [ onClick StartNfcScan, style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🔗 Przypisz NFC" ]
                             ]
+                        , label [] [ text "Spodziewany termin wygryzienia:" ]
+                        , input [ type_ "date", value ulik.expectedHatchDate, onInput (\val -> UpdateUlikField info.apiaryId ulik.id "expectedHatchDate" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                        , label [] [ text "Spodziewany termin unasiennienia (+10 dni):" ]
+                        , div [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "margin-bottom" "10px" ]
+                            [ input [ type_ "date", value ulik.expectedMatingDate, readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , if getUlikState ulik == MatkaWygryziona && ulik.expectedHatchDate /= "" && model.currentDate /= "" then
+                                let
+                                    hatchParsed = parseDate ulik.expectedHatchDate
+                                    todayParsed = parseDate model.currentDate
+                                in
+                                case (hatchParsed, todayParsed) of
+                                    (Just (hy, hm, hd), Just (ty, tm, td)) ->
+                                        let
+                                            hDays = dateToDays hy hm hd
+                                            tDays = dateToDays ty tm td
+                                            diff = tDays - hDays
+                                        in
+                                        if diff < 10 then
+                                            span [ title "Oczekiwanie na unasiennienie (przed terminem)", style "font-size" "18px" ] [ text "❓" ]
+                                        else if diff >= 10 && diff <= 21 then
+                                            span [ style "background" "#27ae60", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title "W terminie (10-21 dni od wygryzienia)" ] [ text "✓ W terminie" ]
+                                        else
+                                            span [ style "background" "#e74c3c", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title "Przekroczono termin (>21 dni)" ] [ text "✗ Przekroczony" ]
+                                    _ ->
+                                        text ""
+                              else
+                                text ""
+                            ]
                         ]
                     , div []
                         [ h3 [ style "color" headingColor ] [ text "Stan i Matka Pszczela" ]
@@ -1035,7 +1144,9 @@ ulikDetailView user info model =
                                     , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "⚠️ Matka strutowiała / zniknęła (1)" ]
                                     ]
                                 MatkaCzerwi ->
-                                    [ span [ style "color" "#27ae60", style "font-style" "italic" ] [ text "Matka czerwi (pełny sukces uliku weselnego)" ] ]
+                                    [ span [ style "color" "#27ae60", style "font-style" "italic", style "display" "block", style "margin-bottom" "10px" ] [ text "Matka czerwi (pełny sukces uliku weselnego)" ]
+                                    , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "zabieram matkę" ]
+                                    ]
                             )
                         , label [] [ text "Czy jest tam matka:" ]
                         , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "hasQueen" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
