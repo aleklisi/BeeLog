@@ -192,10 +192,6 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Test przycisku "zabieram matkę" powracającego do stanu Bezmatek
     await page.click('button:has-text("zabieram matkę (B)")');
     await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
-
-    // Zrzut uliku
-    await page.click('text=📸 Zrzut Uliku');
-    await expect(page.locator('text=Zrzut Stanu Uliku Weselnego')).toBeVisible();
   });
 
   test('8. Filtr typów pasieczysk', async ({ page }) => {

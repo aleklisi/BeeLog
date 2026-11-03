@@ -71,6 +71,10 @@ type alias Model =
     , ulikFilter : String
     , frameTypes : List String
     , newFrameTypeInput : String
+    , ulikTypes : List String
+    , newUlikTypeInput : String
+    , breedLines : List String
+    , newBreedLineInput : String
     }
 
 type alias Flags =
@@ -93,6 +97,10 @@ init flags =
       , ulikFilter = "all"
       , frameTypes = [ "Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant" ]
       , newFrameTypeInput = ""
+      , ulikTypes = [ "Mini plus", "Odkład wielkopolski", "Apidea" ]
+      , newUlikTypeInput = ""
+      , breedLines = [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ]
+      , newBreedLineInput = ""
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -151,7 +159,7 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, frameTypes : List String, darkMode : Bool } -> Cmd msg
+port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -197,6 +205,12 @@ type Msg
     | UpdateNewFrameTypeInput String
     | AddFrameType String
     | RemoveFrameType String
+    | UpdateNewUlikTypeInput String
+    | AddUlikType String
+    | RemoveUlikType String
+    | UpdateNewBreedLineInput String
+    | AddBreedLine String
+    | RemoveBreedLine String
     -- Hive actions
     | HivesDecoded (Result String (List Hive))
     | OpenNewHiveModal
@@ -258,7 +272,6 @@ type Msg
     | UpdatePollenTrap String String String
     | CopyUserId String
     | SubmitHiveSnapshot String String User
-    | SubmitUlikSnapshot String String User
     -- Feedback
     | HandleError String
     | SuccessMessageReceived String
@@ -283,7 +296,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, darkMode = newDarkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode }
                         _ ->
                             Cmd.none
             in
@@ -306,7 +319,7 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, darkMode = settings.darkMode }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode }, Cmd.none )
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -328,7 +341,7 @@ update msg model =
                         HiveDetailView { apiaryId, hiveId } ->
                             jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
                         UlikDetailView { apiaryId, ulikId } ->
-                            jsLoadNotes { apiaryId = apiaryId, hiveId = ulikId }
+                            Cmd.none
                         _ ->
                             Cmd.none
             in
@@ -353,7 +366,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, darkMode = model.darkMode }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode }
                             _ ->
                                 Cmd.none
                 in
@@ -367,11 +380,71 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, darkMode = model.darkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode }
                         _ ->
                             Cmd.none
             in
             ( { model | frameTypes = updated }, cmd )
+
+        UpdateNewUlikTypeInput val ->
+            ( { model | newUlikTypeInput = val }, Cmd.none )
+
+        AddUlikType ut ->
+            if String.trim ut /= "" && not (List.member (String.trim ut) model.ulikTypes) then
+                let
+                    updated = model.ulikTypes ++ [ String.trim ut ]
+                    cmd =
+                        case model.authState of
+                            LoggedIn user ->
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode }
+                            _ ->
+                                Cmd.none
+                in
+                ( { model | ulikTypes = updated, newUlikTypeInput = "" }, cmd )
+            else
+                ( { model | newUlikTypeInput = "" }, Cmd.none )
+
+        RemoveUlikType ut ->
+            let
+                updated = List.filter (\x -> x /= ut) model.ulikTypes
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode }
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | ulikTypes = updated }, cmd )
+
+        UpdateNewBreedLineInput val ->
+            ( { model | newBreedLineInput = val }, Cmd.none )
+
+        AddBreedLine bl ->
+            if String.trim bl /= "" && not (List.member (String.trim bl) model.breedLines) then
+                let
+                    updated = model.breedLines ++ [ String.trim bl ]
+                    cmd =
+                        case model.authState of
+                            LoggedIn user ->
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode }
+                            _ ->
+                                Cmd.none
+                in
+                ( { model | breedLines = updated, newBreedLineInput = "" }, cmd )
+            else
+                ( { model | newBreedLineInput = "" }, Cmd.none )
+
+        RemoveBreedLine bl ->
+            let
+                updated = List.filter (\x -> x /= bl) model.breedLines
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode }
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | breedLines = updated }, cmd )
 
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
@@ -452,7 +525,7 @@ update msg model =
             )
 
         OpenNewUlikModal ->
-            ( { model | showNewUlikModal = True, newUlikName = "", newUlikHiveType = "Mini plus" }, Cmd.none )
+            ( { model | showNewUlikModal = True, newUlikName = "", newUlikHiveType = Maybe.withDefault "Mini plus" (List.head model.ulikTypes) }, Cmd.none )
 
         CloseNewUlikModal ->
             ( { model | showNewUlikModal = False }, Cmd.none )
@@ -734,23 +807,6 @@ update msg model =
                 }
             )
 
-        SubmitUlikSnapshot apiaryId ulikId user ->
-            let
-                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
-                snapshotText = case maybeUlik of
-                    Just ulik -> ulikSnapshotText ulik
-                    Nothing -> "Brak danych uliku"
-            in
-            ( { model | successMessage = Just "📸 Zapisano zrzut uliku weselnego jako notatkę!" }
-            , jsSaveNote
-                { apiaryId = apiaryId
-                , hiveId = ulikId
-                , text = snapshotText
-                , authorId = user.uid
-                , authorEmail = user.email
-                }
-            )
-
         HandleError err ->
             ( { model | errorMessage = Just err }, Cmd.none )
 
@@ -874,6 +930,24 @@ settingsView user model =
                                 ]
                         )
                         model.frameTypes
+                    )
+                ]
+            , div []
+                [ h3 [ style "color" headingColor ] [ text "Typy ulików weselnych" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Skonfiguruj listę dostępnych typów ulików weselnych." ]
+                , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px" ]
+                    [ input [ type_ "text", placeholder "Nowy typ uliku (np. Apidea)", value model.newUlikTypeInput, onInput UpdateNewUlikTypeInput, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                    , button [ onClick (AddUlikType model.newUlikTypeInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Dodaj" ]
+                    ]
+                , ul [ style "list-style" "none", style "padding" "0", style "margin" "0", style "display" "flex", style "flex-direction" "column", style "gap" "8px" ]
+                    (List.map
+                        (\ut ->
+                            li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px" ]
+                                [ span [] [ text ut ]
+                                , button [ onClick (RemoveUlikType ut), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń" ] [ text "❌" ]
+                                ]
+                        )
+                        model.ulikTypes
                     )
                 ]
             ]
@@ -1211,10 +1285,7 @@ ulikDetailView user info model =
                         , input [ type_ "text", value ulik.name, onInput (\val -> UpdateUlikField info.apiaryId ulik.id "name" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , label [] [ text "Typ ula:" ]
                         , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "hiveType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                            [ option [ value "Mini plus", selected (ulik.hiveType == "Mini plus") ] [ text "Mini plus" ]
-                            , option [ value "Odkład wielkopolski", selected (ulik.hiveType == "Odkład wielkopolski") ] [ text "Odkład wielkopolski" ]
-                            , option [ value "Apidea", selected (ulik.hiveType == "Apidea") ] [ text "Apidea" ]
-                            ]
+                            (List.map (\ut -> option [ value ut, selected (ulik.hiveType == ut) ] [ text ut ]) model.ulikTypes)
                         , label [] [ text "Tag NFC:" ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
                             [ input [ type_ "text", value ulik.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
@@ -1305,18 +1376,6 @@ ulikDetailView user info model =
                             text ""
                         ]
                     ]
-                , hr [] []
-                , h3 [ style "color" headingColor ] [ text "Notatki" ]
-                , div [ style "margin-bottom" "15px" ]
-                    [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px" ]
-                        [ button [ onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🎤 Dyktuj" ]
-                        , button [ onClick (SubmitSaveNote info.apiaryId ulik.id model.newNoteText user.uid user.email), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz Notatkę" ]
-                        , button [ onClick (SubmitUlikSnapshot info.apiaryId ulik.id user), style "padding" "8px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Zapisz pełny stan uliku jako notatkę" ] [ text "📸 Zrzut Uliku" ]
-                        ]
-                    ]
-                , div []
-                    (List.map (noteItemView info.apiaryId ulik.id model) model.notes)
                 ]
         _ ->
             div [] [ text "Ładowanie uliku..." ]
@@ -1498,10 +1557,7 @@ modalsView model =
                     , input [ type_ "text", placeholder "np. Ulik #01", value model.newUlikName, onInput UpdateNewUlikName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , label [] [ text "Typ ula:" ]
                     , select [ value model.newUlikHiveType, onInput UpdateNewUlikHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                        [ option [ value "Mini plus" ] [ text "Mini plus" ]
-                        , option [ value "Odkład wielkopolski" ] [ text "Odkład wielkopolski" ]
-                        , option [ value "Apidea" ] [ text "Apidea" ]
-                        ]
+                        (List.map (\ut -> option [ value ut, selected (model.newUlikHiveType == ut) ] [ text ut ]) model.ulikTypes)
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                         , case model.viewState of

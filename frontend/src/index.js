@@ -90,10 +90,15 @@ app.ports.jsLogout.subscribe(async () => {
 
 app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
     let currentDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
+    const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
+    const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
+    const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     if (window.__E2E__) {
         const state = getE2EState();
         const settings = state.userSettings || {
-            frameTypes: ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"],
+            frameTypes: defaultFrameTypes,
+            ulikTypes: defaultUlikTypes,
+            breedLines: defaultBreedLines,
             darkMode: currentDarkMode
         };
         localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
@@ -103,33 +108,42 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
     try {
         const docRef = doc(db, "userSettings", uid);
         const docSnap = await getDoc(docRef);
-        let frameTypesVal = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
+        let frameTypesVal = defaultFrameTypes;
+        let ulikTypesVal = defaultUlikTypes;
+        let breedLinesVal = defaultBreedLines;
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.frameTypes) frameTypesVal = data.frameTypes;
+            if (data.ulikTypes) ulikTypesVal = data.ulikTypes;
+            if (data.breedLines) breedLinesVal = data.breedLines;
             if (data.darkMode !== undefined) {
                 currentDarkMode = data.darkMode;
             } else {
                 await setDoc(docRef, { darkMode: currentDarkMode }, { merge: true });
             }
         } else {
-            await setDoc(docRef, { frameTypes: frameTypesVal, darkMode: currentDarkMode });
+            await setDoc(docRef, { frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
-        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, darkMode: currentDarkMode });
+        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, darkMode }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, breedLines, darkMode }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
     }
+    const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
+    const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
+    const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     if (window.__E2E__) {
         const state = getE2EState();
         state.userSettings = {
-            frameTypes: frameTypes !== undefined ? frameTypes : (state.userSettings ? state.userSettings.frameTypes : ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"]),
+            frameTypes: frameTypes !== undefined ? frameTypes : (state.userSettings ? state.userSettings.frameTypes : defaultFrameTypes),
+            ulikTypes: ulikTypes !== undefined ? ulikTypes : (state.userSettings ? state.userSettings.ulikTypes : defaultUlikTypes),
+            breedLines: breedLines !== undefined ? breedLines : (state.userSettings ? state.userSettings.breedLines : defaultBreedLines),
             darkMode: darkMode !== undefined ? darkMode : (state.userSettings ? state.userSettings.darkMode : false)
         };
         saveE2EState(state);
@@ -139,6 +153,8 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, darkMode }) => 
         const docRef = doc(db, "userSettings", uid);
         const dataToSave = {};
         if (frameTypes !== undefined) dataToSave.frameTypes = frameTypes;
+        if (ulikTypes !== undefined) dataToSave.ulikTypes = ulikTypes;
+        if (breedLines !== undefined) dataToSave.breedLines = breedLines;
         if (darkMode !== undefined) dataToSave.darkMode = darkMode;
         await setDoc(docRef, dataToSave, { merge: true });
     } catch (error) {

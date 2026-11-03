@@ -275,12 +275,16 @@ decodeNotes =
 
 type alias UserSettings =
     { frameTypes : List String
+    , ulikTypes : List String
+    , breedLines : List String
     , darkMode : Bool
     }
 
 decodeUserSettings : Decode.Decoder UserSettings
 decodeUserSettings =
-    Decode.map2 UserSettings
+    Decode.map4 UserSettings
         (Decode.field "frameTypes" (Decode.list Decode.string))
+        (Decode.field "ulikTypes" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "Mini plus", "Odkład wielkopolski", "Apidea" ])))
+        (Decode.field "breedLines" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ])))
         (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
 
