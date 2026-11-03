@@ -43,8 +43,10 @@ function saveE2EState(state) {
     }
 }
 
+const savedDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
 const app = Elm.Main.init({
-    node: document.getElementById('app')
+    node: document.getElementById('app'),
+    flags: { darkMode: savedDarkMode }
 });
 window.app = app;
 
@@ -87,33 +89,58 @@ app.ports.jsLogout.subscribe(async () => {
 });
 
 app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
+    let currentDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
     if (window.__E2E__) {
-        app.ports.userSettingsReceived.send({ frameTypes: ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"] });
+        const state = getE2EState();
+        const settings = state.userSettings || {
+            frameTypes: ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"],
+            darkMode: currentDarkMode
+        };
+        localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
+        app.ports.userSettingsReceived.send(settings);
         return;
     }
     try {
         const docRef = doc(db, "userSettings", uid);
         const docSnap = await getDoc(docRef);
+        let frameTypesVal = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
         if (docSnap.exists()) {
             const data = docSnap.data();
-            app.ports.userSettingsReceived.send({ frameTypes: data.frameTypes || ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"] });
+            if (data.frameTypes) frameTypesVal = data.frameTypes;
+            if (data.darkMode !== undefined) {
+                currentDarkMode = data.darkMode;
+            } else {
+                await setDoc(docRef, { darkMode: currentDarkMode }, { merge: true });
+            }
         } else {
-            const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
-            await setDoc(docRef, { frameTypes: defaultFrameTypes });
-            app.ports.userSettingsReceived.send({ frameTypes: defaultFrameTypes });
+            await setDoc(docRef, { frameTypes: frameTypesVal, darkMode: currentDarkMode });
         }
+        localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
+        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, darkMode: currentDarkMode });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, darkMode }) => {
+    if (darkMode !== undefined) {
+        localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
+    }
     if (window.__E2E__) {
+        const state = getE2EState();
+        state.userSettings = {
+            frameTypes: frameTypes !== undefined ? frameTypes : (state.userSettings ? state.userSettings.frameTypes : ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"]),
+            darkMode: darkMode !== undefined ? darkMode : (state.userSettings ? state.userSettings.darkMode : false)
+        };
+        saveE2EState(state);
         return;
     }
     try {
         const docRef = doc(db, "userSettings", uid);
-        await setDoc(docRef, { frameTypes: frameTypes }, { merge: true });
+        const dataToSave = {};
+        if (frameTypes !== undefined) dataToSave.frameTypes = frameTypes;
+        if (darkMode !== undefined) dataToSave.darkMode = darkMode;
+        await setDoc(docRef, dataToSave, { merge: true });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

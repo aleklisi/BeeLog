@@ -294,4 +294,39 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Ulik Z Matecznikiem')).toBeVisible();
   });
 
+  test('10. Trwałość ustawień (tryb ciemny) po odświeżeniu', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Przejdź do ustawień
+    await page.click('button:has-text("⚙️ Ustawienia")');
+    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+
+    // Włącz tryb ciemny
+    await page.click('button:has-text("🌙 Przełącz na Tryb Ciemny")');
+    await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
+
+    // Odśwież stronę
+    await page.reload();
+    await page.waitForFunction(() => window.app && window.app.ports && window.app.ports.authStateChanged);
+    await page.evaluate(() => {
+      window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+    });
+    await page.waitForTimeout(300);
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Przejdź ponownie do ustawień i sprawdź czy tryb ciemny nadal jest aktywny
+    await page.click('button:has-text("⚙️ Ustawienia")');
+    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
+  });
+
 });

@@ -272,3 +272,15 @@ decodeNotes =
             (Decode.field "authorEmail" Decode.string)
             (Decode.field "timestamp" Decode.string)
         )
+
+type alias UserSettings =
+    { frameTypes : List String
+    , darkMode : Bool
+    }
+
+decodeUserSettings : Decode.Decoder UserSettings
+decodeUserSettings =
+    Decode.map2 UserSettings
+        (Decode.field "frameTypes" (Decode.list Decode.string))
+        (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
+

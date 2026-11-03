@@ -7,7 +7,7 @@ import Html.Events exposing (..)
 import Json.Decode as Decode exposing (Value)
 import Types exposing (..)
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init
@@ -73,8 +73,12 @@ type alias Model =
     , newFrameTypeInput : String
     }
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+type alias Flags =
+    { darkMode : Bool
+    }
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
     ( { authState = LoggedOut
       , viewState = LoginView
       , apiaries = []
@@ -83,7 +87,7 @@ init _ =
       , notes = []
       , errorMessage = Nothing
       , successMessage = Nothing
-      , darkMode = False
+      , darkMode = flags.darkMode
       , currentDate = ""
       , apiaryFilter = "all"
       , ulikFilter = "all"
@@ -147,7 +151,7 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, frameTypes : List String } -> Cmd msg
+port jsSaveUserSettings : { uid : String, frameTypes : List String, darkMode : Bool } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -171,7 +175,7 @@ type Msg
     | ToggleDarkMode
     | AuthStateUpdated { uid : String, email : String }
     | CurrentDateReceived String
-    | UserSettingsReceived (Result String (List String))
+    | UserSettingsReceived (Result String UserSettings)
     | LoadApiariesData String
     | ApiariesDecoded (Result String (List Apiary))
     | NavigateTo ViewState
@@ -274,7 +278,16 @@ update msg model =
             )
 
         ToggleDarkMode ->
-            ( { model | darkMode = not model.darkMode }, Cmd.none )
+            let
+                newDarkMode = not model.darkMode
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, darkMode = newDarkMode }
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | darkMode = newDarkMode }, cmd )
 
         AuthStateUpdated { uid, email } ->
             if uid == "" then
@@ -292,8 +305,8 @@ update msg model =
 
         UserSettingsReceived result ->
             case result of
-                Ok list ->
-                    ( { model | frameTypes = list }, Cmd.none )
+                Ok settings ->
+                    ( { model | frameTypes = settings.frameTypes, darkMode = settings.darkMode }, Cmd.none )
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -340,7 +353,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = updated }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, darkMode = model.darkMode }
                             _ ->
                                 Cmd.none
                 in
@@ -354,7 +367,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = updated }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, darkMode = model.darkMode }
                         _ ->
                             Cmd.none
             in
@@ -762,7 +775,7 @@ subscriptions _ =
         , operationError HandleError
         , successMessageReceived SuccessMessageReceived
         , todayReceived CurrentDateReceived
-        , userSettingsReceived (\val -> UserSettingsReceived (Result.mapError Decode.errorToString (Decode.decodeValue (Decode.field "frameTypes" (Decode.list Decode.string)) val)))
+        , userSettingsReceived (\val -> UserSettingsReceived (Result.mapError Decode.errorToString (Decode.decodeValue decodeUserSettings val)))
         ]
 
 -- VIEW
