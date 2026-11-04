@@ -119,10 +119,10 @@ test.describe('BeeLog E2E Test Suite', () => {
       await expect(page.locator(`text=${hiveName}`)).toBeVisible();
     }
 
-    // Zmień kolejność uli (przesuń Ul 2 w lewo)
+    // Zmień kolejność uli (przesuń Ul 2 w górę)
     await page.locator('h3', { hasText: 'Ul 2' }).evaluate(node => {
       const card = node.closest('div[style*="background"]');
-      card.querySelector('button[title="Przesuń w lewo"]').click();
+      card.querySelector('button[title="Przesuń w górę"]').click();
     });
 
     // Edytuj Ul 1 (kliknij w kafelek ula, aby wejść w kartę ula)
@@ -174,9 +174,9 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('text=Ulik 1');
     await expect(page.locator('text=Ulik Weselny: Ulik 1')).toBeVisible();
 
-    // Test dat spodziewanego wygryzienia i unasiennienia (+10 dni)
+    // Test dat spodziewanego wygryzienia i unasiennienia (+12 dni)
     await page.fill('input[type="date"]', '2026-11-01');
-    await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2026-11-11');
+    await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2026-11-13');
 
     // Test przejść stanów
     await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();

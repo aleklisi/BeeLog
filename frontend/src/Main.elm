@@ -76,6 +76,7 @@ type alias Model =
     , newUlikTypeInput : String
     , breedLines : List String
     , newBreedLineInput : String
+    , hatchingToMatingDays : Int
     , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
     , modalBreedLine : String
     , modalHatchDate : String
@@ -112,6 +113,7 @@ init flags =
       , newUlikTypeInput = ""
       , breedLines = [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ]
       , newBreedLineInput = ""
+      , hatchingToMatingDays = 12
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -176,7 +178,7 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool } -> Cmd msg
+port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -228,6 +230,7 @@ type Msg
     | UpdateNewBreedLineInput String
     | AddBreedLine String
     | RemoveBreedLine String
+    | UpdateHatchingToMatingDaysInput String
     -- Hive actions
     | HivesDecoded (Result String (List Hive))
     | OpenNewHiveModal
@@ -320,7 +323,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                         _ ->
                             Cmd.none
             in
@@ -343,7 +346,7 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays }, Cmd.none )
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -390,7 +393,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                             _ ->
                                 Cmd.none
                 in
@@ -404,7 +407,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                         _ ->
                             Cmd.none
             in
@@ -420,7 +423,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                             _ ->
                                 Cmd.none
                 in
@@ -434,7 +437,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                         _ ->
                             Cmd.none
             in
@@ -450,7 +453,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                             _ ->
                                 Cmd.none
                 in
@@ -464,11 +467,27 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
                         _ ->
                             Cmd.none
             in
             ( { model | breedLines = updated }, cmd )
+
+        UpdateHatchingToMatingDaysInput str ->
+            let
+                val = case String.toInt str of
+                    Just n ->
+                        if n < 1 then 1 else if n > 30 then 30 else n
+                    Nothing ->
+                        model.hatchingToMatingDays
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = val }
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | hatchingToMatingDays = val }, cmd )
 
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
@@ -578,7 +597,7 @@ update msg model =
                         (\u ->
                             if u.id == ulikId then
                                 if field == "expectedHatchDate" then
-                                    { u | expectedHatchDate = value, expectedMatingDate = addDaysToDateString 10 value }
+                                    { u | expectedHatchDate = value, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays value }
                                 else if field == "expectedMatingDate" then
                                     { u | expectedMatingDate = value }
                                 else if field == "name" then
@@ -609,7 +628,7 @@ update msg model =
                 cmds =
                     if field == "expectedHatchDate" then
                         [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedHatchDate", value = value }
-                        , jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedMatingDate", value = addDaysToDateString 10 value }
+                        , jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedMatingDate", value = addDaysToDateString model.hatchingToMatingDays value }
                         ]
                     else
                         [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = field, value = value }
@@ -654,12 +673,12 @@ update msg model =
                         transition =
                             case modalType of
                                 ModalPoddajMatecznik ->
-                                    { stateStr = "z_matecznikiem", desc = "Poddano matecznik", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = False, color = "", number = "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString 10 model.modalHatchDate }
+                                    { stateStr = "z_matecznikiem", desc = "Poddano matecznik", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = False, color = "", number = "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays model.modalHatchDate }
                                 ModalPoddajMatkeNieunasiennioną ->
                                     let
                                         hasOpalit = model.modalOpalitColor /= "BRAK" && model.modalOpalitColor /= ""
                                     in
-                                    { stateStr = "matka_wygryziona", desc = "Poddano matkę nieunasiennioną", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = hasOpalit, color = if hasOpalit then model.modalOpalitColor else "", number = if hasOpalit then model.modalOpalitNumber else "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString 10 model.modalHatchDate }
+                                    { stateStr = "matka_wygryziona", desc = "Poddano matkę nieunasiennioną", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = hasOpalit, color = if hasOpalit then model.modalOpalitColor else "", number = if hasOpalit then model.modalOpalitNumber else "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays model.modalHatchDate }
                                 ModalZaopalitkuj ->
                                     { stateStr = u.state, desc = "Zaopalitkowano matkę", hasQueen = True, queen = { breedLine = u.queen.breedLine, hasOpalit = True, color = model.modalOpalitColor, number = model.modalOpalitNumber }, expectedHatchDate = u.expectedHatchDate, expectedMatingDate = u.expectedMatingDate }
 
@@ -1120,6 +1139,13 @@ settingsView user model =
                         model.breedLines
                     )
                 ]
+            , div []
+                [ h3 [ style "color" headingColor ] [ text "Liczba dni od spodziewanego wygryzienia do spodziewanego unasiennienia" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Liczba dni (od 1 do 30) od wygryzienia do spodziewanego unasiennienia." ]
+                , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px" ]
+                    [ input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "30", value (String.fromInt model.hatchingToMatingDays), onInput UpdateHatchingToMatingDaysInput, style "width" "120px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                    ]
+                ]
             ]
         ]
 
@@ -1244,7 +1270,7 @@ hiveListView user info model =
         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "20px" ]
             [ button [ onClick OpenNewHiveModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Nowy Ul" ]
             ]
-        , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(220px, 1fr))", style "gap" "15px" ]
+        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
             (List.map (hiveCardView info.apiaryId model) model.hives)
         ]
 
@@ -1290,7 +1316,7 @@ ulikListView user info model =
                     ]
                 ]
             ]
-        , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fill, minmax(240px, 1fr))", style "gap" "15px" ]
+        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
             (List.map (ulikCardView info.apiaryId model) filteredUliki)
         ]
 
@@ -1313,8 +1339,8 @@ ulikCardView apiaryId model ulik =
             [ text ("Matka: " ++ (if ulik.hasQueen then (if ulik.queen.hasOpalit then "Opalit " ++ ulik.queen.color ++ " #" ++ ulik.queen.number else "Bez opalitka") ++ (if ulik.queen.breedLine /= "" then " (" ++ ulik.queen.breedLine ++ ")" else "") else "Brak matki")) ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveUlikUp ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveUlikDown ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveUlikUp ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w górę" ] [ text "⬆️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveUlikDown ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w dół" ] [ text "⬇️" ]
                 ]
             , div [ style "display" "flex", style "gap" "8px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę uliku" ] [ text "✏️" ]
@@ -1342,8 +1368,8 @@ hiveCardView apiaryId model hive =
             [ text ("Matka: " ++ (if hive.queen.hasOpalit then "Opalitek " ++ hive.queen.color ++ " #" ++ hive.queen.number else "Brak opalitka")) ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveHiveUp hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveHiveDown hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveHiveUp hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w górę" ] [ text "⬆️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveHiveDown hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w dół" ] [ text "⬇️" ]
                 ]
             , div [ style "display" "flex", style "gap" "8px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Zmień nazwę ula" ] [ text "✏️" ]

@@ -92,6 +92,25 @@ suite =
                 \() ->
                     Expect.equal "2026-11-11" (addDaysToDateString 10 "2026-11-01")
             ]
+        , describe "User Settings Decoder"
+            [ test "decodes user settings with hatchingToMatingDays" <|
+                \() ->
+                    let
+                        json = "{\"frameTypes\": [\"Dadant\"], \"ulikTypes\": [\"Apidea\"], \"breedLines\": [\"car. Galicja\"], \"darkMode\": true, \"hatchingToMatingDays\": 15}"
+                        decodeTestUserSettings =
+                            Decode.map5 (\ft ut bl dm hmd -> { frameTypes = ft, ulikTypes = ut, breedLines = bl, darkMode = dm, hatchingToMatingDays = hmd })
+                                (Decode.field "frameTypes" (Decode.list Decode.string))
+                                (Decode.field "ulikTypes" (Decode.list Decode.string))
+                                (Decode.field "breedLines" (Decode.list Decode.string))
+                                (Decode.field "darkMode" Decode.bool)
+                                (Decode.field "hatchingToMatingDays" Decode.int)
+                    in
+                    case Decode.decodeString decodeTestUserSettings json of
+                        Ok s ->
+                            Expect.equal 15 s.hatchingToMatingDays
+                        Err _ ->
+                            Expect.fail "Failed to decode user settings"
+            ]
         ]
 
 -- Helper decoders copied from Main.elm (since it's a port module, direct import might be tricky for internals)

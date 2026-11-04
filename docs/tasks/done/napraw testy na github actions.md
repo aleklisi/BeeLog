@@ -1,0 +1,1 @@
+niech testy elm test i tsty e2e sie odpalaja i przechdoza na github actions
