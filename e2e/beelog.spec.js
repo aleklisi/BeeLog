@@ -325,4 +325,48 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
   });
 
+  test('11. Edytowalna lista ras i linii matek oraz wybór w uliku weselnym', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Przejdź do ustawień
+    await page.click('button:has-text("⚙️ Ustawienia")');
+    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+
+    // Dodaj nową rasę/linię matek
+    await page.fill('input[placeholder="Nowa rasa/linia (np. car. Galicja)"]', 'car. Testowa Linia');
+    await page.click('button:has-text("Dodaj"):near(input[placeholder="Nowa rasa/linia (np. car. Galicja)"])');
+    await expect(page.locator('text=car. Testowa Linia')).toBeVisible();
+
+    // Powrót do pasieczysk
+    await page.click('button:has-text("← Powrót")');
+
+    // Dodaj Trutowisko
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Rasy');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Trutowisko Rasy')).toBeVisible();
+
+    // Wejdź do trutowiska i dodaj ulik
+    await page.click('text=Trutowisko Rasy');
+    await page.click('text=+ Dodaj Ulik Weselny');
+    await page.fill('input[placeholder="np. Ulik #01"]', 'Ulik Wybór Rasy');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ulik Wybór Rasy')).toBeVisible();
+
+    // Wejdź w ulik, zaznacz że jest matka i wybierz dodaną rasę
+    await page.click('text=Ulik Wybór Rasy');
+    await page.selectOption('select:has-text("Tak")', { value: 'true' });
+    await page.selectOption('select:has-text("car. Galicja")', { value: 'car. Testowa Linia' });
+    await expect(page.locator('select:has-text("car. Testowa Linia")')).toHaveValue('car. Testowa Linia');
+  });
+
 });

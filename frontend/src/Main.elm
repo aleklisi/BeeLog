@@ -5,6 +5,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Decode exposing (Value)
+import Json.Encode as Encode
 import Types exposing (..)
 
 main : Program Flags Model Msg
@@ -75,7 +76,17 @@ type alias Model =
     , newUlikTypeInput : String
     , breedLines : List String
     , newBreedLineInput : String
+    , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
+    , modalBreedLine : String
+    , modalHatchDate : String
+    , modalOpalitColor : String
+    , modalOpalitNumber : String
     }
+
+type UlikModalType
+    = ModalPoddajMatecznik
+    | ModalPoddajMatkeNieunasiennioną
+    | ModalZaopalitkuj
 
 type alias Flags =
     { darkMode : Bool
@@ -124,6 +135,11 @@ init flags =
       , showRenameUlikModal = Nothing
       , renameUlikInput = ""
       , showDeleteUlikModal = Nothing
+      , activeUlikModal = Nothing
+      , modalBreedLine = ""
+      , modalHatchDate = ""
+      , modalOpalitColor = "Biały"
+      , modalOpalitNumber = ""
       }
     , Cmd.none
     )
@@ -142,6 +158,7 @@ port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value 
 port jsLoadUliki : { apiaryId : String } -> Cmd msg
 port jsCreateUlik : { apiaryId : String, name : String, hiveType : String } -> Cmd msg
 port jsUpdateUlik : { apiaryId : String, ulikId : String, field : String, value : String } -> Cmd msg
+port jsUpdateUlikFull : { apiaryId : String, ulikId : String, fields : Value } -> Cmd msg
 port jsUpdateUlikName : { apiaryId : String, ulikId : String, newName : String } -> Cmd msg
 port jsDeleteUlik : { apiaryId : String, ulikId : String } -> Cmd msg
 port jsStartNfcScan : () -> Cmd msg
@@ -227,6 +244,13 @@ type Msg
     | UpdateNewUlikHiveType String
     | SubmitCreateUlik String
     | UpdateUlikField String String String String
+    | OpenUlikModal String String UlikModalType
+    | CloseUlikModal
+    | UpdateModalBreedLine String
+    | UpdateModalHatchDate String
+    | UpdateModalOpalitColor String
+    | UpdateModalOpalitNumber String
+    | SubmitUlikModal String String UlikModalType
     | TransitionUlikState String String UlikState
     -- NFC & Notes
     | StartNfcScan
@@ -593,8 +617,136 @@ update msg model =
             in
             ( { model | uliki = updatedUliki }, Cmd.batch cmds )
 
+        OpenUlikModal apiaryId ulikId modalType ->
+            ( { model
+                | activeUlikModal = Just { apiaryId = apiaryId, ulikId = ulikId, modalType = modalType }
+                , modalBreedLine = Maybe.withDefault "" (List.head model.breedLines)
+                , modalHatchDate = if model.currentDate /= "" then model.currentDate else "2026-11-03"
+                , modalOpalitColor = "Biały"
+                , modalOpalitNumber = ""
+              }
+            , Cmd.none
+            )
+
+        CloseUlikModal ->
+            ( { model | activeUlikModal = Nothing }, Cmd.none )
+
+        UpdateModalBreedLine val ->
+            ( { model | modalBreedLine = val }, Cmd.none )
+
+        UpdateModalHatchDate val ->
+            ( { model | modalHatchDate = val }, Cmd.none )
+
+        UpdateModalOpalitColor val ->
+            ( { model | modalOpalitColor = val }, Cmd.none )
+
+        UpdateModalOpalitNumber val ->
+            ( { model | modalOpalitNumber = val }, Cmd.none )
+
+        SubmitUlikModal apiaryId ulikId modalType ->
+            let
+                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
+            in
+            case maybeUlik of
+                Just u ->
+                    let
+                        timestamp = if model.currentDate /= "" then model.currentDate else "2026-11-03"
+                        transition =
+                            case modalType of
+                                ModalPoddajMatecznik ->
+                                    { stateStr = "z_matecznikiem", desc = "Poddano matecznik", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = False, color = "", number = "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString 10 model.modalHatchDate }
+                                ModalPoddajMatkeNieunasiennioną ->
+                                    let
+                                        hasOpalit = model.modalOpalitColor /= "BRAK" && model.modalOpalitColor /= ""
+                                    in
+                                    { stateStr = "matka_wygryziona", desc = "Poddano matkę nieunasiennioną", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = hasOpalit, color = if hasOpalit then model.modalOpalitColor else "", number = if hasOpalit then model.modalOpalitNumber else "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString 10 model.modalHatchDate }
+                                ModalZaopalitkuj ->
+                                    { stateStr = u.state, desc = "Zaopalitkowano matkę", hasQueen = True, queen = { breedLine = u.queen.breedLine, hasOpalit = True, color = model.modalOpalitColor, number = model.modalOpalitNumber }, expectedHatchDate = u.expectedHatchDate, expectedMatingDate = u.expectedMatingDate }
+
+                        historyEntry =
+                            { timestamp = timestamp
+                            , state = transition.stateStr
+                            , description = transition.desc
+                            , breedLine = transition.queen.breedLine
+                            , expectedHatchDate = transition.expectedHatchDate
+                            , expectedMatingDate = transition.expectedMatingDate
+                            , hasOpalit = transition.queen.hasOpalit
+                            , color = transition.queen.color
+                            , number = transition.queen.number
+                            }
+
+                        updatedUlik =
+                            { u
+                            | state = transition.stateStr
+                            , hasQueen = transition.hasQueen
+                            , queen = transition.queen
+                            , expectedHatchDate = transition.expectedHatchDate
+                            , expectedMatingDate = transition.expectedMatingDate
+                            , history = historyEntry :: u.history
+                            }
+
+                        updatedUliki =
+                            List.map (\x -> if x.id == ulikId then updatedUlik else x) model.uliki
+                    in
+                    ( { model | uliki = updatedUliki, activeUlikModal = Nothing }
+                    , jsUpdateUlikFull { apiaryId = apiaryId, ulikId = ulikId, fields = encodeUlikFields updatedUlik }
+                    )
+                Nothing ->
+                    ( { model | activeUlikModal = Nothing }, Cmd.none )
+
         TransitionUlikState apiaryId ulikId newState ->
-            ( model, jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "state", value = ulikStateToString newState } )
+            let
+                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
+            in
+            case maybeUlik of
+                Just u ->
+                    let
+                        timestamp = if model.currentDate /= "" then model.currentDate else "2026-11-03"
+                        newStateStr = ulikStateToString newState
+                        isReset = newState == Bezmatek
+                        desc =
+                            case newState of
+                                Bezmatek -> "Zabrano matkę / zresetowano stan"
+                                ZMatecznikiem -> "Poddano matecznik"
+                                MatkaWygryziona -> "Matka się wygryzła"
+                                MatkaCzerwi -> "Matka się unasienniła (UNC)"
+
+                        transition =
+                            if isReset then
+                                { hasQueen = False, queen = { breedLine = "", hasOpalit = False, color = "", number = "" }, expectedHatchDate = "", expectedMatingDate = "" }
+                            else
+                                { hasQueen = u.hasQueen, queen = u.queen, expectedHatchDate = u.expectedHatchDate, expectedMatingDate = u.expectedMatingDate }
+
+                        historyEntry =
+                            { timestamp = timestamp
+                            , state = newStateStr
+                            , description = desc
+                            , breedLine = transition.queen.breedLine
+                            , expectedHatchDate = transition.expectedHatchDate
+                            , expectedMatingDate = transition.expectedMatingDate
+                            , hasOpalit = transition.queen.hasOpalit
+                            , color = transition.queen.color
+                            , number = transition.queen.number
+                            }
+
+                        updatedUlik =
+                            { u
+                            | state = newStateStr
+                            , hasQueen = transition.hasQueen
+                            , queen = transition.queen
+                            , expectedHatchDate = transition.expectedHatchDate
+                            , expectedMatingDate = transition.expectedMatingDate
+                            , history = historyEntry :: u.history
+                            }
+
+                        updatedUliki =
+                            List.map (\x -> if x.id == ulikId then updatedUlik else x) model.uliki
+                    in
+                    ( { model | uliki = updatedUliki }
+                    , jsUpdateUlikFull { apiaryId = apiaryId, ulikId = ulikId, fields = encodeUlikFields updatedUlik }
+                    )
+                Nothing ->
+                    ( model, Cmd.none )
 
         StartNfcScan ->
             ( model, jsStartNfcScan () )
@@ -948,6 +1100,24 @@ settingsView user model =
                                 ]
                         )
                         model.ulikTypes
+                    )
+                ]
+            , div []
+                [ h3 [ style "color" headingColor ] [ text "Rasy i linie matek pszczelich" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Skonfiguruj listę dostępnych ras i linii matek pszczelich." ]
+                , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px" ]
+                    [ input [ type_ "text", placeholder "Nowa rasa/linia (np. car. Galicja)", value model.newBreedLineInput, onInput UpdateNewBreedLineInput, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                    , button [ onClick (AddBreedLine model.newBreedLineInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Dodaj" ]
+                    ]
+                , ul [ style "list-style" "none", style "padding" "0", style "margin" "0", style "display" "flex", style "flex-direction" "column", style "gap" "8px" ]
+                    (List.map
+                        (\bl ->
+                            li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px" ]
+                                [ span [] [ text bl ]
+                                , button [ onClick (RemoveBreedLine bl), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń" ] [ text "❌" ]
+                                ]
+                        )
+                        model.breedLines
                     )
                 ]
             ]
@@ -1349,8 +1519,16 @@ ulikDetailView user info model =
                             ]
                         , if ulik.hasQueen then
                             div []
-                                [ label [] [ text "Nazwa rasy i linii matki:" ]
-                                , input [ type_ "text", value ulik.queen.breedLine, placeholder "np. Buckfast GEMA", onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.breedLine" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                [ label [] [ text "Rasa i linia matki:" ]
+                                , let
+                                    allBreedLines =
+                                        if List.member ulik.queen.breedLine model.breedLines || ulik.queen.breedLine == "" then
+                                            model.breedLines
+                                        else
+                                            model.breedLines ++ [ ulik.queen.breedLine ]
+                                  in
+                                  select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.breedLine" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                    (List.map (\bl -> option [ value bl, selected (ulik.queen.breedLine == bl) ] [ text bl ]) allBreedLines)
                                 , label [] [ text "Obecność Opalitka:" ]
                                 , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "queen.hasOpalit" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                     [ option [ value "true", selected ulik.queen.hasOpalit ] [ text "Tak (Opalitka)" ]
@@ -1689,4 +1867,35 @@ ulikSnapshotText ulik =
         , "Stan: " ++ ulikStateLabel (getUlikState ulik)
         , "Tag NFC: " ++ (if ulik.nfcTagId == "" then "Brak" else ulik.nfcTagId)
         , "Matka pszczela: " ++ queenText
+        ]
+
+encodeUlikFields : UlikWeselny -> Encode.Value
+encodeUlikFields u =
+    Encode.object
+        [ ( "state", Encode.string u.state )
+        , ( "hasQueen", Encode.bool u.hasQueen )
+        , ( "queen", Encode.object
+            [ ( "breedLine", Encode.string u.queen.breedLine )
+            , ( "hasOpalit", Encode.bool u.queen.hasOpalit )
+            , ( "color", Encode.string u.queen.color )
+            , ( "number", Encode.string u.queen.number )
+            ]
+          )
+        , ( "expectedHatchDate", Encode.string u.expectedHatchDate )
+        , ( "expectedMatingDate", Encode.string u.expectedMatingDate )
+        , ( "history", Encode.list encodeUlikHistoryEntry u.history )
+        ]
+
+encodeUlikHistoryEntry : UlikHistoryEntry -> Encode.Value
+encodeUlikHistoryEntry h =
+    Encode.object
+        [ ( "timestamp", Encode.string h.timestamp )
+        , ( "state", Encode.string h.state )
+        , ( "description", Encode.string h.description )
+        , ( "breedLine", Encode.string h.breedLine )
+        , ( "expectedHatchDate", Encode.string h.expectedHatchDate )
+        , ( "expectedMatingDate", Encode.string h.expectedMatingDate )
+        , ( "hasOpalit", Encode.bool h.hasOpalit )
+        , ( "color", Encode.string h.color )
+        , ( "number", Encode.string h.number )
         ]

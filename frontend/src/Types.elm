@@ -71,6 +71,18 @@ type alias UlikQueen =
     , number : String
     }
 
+type alias UlikHistoryEntry =
+    { timestamp : String
+    , state : String
+    , description : String
+    , breedLine : String
+    , expectedHatchDate : String
+    , expectedMatingDate : String
+    , hasOpalit : Bool
+    , color : String
+    , number : String
+    }
+
 type alias UlikWeselny =
     { id : String
     , name : String
@@ -82,6 +94,7 @@ type alias UlikWeselny =
     , expectedMatingDate : String
     , nfcTagId : String
     , order : Int
+    , history : List UlikHistoryEntry
     }
 
 parseDate : String -> Maybe (Int, Int, Int)
@@ -234,6 +247,19 @@ decodeHives =
             (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
         )
 
+decodeUlikHistoryEntry : Decode.Decoder UlikHistoryEntry
+decodeUlikHistoryEntry =
+    Decode.succeed UlikHistoryEntry
+        |> andMap (Decode.field "timestamp" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "state" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "description" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "breedLine" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "expectedHatchDate" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "expectedMatingDate" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "hasOpalit" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
+        |> andMap (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+
 decodeUliki : Decode.Decoder (List UlikWeselny)
 decodeUliki =
     Decode.list
@@ -248,6 +274,7 @@ decodeUliki =
             |> andMap (Decode.field "expectedMatingDate" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+            |> andMap (Decode.field "history" (Decode.list decodeUlikHistoryEntry) |> Decode.maybe |> Decode.map (Maybe.withDefault []))
         )
 
 decodeApiaries : Decode.Decoder (List Apiary)
