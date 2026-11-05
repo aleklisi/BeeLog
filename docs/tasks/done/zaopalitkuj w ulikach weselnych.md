@@ -1,0 +1,1 @@
+W stanach (N) matka nieunasienniona i (UNC) Matka unasienniona dodaj guzik "zaopalitkuj" (o ile matka nie jest ju zaopalitkowana) i zapytaj o kolor i numer/napis na opalitku a nastepnei zapisz te dane w bazie i dodaj je do wyswietlania w uliku weselnym do wyswietlania.

@@ -157,6 +157,7 @@ port jsDeleteApiary : { apiaryId : String } -> Cmd msg
 port jsLoadHives : { apiaryId : String } -> Cmd msg
 port jsCreateHive : { apiaryId : String, name : String, frameType : String } -> Cmd msg
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
+port jsUpdateHiveFull : { apiaryId : String, hiveId : String, fields : Value } -> Cmd msg
 port jsLoadUliki : { apiaryId : String } -> Cmd msg
 port jsCreateUlik : { apiaryId : String, name : String, hiveType : String } -> Cmd msg
 port jsUpdateUlik : { apiaryId : String, ulikId : String, field : String, value : String } -> Cmd msg
@@ -1320,6 +1321,64 @@ ulikListView user info model =
             (List.map (ulikCardView info.apiaryId model) filteredUliki)
         ]
 
+ulikTimelineView : Model -> UlikWeselny -> Html Msg
+ulikTimelineView model ulik =
+    if ulik.expectedHatchDate == "" then
+        div [ style "font-size" "12px", style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic", style "margin-top" "5px" ]
+            [ text "Oś czasu: brak daty wygryzienia" ]
+    else
+        let
+            maybeHatch = parseDate ulik.expectedHatchDate
+            maybeMating = if ulik.expectedMatingDate /= "" then parseDate ulik.expectedMatingDate else Nothing
+            maybeNow = if model.currentDate /= "" then parseDate model.currentDate else Nothing
+        in
+        case maybeHatch of
+            Just (hy, hm, hd) ->
+                let
+                    hDays = dateToDays hy hm hd
+                    mDays = case maybeMating of
+                        Just (my, mm, md) -> dateToDays my mm md
+                        Nothing -> hDays + model.hatchingToMatingDays
+                    d30Days = hDays + 30
+                    nowDays = case maybeNow of
+                        Just (ty, tm, td) -> dateToDays ty tm td
+                        Nothing -> hDays
+
+                    minDays = Basics.min (Basics.min hDays nowDays) (Basics.min mDays d30Days) - 5
+                    maxDays = Basics.max (Basics.max hDays nowDays) (Basics.max mDays d30Days) + 10
+                    spanDays = Basics.max 1 (maxDays - minDays)
+
+                    toPct days =
+                        let
+                            pct = toFloat (days - minDays) / toFloat spanDays * 100
+                        in
+                        clamp 0 100 pct
+
+                    hPct = toPct hDays
+                    mPct = toPct mDays
+                    d30Pct = toPct d30Days
+                    nowPct = toPct nowDays
+                in
+                div [ style "margin-top" "10px", style "font-size" "12px" ]
+                    [ div [ style "font-weight" "bold", style "margin-bottom" "3px", style "color" (if model.darkMode then "#ccc" else "#555") ]
+                        [ text "Oś czasu cyklu matki:" ]
+                    , div [ style "position" "relative", style "height" "14px", style "background" (if model.darkMode then "#333" else "#e0e0e0"), style "border-radius" "7px", style "overflow" "hidden", style "margin-bottom" "5px" ]
+                        [ div [ style "position" "absolute", style "top" "0", style "left" "0", style "width" (String.fromFloat hPct ++ "%"), style "height" "100%", style "background" "#f7dc6f", title "Do wygryzienia (jasno żółty)" ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat hPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (mPct - hPct)) ++ "%"), style "height" "100%", style "background" "#d4ac0d", title "Wygryzienie do unasiennienia (ciemno żółty)" ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat mPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (d30Pct - mPct)) ++ "%"), style "height" "100%", style "background" "#27ae60", title "Okres po unasiennieniu" ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat d30Pct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (100 - d30Pct)) ++ "%"), style "height" "100%", style "background" "#e74c3c", title "Po 30 dniach od wygryzienia (czerwony - deadline)" ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat nowPct ++ "%"), style "width" "3px", style "height" "100%", style "background" "#3498db", style "z-index" "2", title ("Teraz: " ++ model.currentDate) ] []
+                        ]
+                    , div [ style "display" "flex", style "justify-content" "space-between", style "font-size" "10px", style "color" (if model.darkMode then "#aaa" else "#666") ]
+                        [ span [] [ text ("Teraz: " ++ (if model.currentDate == "" then "-" else model.currentDate)) ]
+                        , span [] [ text ("Wygryz.: " ++ ulik.expectedHatchDate) ]
+                        , span [] [ text ("Unasien.: " ++ (if ulik.expectedMatingDate == "" then "-" else ulik.expectedMatingDate)) ]
+                        , span [] [ text ("+30 dni: " ++ addDaysToDateString 30 ulik.expectedHatchDate) ]
+                        ]
+                    ]
+            _ ->
+                text ""
+
 ulikCardView : String -> Model -> UlikWeselny -> Html Msg
 ulikCardView apiaryId model ulik =
     let
@@ -1337,6 +1396,7 @@ ulikCardView apiaryId model ulik =
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text ("Stan: " ++ ulikStateLabel (getUlikState ulik)) ]
         , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "5px", style "border-radius" "4px", style "color" textColor ]
             [ text ("Matka: " ++ (if ulik.hasQueen then (if ulik.queen.hasOpalit then "Opalit " ++ ulik.queen.color ++ " #" ++ ulik.queen.number else "Bez opalitka") ++ (if ulik.queen.breedLine /= "" then " (" ++ ulik.queen.breedLine ++ ")" else "") else "Brak matki")) ]
+        , ulikTimelineView model ulik
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (MoveUlikUp ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w górę" ] [ text "⬆️" ]
@@ -1515,6 +1575,7 @@ ulikDetailView user info model =
                               else
                                 text ""
                             ]
+                        , ulikTimelineView model ulik
                         ]
                     , div []
                         [ h3 [ style "color" headingColor ] [ text "Stan i Matka Pszczela" ]
@@ -1531,10 +1592,18 @@ ulikDetailView user info model =
                                     ]
                                 MatkaWygryziona ->
                                     [ button [ onClick (TransitionUlikState info.apiaryId ulik.id MatkaCzerwi), style "padding" "6px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "👑 Matka się unasienniła (UNC)" ]
+                                    , if not ulik.queen.hasOpalit then
+                                        button [ onClick (OpenUlikModal info.apiaryId ulik.id ModalZaopalitkuj), style "padding" "6px 12px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🏷️ Zaopalitkuj" ]
+                                      else
+                                        text ""
                                     , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "⚠️ Matka strutowiała / zniknęła (B)" ]
                                     ]
                                 MatkaCzerwi ->
                                     [ span [ style "color" "#27ae60", style "font-style" "italic", style "display" "block", style "margin-bottom" "10px" ] [ text "Matka unasienniona / czerwi (pełny sukces uliku weselnego)" ]
+                                    , if not ulik.queen.hasOpalit then
+                                        button [ onClick (OpenUlikModal info.apiaryId ulik.id ModalZaopalitkuj), style "padding" "6px 12px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🏷️ Zaopalitkuj" ]
+                                      else
+                                        text ""
                                     , button [ onClick (TransitionUlikState info.apiaryId ulik.id Bezmatek), style "padding" "6px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "zabieram matkę (B)" ]
                                     ]
                             )
@@ -1825,6 +1894,50 @@ modalsView model =
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                             , button [ onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            ]
+                        ]
+                    ]
+            Nothing ->
+                text ""
+        , case model.activeUlikModal of
+            Just info ->
+                div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
+                    [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+                        [ h3 [ style "color" headingColor ]
+                            [ text (case info.modalType of
+                                ModalPoddajMatecznik -> "Poddaj Matecznik (M)"
+                                ModalPoddajMatkeNieunasiennioną -> "Poddaj Matkę Nieunasiennioną (N)"
+                                ModalZaopalitkuj -> "Zaopalitkuj Matkę Pszczelą"
+                              )
+                            ]
+                        , if info.modalType == ModalPoddajMatecznik || info.modalType == ModalPoddajMatkeNieunasiennioną then
+                            div []
+                                [ label [] [ text "Rasa i linia matki:" ]
+                                , select [ onInput UpdateModalBreedLine, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                    (List.map (\bl -> option [ value bl, selected (model.modalBreedLine == bl) ] [ text bl ]) model.breedLines)
+                                , label [] [ text "Spodziewany termin wygryzienia:" ]
+                                , input [ type_ "date", value model.modalHatchDate, onInput UpdateModalHatchDate, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                ]
+                          else
+                            text ""
+                        , if info.modalType == ModalPoddajMatkeNieunasiennioną || info.modalType == ModalZaopalitkuj then
+                            div []
+                                [ label [] [ text "Kolor Opalitka:" ]
+                                , select [ onInput UpdateModalOpalitColor, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                    [ option [ value "Biały", selected (model.modalOpalitColor == "Biały") ] [ text "Biały" ]
+                                    , option [ value "Żółty", selected (model.modalOpalitColor == "Żółty") ] [ text "Żółty" ]
+                                    , option [ value "Czerwony", selected (model.modalOpalitColor == "Czerwony") ] [ text "Czerwony" ]
+                                    , option [ value "Zielony", selected (model.modalOpalitColor == "Zielony") ] [ text "Zielony" ]
+                                    , option [ value "Niebieski", selected (model.modalOpalitColor == "Niebieski") ] [ text "Niebieski" ]
+                                    ]
+                                , label [] [ text "Numer Opalitka:" ]
+                                , input [ type_ "text", placeholder "np. 42", value model.modalOpalitNumber, onInput UpdateModalOpalitNumber, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                ]
+                          else
+                            text ""
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
+                            [ button [ onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
                             ]
                         ]
                     ]

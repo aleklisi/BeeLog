@@ -526,7 +526,8 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
             nfcTagId: "",
             queen: { hasOpalit: false, color: "Biały", number: "" },
             pollenTrap: "brak",
-            order: state.hives[apiaryId].length
+            order: state.hives[apiaryId].length,
+            korpusy: [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
         });
         saveE2EState(state);
         app.ports.hivesReceived.send(state.hives[apiaryId]);
@@ -539,8 +540,32 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
             nfcTagId: "",
             queen: { hasOpalit: false, color: "biały", number: "" },
             pollenTrap: "brak",
-            order: 0
+            order: 0,
+            korpusy: [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
         });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateHiveFull.subscribe(async ({ apiaryId, hiveId, fields }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (state.hives && state.hives[apiaryId]) {
+            state.hives[apiaryId] = state.hives[apiaryId].map(h => {
+                if (h.id === hiveId) {
+                    return { ...h, ...fields };
+                }
+                return h;
+            });
+            saveE2EState(state);
+            app.ports.hivesReceived.send(state.hives[apiaryId]);
+        }
+        return;
+    }
+    try {
+        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        await updateDoc(docRef, fields);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

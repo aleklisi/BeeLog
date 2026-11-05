@@ -1,6 +1,7 @@
 module Types exposing (..)
 
 import Json.Decode as Decode
+import Json.Encode as Encode
 
 type alias User =
     { uid : String
@@ -13,6 +14,12 @@ type alias Queen =
     , number : String
     }
 
+type alias Korpus =
+    { id : String
+    , hasQueen : Bool
+    , hasExcluderAbove : Bool
+    }
+
 type alias Hive =
     { id : String
     , name : String
@@ -21,7 +28,27 @@ type alias Hive =
     , queen : Queen
     , pollenTrap : String
     , order : Int
+    , korpusy : List Korpus
     }
+
+decodeKorpus : Decode.Decoder Korpus
+decodeKorpus =
+    Decode.succeed Korpus
+        |> andMap (Decode.field "id" (Decode.oneOf [ Decode.string, Decode.succeed "1" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "1")))
+        |> andMap (Decode.field "hasQueen" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
+        |> andMap (Decode.field "hasExcluderAbove" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
+
+encodeKorpus : Korpus -> Encode.Value
+encodeKorpus k =
+    Encode.object
+        [ ("id", Encode.string k.id)
+        , ("hasQueen", Encode.bool k.hasQueen)
+        , ("hasExcluderAbove", Encode.bool k.hasExcluderAbove)
+        ]
+
+encodeKorpusy : List Korpus -> Encode.Value
+encodeKorpusy ks =
+    Encode.list encodeKorpus ks
 
 type UlikState
     = Bezmatek
@@ -237,14 +264,15 @@ decodeUlikQueen =
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
     Decode.list
-        (Decode.map7 (\i n f nf q pt o -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q, pollenTrap = pt, order = o })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "frameType" Decode.string)
-            (Decode.field "nfcTagId" Decode.string)
-            (Decode.field "queen" decodeQueen)
-            (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
-            (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+        (Decode.succeed Hive
+            |> andMap (Decode.field "id" Decode.string)
+            |> andMap (Decode.field "name" Decode.string)
+            |> andMap (Decode.field "frameType" Decode.string)
+            |> andMap (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.field "queen" decodeQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { hasOpalit = False, color = "", number = "" }))
+            |> andMap (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
+            |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+            |> andMap (Decode.field "korpusy" (Decode.list decodeKorpus) |> Decode.maybe |> Decode.map (Maybe.withDefault [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]))
         )
 
 decodeUlikHistoryEntry : Decode.Decoder UlikHistoryEntry
