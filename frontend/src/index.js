@@ -94,6 +94,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
     const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     const defaultHatchingToMatingDays = 12;
+    const defaultMaxUlikHistoryLimit = 40;
     if (window.__E2E__) {
         const state = getE2EState();
         const settings = state.userSettings || {
@@ -101,7 +102,8 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
             ulikTypes: defaultUlikTypes,
             breedLines: defaultBreedLines,
             darkMode: currentDarkMode,
-            hatchingToMatingDays: defaultHatchingToMatingDays
+            hatchingToMatingDays: defaultHatchingToMatingDays,
+            maxUlikHistoryLimit: defaultMaxUlikHistoryLimit
         };
         localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
         app.ports.userSettingsReceived.send(settings);
@@ -114,28 +116,30 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
         let ulikTypesVal = defaultUlikTypes;
         let breedLinesVal = defaultBreedLines;
         let hatchingToMatingDaysVal = defaultHatchingToMatingDays;
+        let maxUlikHistoryLimitVal = defaultMaxUlikHistoryLimit;
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.frameTypes) frameTypesVal = data.frameTypes;
             if (data.ulikTypes) ulikTypesVal = data.ulikTypes;
             if (data.breedLines) breedLinesVal = data.breedLines;
             if (data.hatchingToMatingDays !== undefined) hatchingToMatingDaysVal = data.hatchingToMatingDays;
+            if (data.maxUlikHistoryLimit !== undefined) maxUlikHistoryLimitVal = data.maxUlikHistoryLimit;
             if (data.darkMode !== undefined) {
                 currentDarkMode = data.darkMode;
             } else {
                 await setDoc(docRef, { darkMode: currentDarkMode }, { merge: true });
             }
         } else {
-            await setDoc(docRef, { frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal });
+            await setDoc(docRef, { frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
-        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal });
+        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
     }
@@ -143,6 +147,7 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
     const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     const defaultHatchingToMatingDays = 12;
+    const defaultMaxUlikHistoryLimit = 40;
     if (window.__E2E__) {
         const state = getE2EState();
         state.userSettings = {
@@ -150,7 +155,8 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
             ulikTypes: ulikTypes !== undefined ? ulikTypes : (state.userSettings ? state.userSettings.ulikTypes : defaultUlikTypes),
             breedLines: breedLines !== undefined ? breedLines : (state.userSettings ? state.userSettings.breedLines : defaultBreedLines),
             darkMode: darkMode !== undefined ? darkMode : (state.userSettings ? state.userSettings.darkMode : false),
-            hatchingToMatingDays: hatchingToMatingDays !== undefined ? hatchingToMatingDays : (state.userSettings ? state.userSettings.hatchingToMatingDays : defaultHatchingToMatingDays)
+            hatchingToMatingDays: hatchingToMatingDays !== undefined ? hatchingToMatingDays : (state.userSettings ? state.userSettings.hatchingToMatingDays : defaultHatchingToMatingDays),
+            maxUlikHistoryLimit: maxUlikHistoryLimit !== undefined ? maxUlikHistoryLimit : (state.userSettings ? state.userSettings.maxUlikHistoryLimit : defaultMaxUlikHistoryLimit)
         };
         saveE2EState(state);
         return;
@@ -163,6 +169,7 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
         if (breedLines !== undefined) dataToSave.breedLines = breedLines;
         if (darkMode !== undefined) dataToSave.darkMode = darkMode;
         if (hatchingToMatingDays !== undefined) dataToSave.hatchingToMatingDays = hatchingToMatingDays;
+        if (maxUlikHistoryLimit !== undefined) dataToSave.maxUlikHistoryLimit = maxUlikHistoryLimit;
         await setDoc(docRef, dataToSave, { merge: true });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -172,26 +179,79 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
 app.ports.jsLoadApiaries.subscribe(async (uid) => {
     if (window.__E2E__) {
         const state = getE2EState();
-        app.ports.apiariesReceived.send(state.apiaries || []);
+        const apiaries = (state.apiaries || []).map(a => {
+            let uliki = a.uliki || (state.uliki && state.uliki[a.id]) || [];
+            let hives = a.hives || (state.hives && state.hives[a.id]) || [];
+            return { ...a, uliki: uliki, hives: hives };
+        });
+        app.ports.apiariesReceived.send(apiaries);
         return;
     }
     try {
         const q = query(collection(db, "apiaries"));
-        onSnapshot(q, (snapshot) => {
+        onSnapshot(q, async (snapshot) => {
             const apiaries = [];
-            snapshot.forEach((docSnap) => {
+            for (const docSnap of snapshot.docs) {
                 const data = docSnap.data();
                 if (data.adminId === uid || (data.members && data.members[uid])) {
+                    const apiaryId = docSnap.id;
+                    const apiaryType = data.apiaryType || "towarowe";
+                    let uliki = [];
+                    let hives = [];
+                    if (apiaryType === "trutowisko") {
+                        try {
+                            const ulikiSnap = await getDocs(collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki"));
+                            ulikiSnap.forEach(uDoc => {
+                                const uData = uDoc.data();
+                                uliki.push({
+                                    id: uDoc.id,
+                                    name: uData.name || "",
+                                    hiveType: uData.hiveType || "Mini plus",
+                                    hasQueen: !!uData.hasQueen,
+                                    queen: uData.queen || { breedLine: "", hasOpalit: false, color: "", number: "" },
+                                    state: uData.state || "bezmatek",
+                                    expectedHatchDate: uData.expectedHatchDate || "",
+                                    expectedMatingDate: uData.expectedMatingDate || "",
+                                    nfcTagId: uData.nfcTagId || "",
+                                    order: uData.order !== undefined ? uData.order : 0,
+                                    history: uData.history || []
+                                });
+                            });
+                        } catch (err) {
+                            console.error("Error loading uliki for apiary", apiaryId, err);
+                        }
+                    } else {
+                        try {
+                            const hivesSnap = await getDocs(collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives"));
+                            hivesSnap.forEach(hDoc => {
+                                const hData = hDoc.data();
+                                hives.push({
+                                    id: hDoc.id,
+                                    name: hData.name || "",
+                                    frameType: hData.frameType || "Wielkopolska",
+                                    nfcTagId: hData.nfcTagId || "",
+                                    queen: hData.queen || { hasOpalit: false, color: "biały", number: "" },
+                                    pollenTrap: hData.pollenTrap || "brak",
+                                    order: hData.order !== undefined ? hData.order : 0,
+                                    korpusy: hData.korpusy || []
+                                });
+                            });
+                        } catch (err) {
+                            console.error("Error loading hives for apiary", apiaryId, err);
+                        }
+                    }
                     apiaries.push({
-                        id: docSnap.id,
+                        id: apiaryId,
                         name: data.name || "",
-                        apiaryType: data.apiaryType || "towarowe",
+                        apiaryType: apiaryType,
                         adminId: data.adminId || "",
                         members: data.members || {},
-                        order: data.order !== undefined ? data.order : 0
+                        order: data.order !== undefined ? data.order : 0,
+                        uliki: uliki,
+                        hives: hives
                     });
                 }
-            });
+            }
             apiaries.sort((a, b) => a.order - b.order);
             app.ports.apiariesReceived.send(apiaries);
         });
@@ -548,28 +608,30 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
     }
 });
 
-app.ports.jsUpdateHiveFull.subscribe(async ({ apiaryId, hiveId, fields }) => {
-    if (window.__E2E__) {
-        const state = getE2EState();
-        if (state.hives && state.hives[apiaryId]) {
-            state.hives[apiaryId] = state.hives[apiaryId].map(h => {
-                if (h.id === hiveId) {
-                    return { ...h, ...fields };
-                }
-                return h;
-            });
-            saveE2EState(state);
-            app.ports.hivesReceived.send(state.hives[apiaryId]);
+if (app.ports.jsUpdateHiveFull) {
+    app.ports.jsUpdateHiveFull.subscribe(async ({ apiaryId, hiveId, fields }) => {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            if (state.hives && state.hives[apiaryId]) {
+                state.hives[apiaryId] = state.hives[apiaryId].map(h => {
+                    if (h.id === hiveId) {
+                        return { ...h, ...fields };
+                    }
+                    return h;
+                });
+                saveE2EState(state);
+                app.ports.hivesReceived.send(state.hives[apiaryId]);
+            }
+            return;
         }
-        return;
-    }
-    try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
-        await updateDoc(docRef, fields);
-    } catch (error) {
-        app.ports.operationError.send(error.message);
-    }
-});
+        try {
+            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+            await updateDoc(docRef, fields);
+        } catch (error) {
+            app.ports.operationError.send(error.message);
+        }
+    });
+}
 
 app.ports.jsUpdateNote.subscribe(async ({ apiaryId, hiveId, noteId, text }) => {
     if (window.__E2E__) {

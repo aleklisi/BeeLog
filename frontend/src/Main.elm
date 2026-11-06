@@ -77,6 +77,7 @@ type alias Model =
     , breedLines : List String
     , newBreedLineInput : String
     , hatchingToMatingDays : Int
+    , maxUlikHistoryLimit : Int
     , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
     , modalBreedLine : String
     , modalHatchDate : String
@@ -114,6 +115,7 @@ init flags =
       , breedLines = [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ]
       , newBreedLineInput = ""
       , hatchingToMatingDays = 12
+      , maxUlikHistoryLimit = 40
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -179,7 +181,7 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int } -> Cmd msg
+port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -232,6 +234,7 @@ type Msg
     | AddBreedLine String
     | RemoveBreedLine String
     | UpdateHatchingToMatingDaysInput String
+    | UpdateMaxUlikHistoryLimitInput String
     -- Hive actions
     | HivesDecoded (Result String (List Hive))
     | OpenNewHiveModal
@@ -324,7 +327,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                         _ ->
                             Cmd.none
             in
@@ -347,7 +350,7 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit }, Cmd.none )
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -394,7 +397,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                             _ ->
                                 Cmd.none
                 in
@@ -408,7 +411,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                         _ ->
                             Cmd.none
             in
@@ -424,7 +427,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                             _ ->
                                 Cmd.none
                 in
@@ -438,7 +441,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                         _ ->
                             Cmd.none
             in
@@ -454,7 +457,7 @@ update msg model =
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                             _ ->
                                 Cmd.none
                 in
@@ -468,7 +471,7 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                         _ ->
                             Cmd.none
             in
@@ -484,11 +487,27 @@ update msg model =
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = val }
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = val, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
                         _ ->
                             Cmd.none
             in
             ( { model | hatchingToMatingDays = val }, cmd )
+
+        UpdateMaxUlikHistoryLimitInput str ->
+            let
+                val = case String.toInt str of
+                    Just n ->
+                        if n < 10 then 10 else if n > 60 then 60 else n
+                    Nothing ->
+                        model.maxUlikHistoryLimit
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = val }
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | maxUlikHistoryLimit = val }, cmd )
 
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
@@ -685,6 +704,7 @@ update msg model =
 
                         historyEntry =
                             { timestamp = timestamp
+                            , prevState = u.state
                             , state = transition.stateStr
                             , description = transition.desc
                             , breedLine = transition.queen.breedLine
@@ -702,7 +722,7 @@ update msg model =
                             , queen = transition.queen
                             , expectedHatchDate = transition.expectedHatchDate
                             , expectedMatingDate = transition.expectedMatingDate
-                            , history = historyEntry :: u.history
+                            , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
                             }
 
                         updatedUliki =
@@ -739,6 +759,7 @@ update msg model =
 
                         historyEntry =
                             { timestamp = timestamp
+                            , prevState = u.state
                             , state = newStateStr
                             , description = desc
                             , breedLine = transition.queen.breedLine
@@ -756,7 +777,7 @@ update msg model =
                             , queen = transition.queen
                             , expectedHatchDate = transition.expectedHatchDate
                             , expectedMatingDate = transition.expectedMatingDate
-                            , history = historyEntry :: u.history
+                            , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
                             }
 
                         updatedUliki =
@@ -1147,6 +1168,13 @@ settingsView user model =
                     [ input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "30", value (String.fromInt model.hatchingToMatingDays), onInput UpdateHatchingToMatingDaysInput, style "width" "120px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
                     ]
                 ]
+            , div []
+                [ h3 [ style "color" headingColor ] [ text "Maksymalna liczba wydarzeń w historii ulika weselnego" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Maksymalna liczba wpisów historii przechowywanych dla ulika weselnego (od 10 do 60)." ]
+                , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px" ]
+                    [ input [ type_ "number", Html.Attributes.min "10", Html.Attributes.max "60", value (String.fromInt model.maxUlikHistoryLimit), onInput UpdateMaxUlikHistoryLimitInput, style "width" "120px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                    ]
+                ]
             ]
         ]
 
@@ -1234,6 +1262,36 @@ apiaryCardView user model apiary =
                         UlikListView { apiaryId = apiary.id, apiaryName = apiary.name }
                     else
                         HiveListView { apiaryId = apiary.id, apiaryName = apiary.name }
+
+        bezmatekCount = List.length (List.filter (\u -> getUlikState u == Bezmatek) apiary.uliki)
+        matecznikCount = List.length (List.filter (\u -> getUlikState u == ZMatecznikiem) apiary.uliki)
+        nieunasiennionaCount = List.length (List.filter (\u -> getUlikState u == MatkaWygryziona) apiary.uliki)
+        unasiennionaCount = List.length (List.filter (\u -> getUlikState u == MatkaCzerwi) apiary.uliki)
+        totalUlikiCount = List.length apiary.uliki
+
+        totalHivesCount = List.length apiary.hives
+        frameTypeCounts =
+            List.map
+                (\ft ->
+                    ( ft, List.length (List.filter (\h -> h.frameType == ft) apiary.hives) )
+                )
+                model.frameTypes
+            |> List.filter (\(ft, count) -> count > 0)
+
+        otherFrameTypes =
+            apiary.hives
+            |> List.map .frameType
+            |> List.filter (\ft -> not (List.member ft model.frameTypes))
+            |> List.foldl (\ft acc -> if List.member ft acc then acc else acc ++ [ft]) []
+
+        extraCounts =
+            List.map
+                (\ft ->
+                    ( ft, List.length (List.filter (\h -> h.frameType == ft) apiary.hives) )
+                )
+                otherFrameTypes
+
+        allHivesTypeCounts = frameTypeCounts ++ extraCounts
     in
     div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor ]
         [ div [ onClick (NavigateTo navTarget) ]
@@ -1241,7 +1299,31 @@ apiaryCardView user model apiary =
                 [ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ]
                 , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                 ]
-            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
+            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0 0 8px 0" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
+            , if isTrutowisko then
+                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
+                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text ("Uliki weselne (Razem: " ++ String.fromInt totalUlikiCount ++ ")") ]
+                    , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
+                        [ span [ title "Bezmatek" ] [ text ("(B) Bezmatek: " ++ String.fromInt bezmatekCount) ]
+                        , span [ title "Matecznik" ] [ text ("(M) Matecznik: " ++ String.fromInt matecznikCount) ]
+                        , span [ title "Matka nieunasienniona" ] [ text ("(N) Nieunasienniona: " ++ String.fromInt nieunasiennionaCount) ]
+                        , span [ title "Matka unasienniona" ] [ text ("(UNC) Unasienniona: " ++ String.fromInt unasiennionaCount) ]
+                        ]
+                    ]
+              else
+                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
+                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text ("Ule towarowe (Razem: " ++ String.fromInt totalHivesCount ++ ")") ]
+                    , if List.isEmpty allHivesTypeCounts then
+                        div [ style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ] [ text "Brak uli" ]
+                      else
+                        div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
+                            (List.map
+                                (\(ft, count) ->
+                                    span [ title ft ] [ text (ft ++ ": " ++ String.fromInt count) ]
+                                )
+                                allHivesTypeCounts
+                            )
+                    ]
             ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
@@ -1649,9 +1731,43 @@ ulikDetailView user info model =
                             text ""
                         ]
                     ]
+                , div [ style "margin-top" "20px", style "border-top" ("1px solid " ++ (if model.darkMode then "#333" else "#eee")), style "padding-top" "15px" ]
+                    [ h3 [ style "color" headingColor, style "margin-bottom" "10px" ] [ text "Historia zmian uliku" ]
+                    , if List.isEmpty ulik.history then
+                        div [ style "font-size" "13px", style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ]
+                            [ text "Brak wpisów w historii" ]
+                      else
+                        div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px" ]
+                            (List.map (historyEntryView model) ulik.history)
+                    ]
                 ]
         _ ->
             div [] [ text "Ładowanie uliku..." ]
+
+historyEntryView : Model -> UlikHistoryEntry -> Html Msg
+historyEntryView model entry =
+    let
+        cardBg = if model.darkMode then "#242424" else "#f8f9f9"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+        mutedColor = if model.darkMode then "#95a5a6" else "#7f8c8d"
+        prevLabel = ulikStateShortLabel entry.prevState
+        newLabel = ulikStateShortLabel entry.state
+        matkaText =
+            if entry.breedLine /= "" || entry.hasOpalit then
+                "Matka: " ++ (if entry.hasOpalit then "Opalit " ++ entry.color ++ " #" ++ entry.number else "") ++ (if entry.breedLine /= "" then (if entry.hasOpalit then " (" ++ entry.breedLine ++ ")" else entry.breedLine) else "")
+            else
+                ""
+    in
+    div [ style "background" cardBg, style "padding" "10px 12px", style "border-radius" "6px", style "border-left" "4px solid #3498db", style "color" textColor, style "font-size" "13px" ]
+        [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "4px" ]
+            [ span [ style "font-weight" "bold" ] [ text (prevLabel ++ " - " ++ entry.description ++ " -> " ++ newLabel) ]
+            , span [ style "font-size" "11px", style "color" mutedColor ] [ text entry.timestamp ]
+            ]
+        , if matkaText /= "" then
+            div [ style "font-size" "12px", style "color" mutedColor ] [ text matkaText ]
+          else
+            text ""
+        ]
 
 noteItemView : String -> String -> Model -> Note -> Html Msg
 noteItemView apiaryId hiveId model note =
@@ -2029,6 +2145,7 @@ encodeUlikHistoryEntry : UlikHistoryEntry -> Encode.Value
 encodeUlikHistoryEntry h =
     Encode.object
         [ ( "timestamp", Encode.string h.timestamp )
+        , ( "prevState", Encode.string h.prevState )
         , ( "state", Encode.string h.state )
         , ( "description", Encode.string h.description )
         , ( "breedLine", Encode.string h.breedLine )

@@ -111,6 +111,35 @@ suite =
                         Err _ ->
                             Expect.fail "Failed to decode user settings"
             ]
+        , describe "Ulik History & State Labels"
+            [ test "decodes ulik history entry with prevState and state" <|
+                \() ->
+                    let
+                        json = "{\"timestamp\": \"2026-11-05\", \"prevState\": \"bezmatek\", \"state\": \"z_matecznikiem\", \"description\": \"Poddano matecznik\", \"breedLine\": \"car. Galicja\", \"expectedHatchDate\": \"2026-11-15\", \"expectedMatingDate\": \"2026-11-25\", \"hasOpalit\": false, \"color\": \"\", \"number\": \"\"}"
+                        decodeTestHistory =
+                            Decode.map2 (\ts ps -> (ts, ps))
+                                (Decode.field "timestamp" Decode.string)
+                                (Decode.field "prevState" Decode.string)
+                    in
+                    case Decode.decodeString decodeTestHistory json of
+                        Ok (ts, ps) ->
+                            Expect.all
+                                [ \() -> Expect.equal "2026-11-05" ts
+                                , \() -> Expect.equal "bezmatek" ps
+                                ]
+                                ()
+                        Err _ ->
+                            Expect.fail "Failed to decode ulik history entry"
+            , test "ulikStateShortLabel returns correct short labels" <|
+                \() ->
+                    Expect.all
+                        [ \() -> Expect.equal "(B)" (ulikStateShortLabel "bezmatek")
+                        , \() -> Expect.equal "(M)" (ulikStateShortLabel "z_matecznikiem")
+                        , \() -> Expect.equal "(N)" (ulikStateShortLabel "matka_wygryziona")
+                        , \() -> Expect.equal "(UNC)" (ulikStateShortLabel "matka_czerwi")
+                        ]
+                        ()
+            ]
         ]
 
 -- Helper decoders copied from Main.elm (since it's a port module, direct import might be tricky for internals)
@@ -134,11 +163,12 @@ decodeHives =
 
 decodeApiaries =
     Decode.list
-        (Decode.map4 (\i n a m -> { id = i, name = n, adminId = a, members = m })
+        (Decode.map5 (\i n a m ul -> { id = i, name = n, adminId = a, members = m, uliki = ul })
             (Decode.field "id" Decode.string)
             (Decode.field "name" Decode.string)
             (Decode.field "adminId" Decode.string)
             (Decode.field "members" (Decode.keyValuePairs Decode.string))
+            (Decode.field "uliki" (Decode.list Decode.value) |> Decode.maybe |> Decode.map (Maybe.withDefault []))
         )
 
 parseDate : String -> Maybe (Int, Int, Int)
@@ -217,3 +247,19 @@ addDaysToDateString days dateStr =
             String.fromInt ny ++ "-" ++ pad nm ++ "-" ++ pad nd
         Nothing ->
             ""
+
+ulikStateShortLabel : String -> String
+ulikStateShortLabel s =
+    case String.toLower s of
+        "bezmatek" -> "(B)"
+        "b" -> "(B)"
+        "z_matecznikiem" -> "(M)"
+        "m" -> "(M)"
+        "matecznik" -> "(M)"
+        "matka_wygryziona" -> "(N)"
+        "n" -> "(N)"
+        "matka nieunasienniona" -> "(N)"
+        "matka_czerwi" -> "(UNC)"
+        "unc" -> "(UNC)"
+        "matka unasienniona" -> "(UNC)"
+        _ -> "(B)"

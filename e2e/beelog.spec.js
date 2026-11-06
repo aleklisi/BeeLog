@@ -182,16 +182,20 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
     await page.click('text=➕ Poddano matecznik (M)');
     await expect(page.locator('text=Aktualny stan: (M) Matecznik')).toBeVisible();
+    await expect(page.locator('text=(B) - Poddano Matecznik -> (M)')).toBeVisible();
 
     await page.click('text=🦋 Matka się wygryzła (N)');
     await expect(page.locator('text=Aktualny stan: (N) Matka nieunasienniona')).toBeVisible();
+    await expect(page.locator('text=(M) - Matka się wygryzła -> (N)')).toBeVisible();
 
     await page.click('text=👑 Matka się unasienniła (UNC)');
     await expect(page.locator('text=Aktualny stan: (UNC) Matka unasienniona')).toBeVisible();
+    await expect(page.locator('text=(N) - Matka się unasienniła (UNC) -> (UNC)')).toBeVisible();
 
     // Test przycisku "zabieram matkę" powracającego do stanu Bezmatek
     await page.click('button:has-text("zabieram matkę (B)")');
     await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
+    await expect(page.locator('text=(UNC) - Zabrano matkę / zresetowano stan -> (B)')).toBeVisible();
   });
 
   test('8. Filtr typów pasieczysk', async ({ page }) => {

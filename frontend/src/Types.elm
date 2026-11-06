@@ -100,6 +100,7 @@ type alias UlikQueen =
 
 type alias UlikHistoryEntry =
     { timestamp : String
+    , prevState : String
     , state : String
     , description : String
     , breedLine : String
@@ -109,6 +110,22 @@ type alias UlikHistoryEntry =
     , color : String
     , number : String
     }
+
+ulikStateShortLabel : String -> String
+ulikStateShortLabel s =
+    case String.toLower s of
+        "bezmatek" -> "(B)"
+        "b" -> "(B)"
+        "z_matecznikiem" -> "(M)"
+        "m" -> "(M)"
+        "matecznik" -> "(M)"
+        "matka_wygryziona" -> "(N)"
+        "n" -> "(N)"
+        "matka nieunasienniona" -> "(N)"
+        "matka_czerwi" -> "(UNC)"
+        "unc" -> "(UNC)"
+        "matka unasienniona" -> "(UNC)"
+        _ -> "(B)"
 
 type alias UlikWeselny =
     { id : String
@@ -224,6 +241,8 @@ type alias Apiary =
     , adminId : String
     , members : List ( String, String )
     , order : Int
+    , uliki : List UlikWeselny
+    , hives : List Hive
     }
 
 -- DECODERS
@@ -279,6 +298,7 @@ decodeUlikHistoryEntry : Decode.Decoder UlikHistoryEntry
 decodeUlikHistoryEntry =
     Decode.succeed UlikHistoryEntry
         |> andMap (Decode.field "timestamp" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
+        |> andMap (Decode.field "prevState" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
         |> andMap (Decode.field "state" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
         |> andMap (Decode.field "description" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
         |> andMap (Decode.field "breedLine" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
@@ -308,13 +328,15 @@ decodeUliki =
 decodeApiaries : Decode.Decoder (List Apiary)
 decodeApiaries =
     Decode.list
-        (Decode.map6 (\i n at a m o -> { id = i, name = n, apiaryType = at, adminId = a, members = m, order = o })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "apiaryType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "towarowe"))
-            (Decode.field "adminId" Decode.string)
-            (Decode.field "members" (Decode.keyValuePairs Decode.string))
-            (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+        (Decode.succeed Apiary
+            |> andMap (Decode.field "id" Decode.string)
+            |> andMap (Decode.field "name" Decode.string)
+            |> andMap (Decode.field "apiaryType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "towarowe"))
+            |> andMap (Decode.field "adminId" Decode.string)
+            |> andMap (Decode.field "members" (Decode.keyValuePairs Decode.string))
+            |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+            |> andMap (Decode.field "uliki" decodeUliki |> Decode.maybe |> Decode.map (Maybe.withDefault []))
+            |> andMap (Decode.field "hives" decodeHives |> Decode.maybe |> Decode.map (Maybe.withDefault []))
         )
 
 decodeNotes : Decode.Decoder (List Note)
@@ -334,14 +356,16 @@ type alias UserSettings =
     , breedLines : List String
     , darkMode : Bool
     , hatchingToMatingDays : Int
+    , maxUlikHistoryLimit : Int
     }
 
 decodeUserSettings : Decode.Decoder UserSettings
 decodeUserSettings =
-    Decode.map5 UserSettings
-        (Decode.field "frameTypes" (Decode.list Decode.string))
-        (Decode.field "ulikTypes" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "Mini plus", "Odkład wielkopolski", "Apidea" ])))
-        (Decode.field "breedLines" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ])))
-        (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
-        (Decode.field "hatchingToMatingDays" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 12)))
+    Decode.succeed UserSettings
+        |> andMap (Decode.field "frameTypes" (Decode.list Decode.string))
+        |> andMap (Decode.field "ulikTypes" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "Mini plus", "Odkład wielkopolski", "Apidea" ])))
+        |> andMap (Decode.field "breedLines" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ])))
+        |> andMap (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
+        |> andMap (Decode.field "hatchingToMatingDays" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 12)))
+        |> andMap (Decode.field "maxUlikHistoryLimit" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 40)))
 
