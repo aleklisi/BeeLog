@@ -495,6 +495,36 @@ app.ports.jsDeleteUlik.subscribe(async ({ apiaryId, ulikId }) => {
     }
 });
 
+app.ports.jsMoveUlik.subscribe(async ({ sourceApiaryId, targetApiaryId, ulikId }) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        if (state.uliki && state.uliki[sourceApiaryId]) {
+            const ulikIndex = state.uliki[sourceApiaryId].findIndex(u => u.id === ulikId);
+            if (ulikIndex !== -1) {
+                const ulik = state.uliki[sourceApiaryId][ulikIndex];
+                state.uliki[sourceApiaryId].splice(ulikIndex, 1);
+                if (!state.uliki[targetApiaryId]) state.uliki[targetApiaryId] = [];
+                state.uliki[targetApiaryId].push({ ...ulik, order: state.uliki[targetApiaryId].length });
+                saveE2EState(state);
+                app.ports.ulikiReceived.send(state.uliki[sourceApiaryId]);
+            }
+        }
+        return;
+    }
+    try {
+        const sourceDocRef = doc(db, "apiaries", sourceApiaryId, "yards", "default_yard", "uliki", ulikId);
+        const ulikSnap = await getDoc(sourceDocRef);
+        if (ulikSnap.exists()) {
+            const ulikData = ulikSnap.data();
+            const targetColRef = collection(db, "apiaries", targetApiaryId, "yards", "default_yard", "uliki");
+            await addDoc(targetColRef, ulikData);
+            await deleteDoc(sourceDocRef);
+        }
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
 app.ports.jsUpdateApiary.subscribe(async ({ apiaryId, name }) => {
     if (window.__E2E__) {
         const state = getE2EState();
