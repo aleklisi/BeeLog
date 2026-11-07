@@ -24,7 +24,7 @@ type alias Hive =
     { id : String
     , name : String
     , frameType : String
-    , nfcTagId : String
+    , nfcLink : String
     , queen : Queen
     , pollenTrap : String
     , order : Int
@@ -136,7 +136,7 @@ type alias UlikWeselny =
     , state : String
     , expectedHatchDate : String
     , expectedMatingDate : String
-    , nfcTagId : String
+    , nfcLink : String
     , order : Int
     , history : List UlikHistoryEntry
     }
@@ -287,7 +287,7 @@ decodeHives =
             |> andMap (Decode.field "id" Decode.string)
             |> andMap (Decode.field "name" Decode.string)
             |> andMap (Decode.field "frameType" Decode.string)
-            |> andMap (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.oneOf [ Decode.field "nfcLink" Decode.string, Decode.field "nfcTagId" Decode.string ] |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "queen" decodeQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { hasOpalit = False, color = "", number = "" }))
             |> andMap (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
             |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
@@ -320,7 +320,7 @@ decodeUliki =
             |> andMap (Decode.field "state" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "bezmatek"))
             |> andMap (Decode.field "expectedHatchDate" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "expectedMatingDate" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
-            |> andMap (Decode.field "nfcTagId" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+            |> andMap (Decode.oneOf [ Decode.field "nfcLink" Decode.string, Decode.field "nfcTagId" Decode.string ] |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
             |> andMap (Decode.field "history" (Decode.list decodeUlikHistoryEntry) |> Decode.maybe |> Decode.map (Maybe.withDefault []))
         )
@@ -388,6 +388,10 @@ type UlikModalType
     | ModalPoddajMatkeNieunasiennioną
     | ModalZaopalitkuj
 
+type PendingDeepLink
+    = PendingHive { apiaryId : String, hiveId : String }
+    | PendingUlik { apiaryId : String, ulikId : String }
+
 type alias Model =
     { authState : AuthState
     , viewState : ViewState
@@ -398,6 +402,7 @@ type alias Model =
     , errorMessage : Maybe String
     , successMessage : Maybe String
     , darkMode : Bool
+    , pendingDeepLink : Maybe PendingDeepLink
     -- Modals & Inputs
     , showNewApiaryModal : Bool
     , newApiaryName : String
@@ -504,9 +509,7 @@ type Msg
     | UpdateModalOpalitNumber String
     | SubmitUlikModal String String UlikModalType
     | TransitionUlikState String String UlikState
-    -- NFC & Notes
-    | StartNfcScan
-    | NfcResultReceived String
+    -- Notes & Speech
     | NotesDecoded (Result String (List Note))
     | UpdateNewNoteText String
     | StartSpeechDictation
@@ -551,6 +554,7 @@ type Msg
     -- Pollen Trap & Snapshots
     | UpdatePollenTrap String String String
     | CopyUserId String
+    | CopyText String
     | SubmitHiveSnapshot String String User
     -- Feedback
     | HandleError String

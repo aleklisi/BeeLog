@@ -44,9 +44,10 @@ function saveE2EState(state) {
 }
 
 const savedDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
+const initialHash = window.location.hash || "";
 const app = Elm.Main.init({
     node: document.getElementById('app'),
-    flags: { darkMode: savedDarkMode }
+    flags: { darkMode: savedDarkMode, initialHash: initialHash }
 });
 window.app = app;
 
@@ -110,7 +111,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
         return;
     }
     try {
-        const docRef = doc(db, "userSettings", uid);
+        const docRef = doc(db, "users", uid);
         const docSnap = await getDoc(docRef);
         let frameTypesVal = defaultFrameTypes;
         let ulikTypesVal = defaultUlikTypes;
@@ -162,7 +163,7 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
         return;
     }
     try {
-        const docRef = doc(db, "userSettings", uid);
+        const docRef = doc(db, "users", uid);
         const dataToSave = {};
         if (frameTypes !== undefined) dataToSave.frameTypes = frameTypes;
         if (ulikTypes !== undefined) dataToSave.ulikTypes = ulikTypes;
@@ -188,64 +189,64 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
         return;
     }
     try {
-        const q = query(collection(db, "apiaries"));
+        const q = query(collection(db, "pasieczyska"));
         onSnapshot(q, async (snapshot) => {
             const apiaries = [];
             for (const docSnap of snapshot.docs) {
                 const data = docSnap.data();
-                if (data.adminId === uid || (data.members && data.members[uid])) {
-                    const apiaryId = docSnap.id;
+                const apiaryId = docSnap.id;
+                const collaboratorsSnap = await getDocs(collection(db, "pasieczyska", apiaryId, "collaborators"));
+                const members = {};
+                collaboratorsSnap.forEach(cDoc => {
+                    const cData = cDoc.data();
+                    members[cDoc.id] = cData.role || "editor";
+                });
+                if (data.adminId === uid || members[uid]) {
                     const apiaryType = data.apiaryType || "towarowe";
+                    const baseUrl = window.location.href.split('#')[0];
                     let uliki = [];
                     let hives = [];
-                    if (apiaryType === "trutowisko") {
-                        try {
-                            const ulikiSnap = await getDocs(collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki"));
-                            ulikiSnap.forEach(uDoc => {
-                                const uData = uDoc.data();
+                    try {
+                        const hivesQuery = query(collection(db, "hives"), where("apiaryId", "==", apiaryId));
+                        const hivesSnap = await getDocs(hivesQuery);
+                        hivesSnap.forEach(hDoc => {
+                            const hData = hDoc.data();
+                            if (apiaryType === "trutowisko") {
                                 uliki.push({
-                                    id: uDoc.id,
-                                    name: uData.name || "",
-                                    hiveType: uData.hiveType || "Mini plus",
-                                    hasQueen: !!uData.hasQueen,
-                                    queen: uData.queen || { breedLine: "", hasOpalit: false, color: "", number: "" },
-                                    state: uData.state || "bezmatek",
-                                    expectedHatchDate: uData.expectedHatchDate || "",
-                                    expectedMatingDate: uData.expectedMatingDate || "",
-                                    nfcTagId: uData.nfcTagId || "",
-                                    order: uData.order !== undefined ? uData.order : 0,
-                                    history: uData.history || []
+                                    id: hDoc.id,
+                                    name: hData.name || "",
+                                    hiveType: hData.hiveType || "Mini plus",
+                                    hasQueen: !!hData.hasQueen,
+                                    queen: hData.queen || { breedLine: "", hasOpalit: false, color: "", number: "" },
+                                    state: hData.state || "bezmatek",
+                                    expectedHatchDate: hData.expectedHatchDate || "",
+                                    expectedMatingDate: hData.expectedMatingDate || "",
+                                    nfcLink: hData.nfcLink || hData.nfcTagId || (baseUrl + '#ulik/' + apiaryId + '/' + hDoc.id),
+                                    order: hData.order !== undefined ? hData.order : 0,
+                                    history: hData.history || []
                                 });
-                            });
-                        } catch (err) {
-                            console.error("Error loading uliki for apiary", apiaryId, err);
-                        }
-                    } else {
-                        try {
-                            const hivesSnap = await getDocs(collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives"));
-                            hivesSnap.forEach(hDoc => {
-                                const hData = hDoc.data();
+                            } else {
                                 hives.push({
                                     id: hDoc.id,
                                     name: hData.name || "",
                                     frameType: hData.frameType || "Wielkopolska",
-                                    nfcTagId: hData.nfcTagId || "",
+                                    nfcLink: hData.nfcLink || hData.nfcTagId || (baseUrl + '#hive/' + apiaryId + '/' + hDoc.id),
                                     queen: hData.queen || { hasOpalit: false, color: "biały", number: "" },
                                     pollenTrap: hData.pollenTrap || "brak",
                                     order: hData.order !== undefined ? hData.order : 0,
                                     korpusy: hData.korpusy || []
                                 });
-                            });
-                        } catch (err) {
-                            console.error("Error loading hives for apiary", apiaryId, err);
-                        }
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Error loading hives/uliki for apiary", apiaryId, err);
                     }
                     apiaries.push({
                         id: apiaryId,
                         name: data.name || "",
                         apiaryType: apiaryType,
                         adminId: data.adminId || "",
-                        members: data.members || {},
+                        members: members,
                         order: data.order !== undefined ? data.order : 0,
                         uliki: uliki,
                         hives: hives
@@ -270,7 +271,7 @@ app.ports.jsSaveApiaryOrders.subscribe(async (apiaries) => {
     }
     try {
         for (let i = 0; i < apiaries.length; i++) {
-            const docRef = doc(db, "apiaries", apiaries[i].id);
+            const docRef = doc(db, "pasieczyska", apiaries[i].id);
             await updateDoc(docRef, { order: i });
         }
     } catch (error) {
@@ -294,29 +295,56 @@ app.ports.jsCreateApiary.subscribe(async ({ name, apiaryType, uid }) => {
         return;
     }
     try {
-        await addDoc(collection(db, "apiaries"), {
+        const newRef = doc(collection(db, "pasieczyska"));
+        await setDoc(newRef, {
             name: name,
             apiaryType: apiaryType || "towarowe",
             adminId: uid,
-            members: {
-                [uid]: "owner"
-            },
             order: 0
+        });
+        await setDoc(doc(db, "pasieczyska", newRef.id, "collaborators", uid), {
+            role: "owner"
         });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsLoadUliki.subscribe(async ({ apiaryId }) => {
+app.ports.jsLoadUliki.subscribe(async ({ apiaryId, deepLinkId }) => {
+    const baseUrl = window.location.href.split('#')[0];
     if (window.__E2E__) {
         const state = getE2EState();
         if (!state.uliki) state.uliki = {};
-        app.ports.ulikiReceived.send(state.uliki[apiaryId] || []);
+        let targetApiaryId = apiaryId;
+        if (deepLinkId) {
+            let found = (state.uliki[apiaryId] || []).some(u => u.id === deepLinkId);
+            if (!found) {
+                for (const aId in state.uliki) {
+                    if ((state.uliki[aId] || []).some(u => u.id === deepLinkId)) {
+                        targetApiaryId = aId;
+                        break;
+                    }
+                }
+            }
+            if (targetApiaryId !== apiaryId) {
+                window.location.hash = '#ulik/' + targetApiaryId + '/' + deepLinkId;
+            }
+        }
+        app.ports.ulikiReceived.send(state.uliki[targetApiaryId] || []);
         return;
     }
     try {
-        const q = collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki");
+        let targetApiaryId = apiaryId;
+        if (deepLinkId) {
+            const hSnap = await getDoc(doc(db, "hives", deepLinkId));
+            if (hSnap.exists()) {
+                targetApiaryId = hSnap.data().apiaryId || apiaryId;
+            }
+            if (targetApiaryId !== apiaryId) {
+                window.location.hash = '#ulik/' + targetApiaryId + '/' + deepLinkId;
+            }
+        }
+        const q = query(collection(db, "hives"), where("apiaryId", "==", targetApiaryId));
         onSnapshot(q, (snapshot) => {
             const uliki = [];
             snapshot.forEach((docSnap) => {
@@ -330,7 +358,7 @@ app.ports.jsLoadUliki.subscribe(async ({ apiaryId }) => {
                     state: data.state || "bezmatek",
                     expectedHatchDate: data.expectedHatchDate || "",
                     expectedMatingDate: data.expectedMatingDate || "",
-                    nfcTagId: data.nfcTagId || "",
+                    nfcLink: data.nfcLink || data.nfcTagId || "",
                     order: data.order !== undefined ? data.order : 0,
                     history: data.history || []
                 });
@@ -354,7 +382,7 @@ app.ports.jsSaveUlikOrders.subscribe(async ({ apiaryId, uliki }) => {
     }
     try {
         for (let i = 0; i < uliki.length; i++) {
-            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", uliki[i].id);
+            const docRef = doc(db, "hives", uliki[i].id);
             await updateDoc(docRef, { order: i });
         }
     } catch (error) {
@@ -363,12 +391,15 @@ app.ports.jsSaveUlikOrders.subscribe(async ({ apiaryId, uliki }) => {
 });
 
 app.ports.jsCreateUlik.subscribe(async ({ apiaryId, name, hiveType }) => {
+    const baseUrl = window.location.href.split('#')[0];
     if (window.__E2E__) {
         const state = getE2EState();
         if (!state.uliki) state.uliki = {};
         if (!state.uliki[apiaryId]) state.uliki[apiaryId] = [];
+        const ulikId = 'ulik-' + Math.random().toString(36).substr(2, 9);
+        const nfcLink = baseUrl + '#ulik/' + apiaryId + '/' + ulikId;
         state.uliki[apiaryId].push({
-            id: 'ulik-' + Math.random().toString(36).substr(2, 9),
+            id: ulikId,
             name: name,
             hiveType: hiveType || "Mini plus",
             hasQueen: false,
@@ -376,7 +407,7 @@ app.ports.jsCreateUlik.subscribe(async ({ apiaryId, name, hiveType }) => {
             state: "bezmatek",
             expectedHatchDate: "",
             expectedMatingDate: "",
-            nfcTagId: "",
+            nfcLink: nfcLink,
             order: state.uliki[apiaryId].length,
             history: []
         });
@@ -385,7 +416,11 @@ app.ports.jsCreateUlik.subscribe(async ({ apiaryId, name, hiveType }) => {
         return;
     }
     try {
-        await addDoc(collection(db, "apiaries", apiaryId, "yards", "default_yard", "uliki"), {
+        const newDocRef = doc(collection(db, "hives"));
+        const ulikId = newDocRef.id;
+        const nfcLink = baseUrl + '#ulik/' + apiaryId + '/' + ulikId;
+        await setDoc(newDocRef, {
+            apiaryId: apiaryId,
             name: name,
             hiveType: hiveType || "Mini plus",
             hasQueen: false,
@@ -393,7 +428,7 @@ app.ports.jsCreateUlik.subscribe(async ({ apiaryId, name, hiveType }) => {
             state: "bezmatek",
             expectedHatchDate: "",
             expectedMatingDate: "",
-            nfcTagId: "",
+            nfcLink: nfcLink,
             order: 0,
             history: []
         });
@@ -430,7 +465,7 @@ app.ports.jsUpdateUlik.subscribe(async ({ apiaryId, ulikId, field, value }) => {
         if (field === 'hasOpalit' || field === 'hasQueen') {
             val = value === true || value === "true";
         }
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId);
+        const docRef = doc(db, "hives", ulikId);
         await updateDoc(docRef, { [field]: val });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -453,7 +488,7 @@ app.ports.jsUpdateUlikFull.subscribe(async ({ apiaryId, ulikId, fields }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId);
+        const docRef = doc(db, "hives", ulikId);
         await updateDoc(docRef, fields);
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -471,7 +506,7 @@ app.ports.jsUpdateUlikName.subscribe(async ({ apiaryId, ulikId, newName }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId);
+        const docRef = doc(db, "hives", ulikId);
         await updateDoc(docRef, { name: newName });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -489,13 +524,14 @@ app.ports.jsDeleteUlik.subscribe(async ({ apiaryId, ulikId }) => {
         return;
     }
     try {
-        await deleteDoc(doc(db, "apiaries", apiaryId, "yards", "default_yard", "uliki", ulikId));
+        await deleteDoc(doc(db, "hives", ulikId));
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
 app.ports.jsMoveUlik.subscribe(async ({ sourceApiaryId, targetApiaryId, ulikId }) => {
+    const baseUrl = window.location.href.split('#')[0];
     if (window.__E2E__) {
         const state = getE2EState();
         if (state.uliki && state.uliki[sourceApiaryId]) {
@@ -504,7 +540,8 @@ app.ports.jsMoveUlik.subscribe(async ({ sourceApiaryId, targetApiaryId, ulikId }
                 const ulik = state.uliki[sourceApiaryId][ulikIndex];
                 state.uliki[sourceApiaryId].splice(ulikIndex, 1);
                 if (!state.uliki[targetApiaryId]) state.uliki[targetApiaryId] = [];
-                state.uliki[targetApiaryId].push({ ...ulik, order: state.uliki[targetApiaryId].length });
+                const existingNfcLink = ulik.nfcLink || (baseUrl + '#ulik/' + sourceApiaryId + '/' + ulikId);
+                state.uliki[targetApiaryId].push({ ...ulik, nfcLink: existingNfcLink, order: state.uliki[targetApiaryId].length });
                 saveE2EState(state);
                 app.ports.ulikiReceived.send(state.uliki[sourceApiaryId]);
             }
@@ -512,14 +549,8 @@ app.ports.jsMoveUlik.subscribe(async ({ sourceApiaryId, targetApiaryId, ulikId }
         return;
     }
     try {
-        const sourceDocRef = doc(db, "apiaries", sourceApiaryId, "yards", "default_yard", "uliki", ulikId);
-        const ulikSnap = await getDoc(sourceDocRef);
-        if (ulikSnap.exists()) {
-            const ulikData = ulikSnap.data();
-            const targetColRef = collection(db, "apiaries", targetApiaryId, "yards", "default_yard", "uliki");
-            await addDoc(targetColRef, ulikData);
-            await deleteDoc(sourceDocRef);
-        }
+        const docRef = doc(db, "hives", ulikId);
+        await updateDoc(docRef, { apiaryId: targetApiaryId });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -534,7 +565,7 @@ app.ports.jsUpdateApiary.subscribe(async ({ apiaryId, name }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId);
+        const docRef = doc(db, "pasieczyska", apiaryId);
         await updateDoc(docRef, { name: name });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -551,20 +582,47 @@ app.ports.jsDeleteApiary.subscribe(async ({ apiaryId }) => {
         return;
     }
     try {
-        await deleteDoc(doc(db, "apiaries", apiaryId));
+        await deleteDoc(doc(db, "pasieczyska", apiaryId));
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsLoadHives.subscribe(async ({ apiaryId }) => {
+app.ports.jsLoadHives.subscribe(async ({ apiaryId, deepLinkId }) => {
+    const baseUrl = window.location.href.split('#')[0];
     if (window.__E2E__) {
         const state = getE2EState();
-        app.ports.hivesReceived.send(state.hives[apiaryId] || []);
+        if (!state.hives) state.hives = {};
+        let targetApiaryId = apiaryId;
+        if (deepLinkId) {
+            let found = (state.hives[apiaryId] || []).some(h => h.id === deepLinkId);
+            if (!found) {
+                for (const aId in state.hives) {
+                    if ((state.hives[aId] || []).some(h => h.id === deepLinkId)) {
+                        targetApiaryId = aId;
+                        break;
+                    }
+                }
+            }
+            if (targetApiaryId !== apiaryId) {
+                window.location.hash = '#hive/' + targetApiaryId + '/' + deepLinkId;
+            }
+        }
+        app.ports.hivesReceived.send(state.hives[targetApiaryId] || []);
         return;
     }
     try {
-        const q = collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives");
+        let targetApiaryId = apiaryId;
+        if (deepLinkId) {
+            const hSnap = await getDoc(doc(db, "hives", deepLinkId));
+            if (hSnap.exists()) {
+                targetApiaryId = hSnap.data().apiaryId || apiaryId;
+            }
+            if (targetApiaryId !== apiaryId) {
+                window.location.hash = '#hive/' + targetApiaryId + '/' + deepLinkId;
+            }
+        }
+        const q = query(collection(db, "hives"), where("apiaryId", "==", targetApiaryId));
         onSnapshot(q, (snapshot) => {
             const hives = [];
             snapshot.forEach((docSnap) => {
@@ -573,7 +631,7 @@ app.ports.jsLoadHives.subscribe(async ({ apiaryId }) => {
                     id: docSnap.id,
                     name: data.name || "",
                     frameType: data.frameType || "Wielkopolska",
-                    nfcTagId: data.nfcTagId || "",
+                    nfcLink: data.nfcLink || data.nfcTagId || "",
                     queen: data.queen || { hasOpalit: false, color: "biały", number: "" },
                     pollenTrap: data.pollenTrap || "brak",
                     order: data.order !== undefined ? data.order : 0
@@ -597,7 +655,7 @@ app.ports.jsSaveHiveOrders.subscribe(async ({ apiaryId, hives }) => {
     }
     try {
         for (let i = 0; i < hives.length; i++) {
-            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hives[i].id);
+            const docRef = doc(db, "hives", hives[i].id);
             await updateDoc(docRef, { order: i });
         }
     } catch (error) {
@@ -606,14 +664,17 @@ app.ports.jsSaveHiveOrders.subscribe(async ({ apiaryId, hives }) => {
 });
 
 app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
+    const baseUrl = window.location.href.split('#')[0];
     if (window.__E2E__) {
         const state = getE2EState();
         if (!state.hives[apiaryId]) state.hives[apiaryId] = [];
+        const hiveId = 'hive-' + Math.random().toString(36).substr(2, 9);
+        const nfcLink = baseUrl + '#hive/' + apiaryId + '/' + hiveId;
         state.hives[apiaryId].push({
-            id: 'hive-' + Math.random().toString(36).substr(2, 9),
+            id: hiveId,
             name: name,
             frameType: frameType || "Wielkopolska",
-            nfcTagId: "",
+            nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "Biały", number: "" },
             pollenTrap: "brak",
             order: state.hives[apiaryId].length,
@@ -624,10 +685,14 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
         return;
     }
     try {
-        await addDoc(collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives"), {
+        const newDocRef = doc(collection(db, "hives"));
+        const hiveId = newDocRef.id;
+        const nfcLink = baseUrl + '#hive/' + apiaryId + '/' + hiveId;
+        await setDoc(newDocRef, {
+            apiaryId: apiaryId,
             name: name,
             frameType: frameType,
-            nfcTagId: "",
+            nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "biały", number: "" },
             pollenTrap: "brak",
             order: 0,
@@ -655,7 +720,7 @@ if (app.ports.jsUpdateHiveFull) {
             return;
         }
         try {
-            const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+            const docRef = doc(db, "hives", hiveId);
             await updateDoc(docRef, fields);
         } catch (error) {
             app.ports.operationError.send(error.message);
@@ -674,7 +739,7 @@ app.ports.jsUpdateNote.subscribe(async ({ apiaryId, hiveId, noteId, text }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes", noteId);
+        const docRef = doc(db, "hives", hiveId, "notes", noteId);
         await updateDoc(docRef, { text: text });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -692,7 +757,7 @@ app.ports.jsDeleteNote.subscribe(async ({ apiaryId, hiveId, noteId }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes", noteId);
+        const docRef = doc(db, "hives", hiveId, "notes", noteId);
         await deleteDoc(docRef);
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -719,38 +784,14 @@ app.ports.jsUpdateHive.subscribe(async ({ apiaryId, hiveId, field, value }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        const docRef = doc(db, "hives", hiveId);
         await updateDoc(docRef, { [field]: value });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsStartNfcScan.subscribe(async () => {
-    if ('NDEFReader' in window) {
-        try {
-            const ndef = new NDEFReader();
-            await ndef.scan();
-            ndef.onreading = event => {
-                const decoder = new TextDecoder();
-                for (const record of event.message.records) {
-                    if (record.recordType === "text") {
-                        const text = decoder.decode(record.data);
-                        app.ports.nfcScanned.send(text);
-                        break;
-                    }
-                }
-                if (event.serialNumber) {
-                    app.ports.nfcScanned.send(event.serialNumber);
-                }
-            };
-        } catch (error) {
-            app.ports.operationError.send("Błąd NFC: " + error.message);
-        }
-    } else {
-        app.ports.operationError.send("Web NFC nie jest obsługiwane w tej przeglądarce.");
-    }
-});
+
 
 app.ports.jsStartSpeechRecognition.subscribe(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -778,7 +819,7 @@ app.ports.jsLoadNotes.subscribe(async ({ apiaryId, hiveId }) => {
         return;
     }
     try {
-        const q = collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes");
+        const q = collection(db, "hives", hiveId, "notes");
         onSnapshot(q, (snapshot) => {
             const notes = [];
             snapshot.forEach((docSnap) => {
@@ -841,7 +882,7 @@ app.ports.jsSaveNote.subscribe(async ({ apiaryId, hiveId, text, authorId, author
         return;
     }
     try {
-        await addDoc(collection(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId, "notes"), {
+        await addDoc(collection(db, "hives", hiveId, "notes"), {
             text: text,
             authorId: authorId,
             authorEmail: authorEmail,
@@ -854,14 +895,9 @@ app.ports.jsSaveNote.subscribe(async ({ apiaryId, hiveId, text, authorId, author
 
 app.ports.jsShareApiary.subscribe(async ({ apiaryId, email, role }) => {
     try {
-        const docRef = doc(db, "apiaries", apiaryId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            const members = data.members || {};
-            members[email] = role;
-            await updateDoc(docRef, { members: members });
-        }
+        await setDoc(doc(db, "pasieczyska", apiaryId, "collaborators", email), {
+            role: role
+        });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -869,14 +905,7 @@ app.ports.jsShareApiary.subscribe(async ({ apiaryId, email, role }) => {
 
 app.ports.jsRemoveMember.subscribe(async ({ apiaryId, memberKey }) => {
     try {
-        const docRef = doc(db, "apiaries", apiaryId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            const members = data.members || {};
-            delete members[memberKey];
-            await updateDoc(docRef, { members: members });
-        }
+        await deleteDoc(doc(db, "pasieczyska", apiaryId, "collaborators", memberKey));
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -893,7 +922,7 @@ app.ports.jsUpdateHiveName.subscribe(async ({ apiaryId, hiveId, newName }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        const docRef = doc(db, "hives", hiveId);
         await updateDoc(docRef, { name: newName });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -912,7 +941,7 @@ app.ports.jsDeleteHive.subscribe(async ({ apiaryId, hiveId }) => {
         return;
     }
     try {
-        const docRef = doc(db, "apiaries", apiaryId, "yards", "default_yard", "hives", hiveId);
+        const docRef = doc(db, "hives", hiveId);
         await deleteDoc(docRef);
     } catch (error) {
         app.ports.operationError.send(error.message);

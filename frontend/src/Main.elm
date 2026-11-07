@@ -25,10 +25,39 @@ main =
 
 type alias Flags =
     { darkMode : Bool
+    , initialHash : String
     }
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
+    let
+        hash = flags.initialHash
+        (pending, cmd) =
+            if String.startsWith "#hive/" hash then
+                let
+                    parts = String.split "/" hash
+                in
+                case (List.head (List.drop 1 parts), List.head (List.drop 2 parts)) of
+                    (Just apiaryId, Just hiveId) ->
+                        ( Just (PendingHive { apiaryId = apiaryId, hiveId = hiveId })
+                        , jsLoadHives { apiaryId = apiaryId, deepLinkId = hiveId }
+                        )
+                    _ ->
+                        ( Nothing, Cmd.none )
+            else if String.startsWith "#ulik/" hash then
+                let
+                    parts = String.split "/" hash
+                in
+                case (List.head (List.drop 1 parts), List.head (List.drop 2 parts)) of
+                    (Just apiaryId, Just ulikId) ->
+                        ( Just (PendingUlik { apiaryId = apiaryId, ulikId = ulikId })
+                        , jsLoadUliki { apiaryId = apiaryId, deepLinkId = ulikId }
+                        )
+                    _ ->
+                        ( Nothing, Cmd.none )
+            else
+                ( Nothing, Cmd.none )
+    in
     ( { authState = LoggedOut
       , viewState = LoginView
       , apiaries = []
@@ -38,6 +67,7 @@ init flags =
       , errorMessage = Nothing
       , successMessage = Nothing
       , darkMode = flags.darkMode
+      , pendingDeepLink = pending
       , currentDate = ""
       , apiaryFilter = "all"
       , ulikFilter = "all"
@@ -81,7 +111,7 @@ init flags =
       , modalOpalitColor = "Biały"
       , modalOpalitNumber = ""
       }
-    , Cmd.none
+    , cmd
     )
 
 -- PORTS (OUT)
@@ -92,18 +122,17 @@ port jsLoadApiaries : String -> Cmd msg
 port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cmd msg
 port jsUpdateApiary : { apiaryId : String, name : String } -> Cmd msg
 port jsDeleteApiary : { apiaryId : String } -> Cmd msg
-port jsLoadHives : { apiaryId : String } -> Cmd msg
+port jsLoadHives : { apiaryId : String, deepLinkId : String } -> Cmd msg
 port jsCreateHive : { apiaryId : String, name : String, frameType : String } -> Cmd msg
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
 port jsUpdateHiveFull : { apiaryId : String, hiveId : String, fields : Value } -> Cmd msg
-port jsLoadUliki : { apiaryId : String } -> Cmd msg
+port jsLoadUliki : { apiaryId : String, deepLinkId : String } -> Cmd msg
 port jsCreateUlik : { apiaryId : String, name : String, hiveType : String } -> Cmd msg
 port jsUpdateUlik : { apiaryId : String, ulikId : String, field : String, value : String } -> Cmd msg
 port jsUpdateUlikFull : { apiaryId : String, ulikId : String, fields : Value } -> Cmd msg
 port jsUpdateUlikName : { apiaryId : String, ulikId : String, newName : String } -> Cmd msg
 port jsDeleteUlik : { apiaryId : String, ulikId : String } -> Cmd msg
 port jsMoveUlik : { sourceApiaryId : String, targetApiaryId : String, ulikId : String } -> Cmd msg
-port jsStartNfcScan : () -> Cmd msg
 port jsStartSpeechRecognition : () -> Cmd msg
 port jsLoadNotes : { apiaryId : String, hiveId : String } -> Cmd msg
 port jsSaveNote : { apiaryId : String, hiveId : String, text : String, authorId : String, authorEmail : String } -> Cmd msg
@@ -127,7 +156,6 @@ port apiariesReceived : (Value -> msg) -> Sub msg
 port hivesReceived : (Value -> msg) -> Sub msg
 port ulikiReceived : (Value -> msg) -> Sub msg
 port notesReceived : (Value -> msg) -> Sub msg
-port nfcScanned : (String -> msg) -> Sub msg
 port speechRecognized : (String -> msg) -> Sub msg
 port operationError : (String -> msg) -> Sub msg
 port successMessageReceived : (String -> msg) -> Sub msg
@@ -194,9 +222,9 @@ update msg model =
                 cmds =
                     case state of
                         HiveListView { apiaryId } ->
-                            jsLoadHives { apiaryId = apiaryId }
+                            jsLoadHives { apiaryId = apiaryId, deepLinkId = "" }
                         UlikListView { apiaryId } ->
-                            jsLoadUliki { apiaryId = apiaryId }
+                            jsLoadUliki { apiaryId = apiaryId, deepLinkId = "" }
                         HiveDetailView { apiaryId, hiveId } ->
                             jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
                         UlikDetailView { apiaryId, ulikId } ->
@@ -387,14 +415,42 @@ update msg model =
         HivesDecoded result ->
             case result of
                 Ok list ->
-                    ( { model | hives = list }, Cmd.none )
+                    let
+                        (updatedModel, extraCmd) =
+                            case model.pendingDeepLink of
+                                Just (PendingHive { apiaryId, hiveId }) ->
+                                    let
+                                        maybeHive = List.head (List.filter (\h -> h.id == hiveId) list)
+                                        hiveName = Maybe.withDefault "" (Maybe.map .name maybeHive)
+                                    in
+                                    ( { model | hives = list, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = apiaryId, hiveId = hiveId, hiveName = hiveName } }
+                                    , jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
+                                    )
+                                _ ->
+                                    ( { model | hives = list }, Cmd.none )
+                    in
+                    ( updatedModel, extraCmd )
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania uli: " ++ err) }, Cmd.none )
 
         UlikiDecoded result ->
             case result of
                 Ok list ->
-                    ( { model | uliki = list }, Cmd.none )
+                    let
+                        (updatedModel, extraCmd) =
+                            case model.pendingDeepLink of
+                                Just (PendingUlik { apiaryId, ulikId }) ->
+                                    let
+                                        maybeUlik = List.head (List.filter (\u -> u.id == ulikId) list)
+                                        ulikName = Maybe.withDefault "" (Maybe.map .name maybeUlik)
+                                    in
+                                    ( { model | uliki = list, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = apiaryId, ulikId = ulikId, ulikName = ulikName } }
+                                    , Cmd.none
+                                    )
+                                _ ->
+                                    ( { model | uliki = list }, Cmd.none )
+                    in
+                    ( updatedModel, extraCmd )
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania ulików weselnych: " ++ err) }, Cmd.none )
 
@@ -621,22 +677,6 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        StartNfcScan ->
-            ( model, jsStartNfcScan () )
-
-        NfcResultReceived tagId ->
-            case model.viewState of
-                HiveDetailView info ->
-                    ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }
-                    , jsUpdateHive { apiaryId = info.apiaryId, hiveId = info.hiveId, field = "nfcTagId", value = tagId }
-                    )
-                UlikDetailView info ->
-                    ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }
-                    , jsUpdateUlik { apiaryId = info.apiaryId, ulikId = info.ulikId, field = "nfcTagId", value = tagId }
-                    )
-                _ ->
-                    ( { model | successMessage = Just ("Zeskanowano tag NFC: " ++ tagId) }, Cmd.none )
-
         NotesDecoded result ->
             case result of
                 Ok list ->
@@ -852,6 +892,9 @@ update msg model =
         CopyUserId uid ->
             ( model, jsCopyText uid )
 
+        CopyText text ->
+            ( model, jsCopyText text )
+
         SubmitHiveSnapshot apiaryId hiveId user ->
             let
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
@@ -888,7 +931,7 @@ subscriptions _ =
         , hivesReceived (\val -> HivesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeHives val)))
         , ulikiReceived (\val -> UlikiDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeUliki val)))
         , notesReceived (\val -> NotesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeNotes val)))
-        , nfcScanned NfcResultReceived
+
         , speechRecognized SpeechResultReceived
         , operationError HandleError
         , successMessageReceived SuccessMessageReceived
@@ -1334,7 +1377,7 @@ hiveSnapshotText hive =
         , "Nazwa: " ++ hive.name
         , "Typ ramki: " ++ hive.frameType
         , "Poławiacz pyłku: " ++ pollenText
-        , "Tag NFC: " ++ (if hive.nfcTagId == "" then "Brak" else hive.nfcTagId)
+        , "Link NFC: " ++ (if hive.nfcLink == "" then "Brak" else hive.nfcLink)
         , "Matka pszczela (opalitek): " ++ opalitText
         ]
 
@@ -1351,7 +1394,7 @@ ulikSnapshotText ulik =
         , "Nazwa: " ++ ulik.name
         , "Typ ula: " ++ ulik.hiveType
         , "Stan: " ++ ulikStateLabel (getUlikState ulik)
-        , "Tag NFC: " ++ (if ulik.nfcTagId == "" then "Brak" else ulik.nfcTagId)
+        , "Link NFC: " ++ (if ulik.nfcLink == "" then "Brak" else ulik.nfcLink)
         , "Matka pszczela: " ++ queenText
         ]
 

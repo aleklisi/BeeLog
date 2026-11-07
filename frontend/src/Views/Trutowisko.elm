@@ -168,10 +168,10 @@ ulikDetailView user info model =
                         , label [] [ text "Typ ula:" ]
                         , select [ onInput (\val -> UpdateUlikField info.apiaryId ulik.id "hiveType" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                             (List.map (\ut -> option [ value ut, selected (ulik.hiveType == ut) ] [ text ut ]) model.ulikTypes)
-                        , label [] [ text "Tag NFC:" ]
+                        , label [] [ text "Link do NFC:" ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px" ]
-                            [ input [ type_ "text", value ulik.nfcTagId, placeholder "Brak przypisanego tagu", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                            , button [ onClick StartNfcScan, style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "🔗 Przypisz NFC" ]
+                            [ input [ type_ "text", value ulik.nfcLink, placeholder "Brak linku", readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , button [ onClick (CopyText ulik.nfcLink), style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "📋 Kopiuj link do NFC" ]
                             ]
                         , label [] [ text "Spodziewany termin wygryzienia:" ]
                         , input [ type_ "date", value ulik.expectedHatchDate, onInput (\val -> UpdateUlikField info.apiaryId ulik.id "expectedHatchDate" val), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []

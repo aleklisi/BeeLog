@@ -407,6 +407,16 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("Zapisz")');
     await expect(page.locator('text=Ulik do Przeniesienia')).toBeVisible();
 
+    // Wejdź w szczegóły uliku żeby pobrać NFC link
+    await page.click('text=Ulik do Przeniesienia');
+    const nfcInput = page.locator('label:has-text("Link do NFC:") + div input[readonly]');
+    await expect(nfcInput).toBeVisible();
+    const originalNfcLink = await nfcInput.inputValue();
+    expect(originalNfcLink).toContain('#ulik/');
+
+    // Powrót do listy ulików w Trutowisko Źródłowe
+    await page.click('button:has-text("← Powrót")');
+
     // Kliknij przycisk przeniesienia (🚚) na uliku
     await page.click('button[title="Zmień pasieczysko"]');
     await expect(page.locator('text=Przenieś ulik: Ulik do Przeniesienia')).toBeVisible();
@@ -423,6 +433,12 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("← Powrót")');
     await page.click('text=Trutowisko Docelowe');
     await expect(page.locator('text=Ulik do Przeniesienia')).toBeVisible();
+
+    // Wejdź w szczegóły ulika w nowym trutowisku i zweryfikuj, że link NFC nie uległ zmianie
+    await page.click('text=Ulik do Przeniesienia');
+    await expect(nfcInput).toBeVisible();
+    const movedNfcLink = await nfcInput.inputValue();
+    expect(movedNfcLink).toEqual(originalNfcLink);
   });
 
   test('13. Przenoszenie ulika weselnego z poziomu szczegółów uliku', async ({ page }) => {
@@ -516,6 +532,39 @@ test.describe('BeeLog E2E Test Suite', () => {
 
     await expect(page.locator('text=Aktualny stan: (N) Matka nieunasienniona')).toBeVisible();
     await expect(page.locator('text=Opalit Żółty #123')).toBeVisible();
+  });
+
+  test('15. Generowanie linku NFC, pole readonly oraz kopiowanie', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Pasieczysko
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Pasieka NFC');
+    await page.click('button:has-text("Zapisz")');
+    await page.click('text=Pasieka NFC');
+
+    // Dodaj Ul
+    await page.click('text=+ Dodaj Nowy Ul');
+    await page.fill('input[placeholder="np. Ul #04"]', 'Ul NFC');
+    await page.click('button:has-text("Zapisz")');
+    await page.click('text=Ul NFC');
+
+    // Sprawdź, czy pole linku NFC jest widoczne i ma wygenerowany link zawierający #hive/
+    const nfcInput = page.locator('label:has-text("Link do NFC:") + div input[readonly]');
+    await expect(nfcInput).toBeVisible();
+    const linkVal = await nfcInput.inputValue();
+    expect(linkVal).toContain('#hive/');
+
+    // Sprawdź przycisk kopiowania
+    await page.click('button:has-text("📋 Kopiuj link do NFC")');
   });
 
 });
