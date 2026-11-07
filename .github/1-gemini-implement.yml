@@ -1,0 +1,56 @@
+name: "Faza 1: Gemini Code Implementation"
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  gemini_implement:
+    if: github.event.label.name == 'gemini-fix'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Gemini CLI
+        run: npm install -g @google/gemini-cli
+
+      - name: Ask Gemini to implement the ticket
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          git config --global user.name "gemini-bot"
+          git config --global user.email "gemini-bot@github.com"
+          
+          git checkout -b feature/issue-$ISSUE_NUMBER
+          
+          gemini -p "Zaimplementuj wymagania z GitHub Issue #$ISSUE_NUMBER. 
+          Tytuł: $ISSUE_TITLE. 
+          Opis: $ISSUE_BODY. 
+          Po zmodyfikowaniu plików, uruchom lokalnie testy komendą 'npm test', aby upewnić się, że wszystko działa. Jeśli testy zgłoszą błąd, popraw kod. Nie kończ działania, dopóki testy nie przejdą pomyślnie." --auto-edit
+          
+          git add .
+          git commit -m "feat: auto-implemented issue #$ISSUE_NUMBER by Gemini"
+          git push origin feature/issue-$ISSUE_NUMBER
+          
+          gh pr create --title "Fix #$ISSUE_NUMBER: $ISSUE_TITLE" --body "Automated PR created by Gemini CLI for Issue #$ISSUE_NUMBER" --base main --head feature/issue-$ISSUE_NUMBER
