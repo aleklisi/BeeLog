@@ -567,4 +567,51 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("📋 Kopiuj link do NFC")');
   });
 
+  test('16. Powrót z poziomu uliku weselnego po przeniesieniu na inne trutowisko i użyciu linku', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Trutowisko Źródłowe
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Źródło');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+
+    // Dodaj Trutowisko Docelowe
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Trutowisko Cel');
+    await page.selectOption('div[style*="position: fixed"] select', 'trutowisko');
+    await page.click('button:has-text("Zapisz")');
+
+    // Wejdź do Trutowisko Źródło i dodaj ulik
+    await page.click('text=Trutowisko Źródło');
+    await page.click('text=+ Dodaj Ulik Weselny');
+    await page.fill('input[placeholder="np. Ulik #01"]', 'Ulik Powrót Test');
+    await page.click('button:has-text("Zapisz")');
+
+    // Przenieś ulik do Trutowisko Cel
+    await page.click('button[title="Zmień pasieczysko"]');
+    await page.selectOption('div[style*="position: fixed"] select', { label: 'Trutowisko Cel' });
+    await page.click('button:has-text("Przenieś")');
+
+    // Wróć do listy pasieczysk i wejście do Trutowisko Cel
+    await page.click('button:has-text("← Powrót")');
+    await page.click('text=Trutowisko Cel');
+
+    // Otwórz szczegóły uliku w Trutowisko Cel
+    await page.click('text=Ulik Powrót Test');
+    await expect(page.locator('text=Ulik Weselny: Ulik Powrót Test')).toBeVisible();
+
+    // Kliknij przycisk "← Powrót" i sprawdź, czy wracamy do Trutowisko Cel (a nie Źródło)
+    await page.click('button:has-text("← Powrót")');
+    await expect(page.locator('text=Trutowisko: Trutowisko Cel')).toBeVisible();
+  });
+
 });

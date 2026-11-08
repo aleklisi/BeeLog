@@ -22,6 +22,7 @@ type alias Korpus =
 
 type alias Hive =
     { id : String
+    , apiaryId : String
     , name : String
     , frameType : String
     , nfcLink : String
@@ -55,6 +56,7 @@ type UlikState
     | ZMatecznikiem
     | MatkaWygryziona
     | MatkaCzerwi
+    | PustyUlik
 
 ulikStateToString : UlikState -> String
 ulikStateToString state =
@@ -63,6 +65,7 @@ ulikStateToString state =
         ZMatecznikiem -> "z_matecznikiem"
         MatkaWygryziona -> "matka_wygryziona"
         MatkaCzerwi -> "matka_czerwi"
+        PustyUlik -> "pusty_ulik"
 
 ulikStateLabel : UlikState -> String
 ulikStateLabel state =
@@ -71,10 +74,15 @@ ulikStateLabel state =
         ZMatecznikiem -> "(M) Matecznik"
         MatkaWygryziona -> "(N) Matka nieunasienniona"
         MatkaCzerwi -> "(UNC) Matka unasienniona"
+        PustyUlik -> "(P) Pusty ulik"
 
 ulikStateFromString : String -> UlikState
 ulikStateFromString s =
     case String.toLower s of
+        "pusty_ulik" -> PustyUlik
+        "p" -> PustyUlik
+        "pusty" -> PustyUlik
+        "pusty ulik" -> PustyUlik
         "z_matecznikiem" -> ZMatecznikiem
         "2" -> ZMatecznikiem
         "m" -> ZMatecznikiem
@@ -114,6 +122,10 @@ type alias UlikHistoryEntry =
 ulikStateShortLabel : String -> String
 ulikStateShortLabel s =
     case String.toLower s of
+        "pusty_ulik" -> "(P)"
+        "p" -> "(P)"
+        "pusty" -> "(P)"
+        "pusty ulik" -> "(P)"
         "bezmatek" -> "(B)"
         "b" -> "(B)"
         "z_matecznikiem" -> "(M)"
@@ -129,6 +141,7 @@ ulikStateShortLabel s =
 
 type alias UlikWeselny =
     { id : String
+    , apiaryId : String
     , name : String
     , hiveType : String -- "Mini plus", "Odkład wielkopolski", "Apidea"
     , hasQueen : Bool
@@ -285,6 +298,7 @@ decodeHives =
     Decode.list
         (Decode.succeed Hive
             |> andMap (Decode.field "id" Decode.string)
+            |> andMap (Decode.maybe (Decode.field "apiaryId" Decode.string) |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "name" Decode.string)
             |> andMap (Decode.field "frameType" Decode.string)
             |> andMap (Decode.oneOf [ Decode.field "nfcLink" Decode.string, Decode.field "nfcTagId" Decode.string ] |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
@@ -313,6 +327,7 @@ decodeUliki =
     Decode.list
         (Decode.succeed UlikWeselny
             |> andMap (Decode.field "id" Decode.string)
+            |> andMap (Decode.maybe (Decode.field "apiaryId" Decode.string) |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "name" Decode.string)
             |> andMap (Decode.field "hiveType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Mini plus"))
             |> andMap (Decode.field "hasQueen" Decode.bool |> Decode.maybe |> Decode.map (Maybe.withDefault False))

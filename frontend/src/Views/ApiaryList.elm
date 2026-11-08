@@ -59,6 +59,7 @@ apiaryCardView user model apiary =
 
         bezmatekCount = List.length (List.filter (\u -> getUlikState u == Bezmatek) apiary.uliki)
         matecznikCount = List.length (List.filter (\u -> getUlikState u == ZMatecznikiem) apiary.uliki)
+        pustyUlikCount = List.length (List.filter (\u -> getUlikState u == PustyUlik) apiary.uliki)
         nieunasiennionaCount = List.length (List.filter (\u -> getUlikState u == MatkaWygryziona) apiary.uliki)
         unasiennionaCount = List.length (List.filter (\u -> getUlikState u == MatkaCzerwi) apiary.uliki)
         totalUlikiCount = List.length apiary.uliki
@@ -100,6 +101,7 @@ apiaryCardView user model apiary =
                     , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
                         [ span [ title "Bezmatek" ] [ text ("(B) Bezmatek: " ++ String.fromInt bezmatekCount) ]
                         , span [ title "Matecznik" ] [ text ("(M) Matecznik: " ++ String.fromInt matecznikCount) ]
+                        , span [ title "Pusty ulik" ] [ text ("(P) Pusty: " ++ String.fromInt pustyUlikCount) ]
                         , span [ title "Matka nieunasienniona" ] [ text ("(N) Nieunasienniona: " ++ String.fromInt nieunasiennionaCount) ]
                         , span [ title "Matka unasienniona" ] [ text ("(UNC) Unasienniona: " ++ String.fromInt unasiennionaCount) ]
                         ]

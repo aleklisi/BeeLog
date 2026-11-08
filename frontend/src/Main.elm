@@ -422,9 +422,12 @@ update msg model =
                                     let
                                         maybeHive = List.head (List.filter (\h -> h.id == hiveId) list)
                                         hiveName = Maybe.withDefault "" (Maybe.map .name maybeHive)
+                                        actualApiaryId = case maybeHive of
+                                            Just h -> if h.apiaryId /= "" then h.apiaryId else apiaryId
+                                            Nothing -> apiaryId
                                     in
-                                    ( { model | hives = list, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = apiaryId, hiveId = hiveId, hiveName = hiveName } }
-                                    , jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
+                                    ( { model | hives = list, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = actualApiaryId, hiveId = hiveId, hiveName = hiveName } }
+                                    , jsLoadNotes { apiaryId = actualApiaryId, hiveId = hiveId }
                                     )
                                 _ ->
                                     ( { model | hives = list }, Cmd.none )
@@ -443,8 +446,11 @@ update msg model =
                                     let
                                         maybeUlik = List.head (List.filter (\u -> u.id == ulikId) list)
                                         ulikName = Maybe.withDefault "" (Maybe.map .name maybeUlik)
+                                        actualApiaryId = case maybeUlik of
+                                            Just u -> if u.apiaryId /= "" then u.apiaryId else apiaryId
+                                            Nothing -> apiaryId
                                     in
-                                    ( { model | uliki = list, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = apiaryId, ulikId = ulikId, ulikName = ulikName } }
+                                    ( { model | uliki = list, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = actualApiaryId, ulikId = ulikId, ulikName = ulikName } }
                                     , Cmd.none
                                     )
                                 _ ->
@@ -631,13 +637,14 @@ update msg model =
                     let
                         timestamp = if model.currentDate /= "" then model.currentDate else "2026-11-03"
                         newStateStr = ulikStateToString newState
-                        isReset = newState == Bezmatek
+                        isReset = newState == Bezmatek || newState == PustyUlik
                         desc =
                             case newState of
                                 Bezmatek -> "Zabrano matkę / zresetowano stan"
                                 ZMatecznikiem -> "Poddano matecznik"
                                 MatkaWygryziona -> "Matka się wygryzła"
                                 MatkaCzerwi -> "Matka się unasienniła (UNC)"
+                                PustyUlik -> "Opróżniono ulik (P)"
 
                         transition =
                             if isReset then
