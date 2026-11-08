@@ -556,23 +556,23 @@ update msg model =
         UpdateHiveField apiaryId hiveId field value ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
 
-        AddKorpusTop apiaryId hiveId ->
+        AddKorpusAbove apiaryId hiveId idx ->
             let
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
                     Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                newKorpusy = addKorpusTop korpusy
+                newKorpusy = addKorpusAbove idx korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
-        AddKorpusBottom apiaryId hiveId ->
+        AddKorpusBelow apiaryId hiveId idx ->
             let
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
                     Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                newKorpusy = addKorpusBottom korpusy
+                newKorpusy = addKorpusBelow idx korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
@@ -1561,21 +1561,21 @@ encodeUlikHistoryEntry h =
         , ( "number", Encode.string h.number )
         ]
 
-addKorpusTop : List Korpus -> List Korpus
-addKorpusTop korpusy =
+addKorpusAbove : Int -> List Korpus -> List Korpus
+addKorpusAbove idx korpusy =
     let
         maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
         newId = String.fromInt (maxId + 1)
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
     in
-    { id = newId, hasQueen = False, hasExcluderAbove = False } :: korpusy
+    if idx <= 0 then
+        newKorpus :: korpusy
+    else
+        List.take idx korpusy ++ [ newKorpus ] ++ List.drop idx korpusy
 
-addKorpusBottom : List Korpus -> List Korpus
-addKorpusBottom korpusy =
-    let
-        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
-        newId = String.fromInt (maxId + 1)
-    in
-    korpusy ++ [ { id = newId, hasQueen = False, hasExcluderAbove = False } ]
+addKorpusBelow : Int -> List Korpus -> List Korpus
+addKorpusBelow idx korpusy =
+    addKorpusBetween idx korpusy
 
 addKorpusBetween : Int -> List Korpus -> List Korpus
 addKorpusBetween idx korpusy =

@@ -515,8 +515,8 @@ type Msg
     | UpdateNewHiveFrameType String
     | SubmitCreateHive String
     | UpdateHiveField String String String String
-    | AddKorpusTop String String
-    | AddKorpusBottom String String
+    | AddKorpusAbove String String Int
+    | AddKorpusBelow String String Int
     | AddKorpusBetween String String Int
     | DeleteKorpus String String String
     | ToggleKorpusQueen String String String

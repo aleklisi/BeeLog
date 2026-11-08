@@ -141,27 +141,39 @@ suite =
                         ()
             ]
         , describe "Korpus Editor Logic"
-            [ test "adds korpus on top" <|
+            [ test "adds korpus above" <|
                 \() ->
                     let
                         korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                        updated = addKorpusTop korpusy
+                        updated = addKorpusAbove 0 korpusy
                     in
                     Expect.equal 2 (List.length updated)
-            , test "adds korpus on bottom" <|
+            , test "adds korpus below" <|
                 \() ->
                     let
                         korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                        updated = addKorpusBottom korpusy
+                        updated = addKorpusBelow 0 korpusy
                     in
                     Expect.equal 2 (List.length updated)
-            , test "adds korpus between" <|
+            , test "expands hive to 5 korpusy and then deletes subsequent korpusy" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False }, { id = "2", hasQueen = False, hasExcluderAbove = False } ]
-                        updated = addKorpusBetween 0 korpusy
+                        initial = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        step1 = addKorpusAbove 0 initial
+                        step2 = addKorpusBelow 1 step1
+                        step3 = addKorpusAbove 1 step2
+                        step4 = addKorpusBelow 3 step3
                     in
-                    Expect.equal 3 (List.length updated)
+                    Expect.all
+                        [ \ks -> Expect.equal 5 (List.length ks)
+                        , \ks ->
+                            let
+                                ids = List.map .id ks
+                                afterDel = List.foldl (\id acc -> deleteKorpus id acc) ks (List.take 4 ids)
+                            in
+                            Expect.equal 1 (List.length afterDel)
+                        ]
+                        step4
             , test "deletes korpus and keeps at least one" <|
                 \() ->
                     let
@@ -318,21 +330,21 @@ ulikStateShortLabel s =
         "matka unasienniona" -> "(UNC)"
         _ -> "(B)"
 
-addKorpusTop : List Korpus -> List Korpus
-addKorpusTop korpusy =
+addKorpusAbove : Int -> List Korpus -> List Korpus
+addKorpusAbove idx korpusy =
     let
         maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
         newId = String.fromInt (maxId + 1)
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
     in
-    { id = newId, hasQueen = False, hasExcluderAbove = False } :: korpusy
+    if idx <= 0 then
+        newKorpus :: korpusy
+    else
+        List.take idx korpusy ++ [ newKorpus ] ++ List.drop idx korpusy
 
-addKorpusBottom : List Korpus -> List Korpus
-addKorpusBottom korpusy =
-    let
-        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
-        newId = String.fromInt (maxId + 1)
-    in
-    korpusy ++ [ { id = newId, hasQueen = False, hasExcluderAbove = False } ]
+addKorpusBelow : Int -> List Korpus -> List Korpus
+addKorpusBelow idx korpusy =
+    addKorpusBetween idx korpusy
 
 addKorpusBetween : Int -> List Korpus -> List Korpus
 addKorpusBetween idx korpusy =

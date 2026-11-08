@@ -636,7 +636,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Przejdź do ustawień i wyłącz Pasieczyska Towarowe
     await page.click('button:has-text("⚙️ Ustawienia")');
     await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
-    await page.click('label:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
+    await page.click('div:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
     await page.click('button:has-text("← Powrót")');
 
     // Sprawdź czy Pasieka Testowa Opcjonalna zniknęła z listy
@@ -644,7 +644,7 @@ test.describe('BeeLog E2E Test Suite', () => {
 
     // Wróć do ustawień i włącz ponownie Pasieczyska Towarowe
     await page.click('button:has-text("⚙️ Ustawienia")');
-    await page.click('label:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
+    await page.click('div:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
     await page.click('button:has-text("← Powrót")');
 
     // Sprawdź czy Pasieka Testowa Opcjonalna znów jest widoczna
@@ -677,16 +677,32 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Edytor Korpusów (Stan Ula)')).toBeVisible();
     await expect(page.locator('text=Korpus #1')).toBeVisible();
 
-    // Dodaj korpus na górę
-    await page.click('button:has-text("+ Dodaj korpus na górę")');
+    // Dodaj korpusy do 5 korpusów
+    await page.click('button[title="Dodaj korpus nad"]');
     await expect(page.locator('text=Korpus #2')).toBeVisible();
 
+    await page.click('button[title="Dodaj korpus pod"]');
+    await expect(page.locator('text=Korpus #3')).toBeVisible();
+
+    await page.click('button[title="Dodaj korpus nad"]');
+    await expect(page.locator('text=Korpus #4')).toBeVisible();
+
+    await page.click('button[title="Dodaj korpus pod"]');
+    await expect(page.locator('text=Korpus #5')).toBeVisible();
+
     // Zaznacz matkę w korpusie
-    await page.locator('label:has-text("👑 Matka w korpusie") input[type="checkbox"]').first().click();
+    await page.locator('label:has-text("Matka") input[type="checkbox"]').first().click();
 
     // Zaznacz kratę odgrodową nad korpusem
-    await page.locator('label:has-text("Krata odgrodowa nad tym korpusem") input[type="checkbox"]').first().click();
+    await page.locator('label:has-text("Krata") input[type="checkbox"]').first().click();
     await expect(page.locator('text=🟧 Krata odgrodowa')).toBeVisible();
+
+    // Usuń kolejne korpusy
+    const deleteButtons = page.locator('button[title="Usuń korpus"]');
+    while (await deleteButtons.count() > 1) {
+      await deleteButtons.first().click();
+    }
+    await expect(page.locator('text=Korpus #1')).toBeVisible();
   });
 
 });
