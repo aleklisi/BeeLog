@@ -89,7 +89,7 @@ app.ports.jsLogout.subscribe(async () => {
     }
 });
 
-app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
+app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
     let currentDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
     const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
     const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
@@ -118,6 +118,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
         let breedLinesVal = defaultBreedLines;
         let hatchingToMatingDaysVal = defaultHatchingToMatingDays;
         let maxUlikHistoryLimitVal = defaultMaxUlikHistoryLimit;
+        const emailToSave = email || (auth.currentUser ? auth.currentUser.email : "");
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.frameTypes) frameTypesVal = data.frameTypes;
@@ -128,10 +129,13 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
             if (data.darkMode !== undefined) {
                 currentDarkMode = data.darkMode;
             } else {
-                await setDoc(docRef, { darkMode: currentDarkMode }, { merge: true });
+                await setDoc(docRef, { darkMode: currentDarkMode, email: emailToSave }, { merge: true });
+            }
+            if (emailToSave && data.email !== emailToSave) {
+                await setDoc(docRef, { email: emailToSave }, { merge: true });
             }
         } else {
-            await setDoc(docRef, { frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
+            await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
         app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
@@ -140,7 +144,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid }) => {
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
     }
@@ -165,6 +169,8 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, frameTypes, ulikTypes, bree
     try {
         const docRef = doc(db, "users", uid);
         const dataToSave = {};
+        const emailToSave = email || (auth.currentUser ? auth.currentUser.email : "");
+        if (emailToSave) dataToSave.email = emailToSave;
         if (frameTypes !== undefined) dataToSave.frameTypes = frameTypes;
         if (ulikTypes !== undefined) dataToSave.ulikTypes = ulikTypes;
         if (breedLines !== undefined) dataToSave.breedLines = breedLines;

@@ -310,6 +310,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Przejdź do ustawień
     await page.click('button:has-text("⚙️ Ustawienia")');
     await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('[data-testid="user-email"]')).toHaveText('e2e@beelog.test');
 
     // Włącz tryb ciemny
     await page.click('button:has-text("🌙 Przełącz na Tryb Ciemny")');

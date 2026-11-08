@@ -146,8 +146,8 @@ port jsCopyText : String -> Cmd msg
 port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
-port jsLoadUserSettings : { uid : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int } -> Cmd msg
+port jsLoadUserSettings : { uid : String, email : String } -> Cmd msg
+port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -163,6 +163,21 @@ port todayReceived : (String -> msg) -> Sub msg
 port userSettingsReceived : (Value -> msg) -> Sub msg
 
 -- MESSAGES
+
+-- HELPER
+
+saveSettings : User -> Model -> Cmd Msg
+saveSettings user model =
+    jsSaveUserSettings
+        { uid = user.uid
+        , email = user.email
+        , frameTypes = model.frameTypes
+        , ulikTypes = model.ulikTypes
+        , breedLines = model.breedLines
+        , darkMode = model.darkMode
+        , hatchingToMatingDays = model.hatchingToMatingDays
+        , maxUlikHistoryLimit = model.maxUlikHistoryLimit
+        }
 
 -- UPDATE
 
@@ -180,14 +195,15 @@ update msg model =
         ToggleDarkMode ->
             let
                 newDarkMode = not model.darkMode
+                newModel = { model | darkMode = newDarkMode }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = newDarkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | darkMode = newDarkMode }, cmd )
+            ( newModel, cmd )
 
         AuthStateUpdated { uid, email } ->
             if uid == "" then
@@ -197,7 +213,7 @@ update msg model =
                     user = { uid = uid, email = email }
                 in
                 ( { model | authState = LoggedIn user, viewState = ApiariesView }
-                , Cmd.batch [ jsLoadApiaries uid, jsLoadUserSettings { uid = uid } ]
+                , Cmd.batch [ jsLoadApiaries uid, jsLoadUserSettings { uid = uid, email = email } ]
                 )
 
         LoadApiariesData uid ->
@@ -250,28 +266,30 @@ update msg model =
             if String.trim ft /= "" && not (List.member (String.trim ft) model.frameTypes) then
                 let
                     updated = model.frameTypes ++ [ String.trim ft ]
+                    newModel = { model | frameTypes = updated, newFrameTypeInput = "" }
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                                saveSettings user newModel
                             _ ->
                                 Cmd.none
                 in
-                ( { model | frameTypes = updated, newFrameTypeInput = "" }, cmd )
+                ( newModel, cmd )
             else
                 ( { model | newFrameTypeInput = "" }, Cmd.none )
 
         RemoveFrameType ft ->
             let
                 updated = List.filter (\x -> x /= ft) model.frameTypes
+                newModel = { model | frameTypes = updated }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = updated, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | frameTypes = updated }, cmd )
+            ( newModel, cmd )
 
         UpdateNewUlikTypeInput val ->
             ( { model | newUlikTypeInput = val }, Cmd.none )
@@ -280,28 +298,30 @@ update msg model =
             if String.trim ut /= "" && not (List.member (String.trim ut) model.ulikTypes) then
                 let
                     updated = model.ulikTypes ++ [ String.trim ut ]
+                    newModel = { model | ulikTypes = updated, newUlikTypeInput = "" }
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                                saveSettings user newModel
                             _ ->
                                 Cmd.none
                 in
-                ( { model | ulikTypes = updated, newUlikTypeInput = "" }, cmd )
+                ( newModel, cmd )
             else
                 ( { model | newUlikTypeInput = "" }, Cmd.none )
 
         RemoveUlikType ut ->
             let
                 updated = List.filter (\x -> x /= ut) model.ulikTypes
+                newModel = { model | ulikTypes = updated }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = updated, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | ulikTypes = updated }, cmd )
+            ( newModel, cmd )
 
         UpdateNewBreedLineInput val ->
             ( { model | newBreedLineInput = val }, Cmd.none )
@@ -310,28 +330,30 @@ update msg model =
             if String.trim bl /= "" && not (List.member (String.trim bl) model.breedLines) then
                 let
                     updated = model.breedLines ++ [ String.trim bl ]
+                    newModel = { model | breedLines = updated, newBreedLineInput = "" }
                     cmd =
                         case model.authState of
                             LoggedIn user ->
-                                jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                                saveSettings user newModel
                             _ ->
                                 Cmd.none
                 in
-                ( { model | breedLines = updated, newBreedLineInput = "" }, cmd )
+                ( newModel, cmd )
             else
                 ( { model | newBreedLineInput = "" }, Cmd.none )
 
         RemoveBreedLine bl ->
             let
                 updated = List.filter (\x -> x /= bl) model.breedLines
+                newModel = { model | breedLines = updated }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = updated, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | breedLines = updated }, cmd )
+            ( newModel, cmd )
 
         UpdateHatchingToMatingDaysInput str ->
             let
@@ -340,14 +362,15 @@ update msg model =
                         if n < 1 then 1 else if n > 30 then 30 else n
                     Nothing ->
                         model.hatchingToMatingDays
+                newModel = { model | hatchingToMatingDays = val }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = val, maxUlikHistoryLimit = model.maxUlikHistoryLimit }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | hatchingToMatingDays = val }, cmd )
+            ( newModel, cmd )
 
         UpdateMaxUlikHistoryLimitInput str ->
             let
@@ -356,14 +379,15 @@ update msg model =
                         if n < 10 then 10 else if n > 60 then 60 else n
                     Nothing ->
                         model.maxUlikHistoryLimit
+                newModel = { model | maxUlikHistoryLimit = val }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
-                            jsSaveUserSettings { uid = user.uid, frameTypes = model.frameTypes, ulikTypes = model.ulikTypes, breedLines = model.breedLines, darkMode = model.darkMode, hatchingToMatingDays = model.hatchingToMatingDays, maxUlikHistoryLimit = val }
+                            saveSettings user newModel
                         _ ->
                             Cmd.none
             in
-            ( { model | maxUlikHistoryLimit = val }, cmd )
+            ( newModel, cmd )
 
         CloseNewApiaryModal ->
             ( { model | showNewApiaryModal = False }, Cmd.none )
