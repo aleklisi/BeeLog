@@ -15,9 +15,13 @@ apiariesView user model =
         filteredApiaries =
             List.filter
                 (\a ->
-                    if model.apiaryFilter == "towarowe" then
+                    if not model.enablePasieczyskaTowarowe && a.apiaryType == "towarowe" then
+                        False
+                    else if not model.enableTrutowiska && a.apiaryType == "trutowisko" then
+                        False
+                    else if model.apiaryFilter == "towarowe" && model.enablePasieczyskaTowarowe then
                         a.apiaryType == "towarowe"
-                    else if model.apiaryFilter == "trutowisko" then
+                    else if model.apiaryFilter == "trutowisko" && model.enableTrutowiska then
                         a.apiaryType == "trutowisko"
                     else
                         True
@@ -32,10 +36,19 @@ apiariesView user model =
         , div [ style "display" "flex", style "gap" "10px", style "align-items" "center", style "margin-bottom" "20px" ]
             [ span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text "Filtruj typ:" ]
             , select [ onInput SetApiaryFilter, style "padding" "6px 10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ]
-                [ option [ value "all", selected (model.apiaryFilter == "all") ] [ text "Wszystkie pasieczyska" ]
-                , option [ value "towarowe", selected (model.apiaryFilter == "towarowe") ] [ text "Towarowe" ]
-                , option [ value "trutowisko", selected (model.apiaryFilter == "trutowisko") ] [ text "Trutowiska" ]
-                ]
+                ([ option [ value "all", selected (model.apiaryFilter == "all") ] [ text "Wszystkie pasieczyska" ]
+                 ]
+                 ++ (if model.enablePasieczyskaTowarowe then
+                        [ option [ value "towarowe", selected (model.apiaryFilter == "towarowe") ] [ text "Towarowe" ] ]
+                    else
+                        []
+                    )
+                 ++ (if model.enableTrutowiska then
+                        [ option [ value "trutowisko", selected (model.apiaryFilter == "trutowisko") ] [ text "Trutowiska" ] ]
+                    else
+                        []
+                    )
+                )
             ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
             (List.map (apiaryCardView user model) filteredApiaries)

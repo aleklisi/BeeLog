@@ -96,6 +96,8 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     const defaultHatchingToMatingDays = 12;
     const defaultMaxUlikHistoryLimit = 40;
+    const defaultEnableTrutowiska = true;
+    const defaultEnablePasieczyskaTowarowe = true;
     if (window.__E2E__) {
         const state = getE2EState();
         const settings = state.userSettings || {
@@ -104,7 +106,9 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             breedLines: defaultBreedLines,
             darkMode: currentDarkMode,
             hatchingToMatingDays: defaultHatchingToMatingDays,
-            maxUlikHistoryLimit: defaultMaxUlikHistoryLimit
+            maxUlikHistoryLimit: defaultMaxUlikHistoryLimit,
+            enableTrutowiska: defaultEnableTrutowiska,
+            enablePasieczyskaTowarowe: defaultEnablePasieczyskaTowarowe
         };
         localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
         app.ports.userSettingsReceived.send(settings);
@@ -118,6 +122,8 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
         let breedLinesVal = defaultBreedLines;
         let hatchingToMatingDaysVal = defaultHatchingToMatingDays;
         let maxUlikHistoryLimitVal = defaultMaxUlikHistoryLimit;
+        let enableTrutowiskaVal = defaultEnableTrutowiska;
+        let enablePasieczyskaTowaroweVal = defaultEnablePasieczyskaTowarowe;
         const emailToSave = email || (auth.currentUser ? auth.currentUser.email : "");
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -126,6 +132,8 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             if (data.breedLines) breedLinesVal = data.breedLines;
             if (data.hatchingToMatingDays !== undefined) hatchingToMatingDaysVal = data.hatchingToMatingDays;
             if (data.maxUlikHistoryLimit !== undefined) maxUlikHistoryLimitVal = data.maxUlikHistoryLimit;
+            if (data.enableTrutowiska !== undefined) enableTrutowiskaVal = data.enableTrutowiska;
+            if (data.enablePasieczyskaTowarowe !== undefined) enablePasieczyskaTowaroweVal = data.enablePasieczyskaTowarowe;
             if (data.darkMode !== undefined) {
                 currentDarkMode = data.darkMode;
             } else {
@@ -135,16 +143,16 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
                 await setDoc(docRef, { email: emailToSave }, { merge: true });
             }
         } else {
-            await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
+            await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
-        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal });
+        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit, enableTrutowiska, enablePasieczyskaTowarowe }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
     }
@@ -153,6 +161,8 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
     const defaultHatchingToMatingDays = 12;
     const defaultMaxUlikHistoryLimit = 40;
+    const defaultEnableTrutowiska = true;
+    const defaultEnablePasieczyskaTowarowe = true;
     if (window.__E2E__) {
         const state = getE2EState();
         state.userSettings = {
@@ -161,7 +171,9 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
             breedLines: breedLines !== undefined ? breedLines : (state.userSettings ? state.userSettings.breedLines : defaultBreedLines),
             darkMode: darkMode !== undefined ? darkMode : (state.userSettings ? state.userSettings.darkMode : false),
             hatchingToMatingDays: hatchingToMatingDays !== undefined ? hatchingToMatingDays : (state.userSettings ? state.userSettings.hatchingToMatingDays : defaultHatchingToMatingDays),
-            maxUlikHistoryLimit: maxUlikHistoryLimit !== undefined ? maxUlikHistoryLimit : (state.userSettings ? state.userSettings.maxUlikHistoryLimit : defaultMaxUlikHistoryLimit)
+            maxUlikHistoryLimit: maxUlikHistoryLimit !== undefined ? maxUlikHistoryLimit : (state.userSettings ? state.userSettings.maxUlikHistoryLimit : defaultMaxUlikHistoryLimit),
+            enableTrutowiska: enableTrutowiska !== undefined ? enableTrutowiska : (state.userSettings ? state.userSettings.enableTrutowiska : defaultEnableTrutowiska),
+            enablePasieczyskaTowarowe: enablePasieczyskaTowarowe !== undefined ? enablePasieczyskaTowarowe : (state.userSettings ? state.userSettings.enablePasieczyskaTowarowe : defaultEnablePasieczyskaTowarowe)
         };
         saveE2EState(state);
         return;
@@ -177,6 +189,8 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
         if (darkMode !== undefined) dataToSave.darkMode = darkMode;
         if (hatchingToMatingDays !== undefined) dataToSave.hatchingToMatingDays = hatchingToMatingDays;
         if (maxUlikHistoryLimit !== undefined) dataToSave.maxUlikHistoryLimit = maxUlikHistoryLimit;
+        if (enableTrutowiska !== undefined) dataToSave.enableTrutowiska = enableTrutowiska;
+        if (enablePasieczyskaTowarowe !== undefined) dataToSave.enablePasieczyskaTowarowe = enablePasieczyskaTowarowe;
         await setDoc(docRef, dataToSave, { merge: true });
     } catch (error) {
         app.ports.operationError.send(error.message);

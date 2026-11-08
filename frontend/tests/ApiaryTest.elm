@@ -140,10 +140,64 @@ suite =
                         ]
                         ()
             ]
+        , describe "Korpus Editor Logic"
+            [ test "adds korpus on top" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = addKorpusTop korpusy
+                    in
+                    Expect.equal 2 (List.length updated)
+            , test "adds korpus on bottom" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = addKorpusBottom korpusy
+                    in
+                    Expect.equal 2 (List.length updated)
+            , test "adds korpus between" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False }, { id = "2", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = addKorpusBetween 0 korpusy
+                    in
+                    Expect.equal 3 (List.length updated)
+            , test "deletes korpus and keeps at least one" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = deleteKorpus "1" korpusy
+                    in
+                    Expect.equal 1 (List.length updated)
+            , test "toggles queen in korpus" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = toggleKorpusQueen "1" korpusy
+                    in
+                    case List.head updated of
+                        Just k -> Expect.equal True k.hasQueen
+                        Nothing -> Expect.fail "Empty"
+            , test "toggles excluder above korpus" <|
+                \() ->
+                    let
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        updated = toggleKorpusExcluder "1" korpusy
+                    in
+                    case List.head updated of
+                        Just k -> Expect.equal True k.hasExcluderAbove
+                        Nothing -> Expect.fail "Empty"
+            ]
         ]
 
 -- Helper decoders copied from Main.elm (since it's a port module, direct import might be tricky for internals)
 -- In a real scenario, we'd move decoders to a separate module.
+
+type alias Korpus =
+    { id : String
+    , hasQueen : Bool
+    , hasExcluderAbove : Bool
+    }
 
 decodeQueen =
     Decode.map3 (\h c n -> { hasOpalit = h, color = c, number = n })
@@ -263,3 +317,46 @@ ulikStateShortLabel s =
         "unc" -> "(UNC)"
         "matka unasienniona" -> "(UNC)"
         _ -> "(B)"
+
+addKorpusTop : List Korpus -> List Korpus
+addKorpusTop korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+    in
+    { id = newId, hasQueen = False, hasExcluderAbove = False } :: korpusy
+
+addKorpusBottom : List Korpus -> List Korpus
+addKorpusBottom korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+    in
+    korpusy ++ [ { id = newId, hasQueen = False, hasExcluderAbove = False } ]
+
+addKorpusBetween : Int -> List Korpus -> List Korpus
+addKorpusBetween idx korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+    in
+    List.take (idx + 1) korpusy ++ [ newKorpus ] ++ List.drop (idx + 1) korpusy
+
+deleteKorpus : String -> List Korpus -> List Korpus
+deleteKorpus targetId korpusy =
+    let
+        filtered = List.filter (\k -> k.id /= targetId) korpusy
+    in
+    if List.isEmpty filtered then
+        [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+    else
+        filtered
+
+toggleKorpusQueen : String -> List Korpus -> List Korpus
+toggleKorpusQueen targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasQueen = not k.hasQueen } else k) korpusy
+
+toggleKorpusExcluder : String -> List Korpus -> List Korpus
+toggleKorpusExcluder targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasExcluderAbove = not k.hasExcluderAbove } else k) korpusy

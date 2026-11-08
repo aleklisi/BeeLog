@@ -372,6 +372,8 @@ type alias UserSettings =
     , darkMode : Bool
     , hatchingToMatingDays : Int
     , maxUlikHistoryLimit : Int
+    , enableTrutowiska : Bool
+    , enablePasieczyskaTowarowe : Bool
     }
 
 decodeUserSettings : Decode.Decoder UserSettings
@@ -383,6 +385,8 @@ decodeUserSettings =
         |> andMap (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
         |> andMap (Decode.field "hatchingToMatingDays" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 12)))
         |> andMap (Decode.field "maxUlikHistoryLimit" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 40)))
+        |> andMap (Decode.field "enableTrutowiska" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault True)))
+        |> andMap (Decode.field "enablePasieczyskaTowarowe" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault True)))
 
 type AuthState
     = LoggedOut
@@ -455,6 +459,8 @@ type alias Model =
     , newBreedLineInput : String
     , hatchingToMatingDays : Int
     , maxUlikHistoryLimit : Int
+    , enableTrutowiska : Bool
+    , enablePasieczyskaTowarowe : Bool
     , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
     , modalBreedLine : String
     , modalHatchDate : String
@@ -467,6 +473,8 @@ type Msg
     = ClickLoginGoogle
     | ClickLogout
     | ToggleDarkMode
+    | ToggleEnableTrutowiska
+    | ToggleEnablePasieczyskaTowarowe
     | AuthStateUpdated { uid : String, email : String }
     | CurrentDateReceived String
     | UserSettingsReceived (Result String UserSettings)
@@ -507,6 +515,12 @@ type Msg
     | UpdateNewHiveFrameType String
     | SubmitCreateHive String
     | UpdateHiveField String String String String
+    | AddKorpusTop String String
+    | AddKorpusBottom String String
+    | AddKorpusBetween String String Int
+    | DeleteKorpus String String String
+    | ToggleKorpusQueen String String String
+    | ToggleKorpusExcluder String String String
     -- Ulik actions
     | UlikiDecoded (Result String (List UlikWeselny))
     | OpenNewUlikModal

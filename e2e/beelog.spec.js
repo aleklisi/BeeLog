@@ -615,4 +615,78 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Trutowisko: Trutowisko Cel')).toBeVisible();
   });
 
+  test('16. Opcjonalne pasieczyska towarowe', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj Pasieka Towarowa
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Pasieka Testowa Opcjonalna');
+    await page.selectOption('div[style*="position: fixed"] select', 'towarowe');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Pasieka Testowa Opcjonalna')).toBeVisible();
+
+    // Przejdź do ustawień i wyłącz Pasieczyska Towarowe
+    await page.click('button:has-text("⚙️ Ustawienia")');
+    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await page.click('label:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
+    await page.click('button:has-text("← Powrót")');
+
+    // Sprawdź czy Pasieka Testowa Opcjonalna zniknęła z listy
+    await expect(page.locator('text=Pasieka Testowa Opcjonalna')).not.toBeVisible();
+
+    // Wróć do ustawień i włącz ponownie Pasieczyska Towarowe
+    await page.click('button:has-text("⚙️ Ustawienia")');
+    await page.click('label:has-text("Włącz Pasieczyska Towarowe") input[type="checkbox"]');
+    await page.click('button:has-text("← Powrót")');
+
+    // Sprawdź czy Pasieka Testowa Opcjonalna znów jest widoczna
+    await expect(page.locator('text=Pasieka Testowa Opcjonalna')).toBeVisible();
+  });
+
+  test('17. Edytor korpusów w ulu towarowym', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj pasieczysko towarowe
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Pasieka Korpusowa');
+    await page.click('button:has-text("Zapisz")');
+    await page.click('text=Pasieka Korpusowa');
+
+    // Dodaj ul
+    await page.click('text=+ Dodaj Nowy Ul');
+    await page.fill('input[placeholder="np. Ul #04"]', 'Ul Korpusowy');
+    await page.click('button:has-text("Zapisz")');
+    await page.click('text=Ul Korpusowy');
+
+    await expect(page.locator('text=Edytor Korpusów (Stan Ula)')).toBeVisible();
+    await expect(page.locator('text=Korpus #1')).toBeVisible();
+
+    // Dodaj korpus na górę
+    await page.click('button:has-text("+ Dodaj korpus na górę")');
+    await expect(page.locator('text=Korpus #2')).toBeVisible();
+
+    // Zaznacz matkę w korpusie
+    await page.locator('label:has-text("👑 Matka w korpusie") input[type="checkbox"]').first().click();
+
+    // Zaznacz kratę odgrodową nad korpusem
+    await page.locator('label:has-text("Krata odgrodowa nad tym korpusem") input[type="checkbox"]').first().click();
+    await expect(page.locator('text=🟧 Krata odgrodowa')).toBeVisible();
+  });
+
 });

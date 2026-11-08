@@ -118,6 +118,17 @@ hiveDetailView user info model =
                         ]
                     ]
                 , hr [] []
+                , h3 [ style "color" headingColor ] [ text "Edytor Korpusów (Stan Ula)" ]
+                , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi." ]
+                , div [ style "margin-bottom" "15px" ]
+                    [ button [ onClick (AddKorpusTop actualApiaryId hive.id), style "padding" "6px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj korpus na górę" ]
+                    ]
+                , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "margin-bottom" "15px" ]
+                    (List.indexedMap (korpusItemView actualApiaryId hive.id (List.length hive.korpusy) model) hive.korpusy)
+                , div [ style "margin-bottom" "20px" ]
+                    [ button [ onClick (AddKorpusBottom actualApiaryId hive.id), style "padding" "6px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj korpus na dół" ]
+                    ]
+                , hr [] []
                 , h3 [ style "color" headingColor ] [ text "Notatki" ]
                 , div [ style "margin-bottom" "15px" ]
                     [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder "Wpisz notatkę lub użyj dyktowania głosowego...", style "width" "100%", style "height" "80px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
@@ -162,3 +173,40 @@ noteItemView apiaryId hiveId model note =
             , div [ style "white-space" "pre-wrap", style "word-break" "break-word" ] [ text note.text ]
             ]
         )
+
+korpusItemView : String -> String -> Int -> Model -> Int -> Korpus -> Html Msg
+korpusItemView apiaryId hiveId totalCount model index korpus =
+    let
+        boxBg = if model.darkMode then "#242424" else "#fdfefe"
+        borderColor = if model.darkMode then "#444" else "#dcdde1"
+        textColor = if model.darkMode then "#e0e0e0" else "#333"
+    in
+    div []
+        [ if korpus.hasExcluderAbove then
+            div [ style "display" "flex", style "align-items" "center", style "justify-content" "center", style "padding" "4px", style "background" (if model.darkMode then "#332200" else "#fcf3cf"), style "border" (if model.darkMode then "1px dashed #f39c12" else "1px dashed #f1c40f"), style "border-radius" "4px", style "margin-bottom" "5px", style "font-size" "12px", style "font-weight" "bold", style "color" (if model.darkMode then "#f1c40f" else "#d68910") ]
+                [ text "🟧 Krata odgrodowa" ]
+          else
+            text ""
+        , div [ style "background" boxBg, style "border" ("1px solid " ++ borderColor), style "padding" "12px", style "border-radius" "6px", style "color" textColor ]
+            [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px" ]
+                [ span [ style "font-weight" "bold" ] [ text ("Korpus #" ++ String.fromInt (index + 1)) ]
+                , div [ style "display" "flex", style "gap" "10px", style "align-items" "center" ]
+                    [ label [ style "display" "flex", style "align-items" "center", style "gap" "6px", style "cursor" "pointer", style "font-size" "13px" ]
+                        [ input [ type_ "checkbox", checked korpus.hasQueen, onCheck (\_ -> ToggleKorpusQueen apiaryId hiveId korpus.id) ] []
+                        , text "👑 Matka w korpusie"
+                        ]
+                    , if totalCount > 1 then
+                        button [ onClick (DeleteKorpus apiaryId hiveId korpus.id), style "padding" "4px 8px", style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Usuń korpus" ] [ text "🗑️" ]
+                      else
+                        text ""
+                    ]
+                ]
+            , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "8px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
+                [ label [ style "display" "flex", style "align-items" "center", style "gap" "6px", style "cursor" "pointer", style "font-size" "13px" ]
+                    [ input [ type_ "checkbox", checked korpus.hasExcluderAbove, onCheck (\_ -> ToggleKorpusExcluder apiaryId hiveId korpus.id) ] []
+                    , text "Krata odgrodowa nad tym korpusem"
+                    ]
+                , button [ onClick (AddKorpusBetween apiaryId hiveId index), style "padding" "4px 8px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", title "Dodaj korpus poniżej" ] [ text "+ Dodaj pod" ]
+                ]
+            ]
+        ]

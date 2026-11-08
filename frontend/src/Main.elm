@@ -79,6 +79,8 @@ init flags =
       , newBreedLineInput = ""
       , hatchingToMatingDays = 12
       , maxUlikHistoryLimit = 40
+      , enableTrutowiska = True
+      , enablePasieczyskaTowarowe = True
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -147,7 +149,7 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String, email : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int } -> Cmd msg
+port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int, enableTrutowiska : Bool, enablePasieczyskaTowarowe : Bool } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -177,6 +179,8 @@ saveSettings user model =
         , darkMode = model.darkMode
         , hatchingToMatingDays = model.hatchingToMatingDays
         , maxUlikHistoryLimit = model.maxUlikHistoryLimit
+        , enableTrutowiska = model.enableTrutowiska
+        , enablePasieczyskaTowarowe = model.enablePasieczyskaTowarowe
         }
 
 -- UPDATE
@@ -205,6 +209,34 @@ update msg model =
             in
             ( newModel, cmd )
 
+        ToggleEnableTrutowiska ->
+            let
+                newEnable = not model.enableTrutowiska
+                newFilter = if not newEnable && model.apiaryFilter == "trutowisko" then "all" else model.apiaryFilter
+                newModel = { model | enableTrutowiska = newEnable, apiaryFilter = newFilter }
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            saveSettings user newModel
+                        _ ->
+                            Cmd.none
+            in
+            ( newModel, cmd )
+
+        ToggleEnablePasieczyskaTowarowe ->
+            let
+                newEnable = not model.enablePasieczyskaTowarowe
+                newFilter = if not newEnable && model.apiaryFilter == "towarowe" then (if model.enableTrutowiska then "trutowisko" else "all") else model.apiaryFilter
+                newModel = { model | enablePasieczyskaTowarowe = newEnable, apiaryFilter = newFilter }
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            saveSettings user newModel
+                        _ ->
+                            Cmd.none
+            in
+            ( newModel, cmd )
+
         AuthStateUpdated { uid, email } ->
             if uid == "" then
                 ( { model | authState = LoggedOut, viewState = LoginView }, Cmd.none )
@@ -222,7 +254,7 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit, enableTrutowiska = settings.enableTrutowiska, enablePasieczyskaTowarowe = settings.enablePasieczyskaTowarowe }, Cmd.none )
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -251,7 +283,7 @@ update msg model =
             ( { model | viewState = state, ulikFilter = "all" }, cmds )
 
         OpenNewApiaryModal ->
-            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = "towarowe" }, Cmd.none )
+            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = if model.enablePasieczyskaTowarowe then "towarowe" else "trutowisko" }, Cmd.none )
 
         SetApiaryFilter filter ->
             ( { model | apiaryFilter = filter }, Cmd.none )
@@ -523,6 +555,66 @@ update msg model =
 
         UpdateHiveField apiaryId hiveId field value ->
             ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
+
+        AddKorpusTop apiaryId hiveId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = addKorpusTop korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        AddKorpusBottom apiaryId hiveId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = addKorpusBottom korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        AddKorpusBetween apiaryId hiveId idx ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = addKorpusBetween idx korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        DeleteKorpus apiaryId hiveId korpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = deleteKorpus korpusId korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        ToggleKorpusQueen apiaryId hiveId korpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = toggleKorpusQueen korpusId korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        ToggleKorpusExcluder apiaryId hiveId korpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                newKorpusy = toggleKorpusExcluder korpusId korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         UpdateUlikField apiaryId ulikId field value ->
             let
@@ -1137,10 +1229,18 @@ modalsView model =
                     , label [] [ text "Nazwa pasieczyska:" ]
                     , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                     , label [] [ text "Typ pasieczyska:" ]
-                    , select [ value model.newApiaryType, onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                        [ option [ value "towarowe" ] [ text "Pasieczysko towarowe" ]
-                        , option [ value "trutowisko" ] [ text "Trutowisko (uliki weselne)" ]
-                        ]
+                    , select [ value (if model.enablePasieczyskaTowarowe && (model.newApiaryType == "towarowe" || not model.enableTrutowiska) then "towarowe" else "trutowisko"), onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                        ((if model.enablePasieczyskaTowarowe then
+                            [ option [ value "towarowe" ] [ text "Pasieczysko towarowe" ] ]
+                          else
+                            []
+                         )
+                         ++ (if model.enableTrutowiska then
+                                [ option [ value "trutowisko" ] [ text "Trutowisko (uliki weselne)" ] ]
+                            else
+                                []
+                            )
+                        )
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                         , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
@@ -1460,3 +1560,70 @@ encodeUlikHistoryEntry h =
         , ( "color", Encode.string h.color )
         , ( "number", Encode.string h.number )
         ]
+
+addKorpusTop : List Korpus -> List Korpus
+addKorpusTop korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+    in
+    { id = newId, hasQueen = False, hasExcluderAbove = False } :: korpusy
+
+addKorpusBottom : List Korpus -> List Korpus
+addKorpusBottom korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+    in
+    korpusy ++ [ { id = newId, hasQueen = False, hasExcluderAbove = False } ]
+
+addKorpusBetween : Int -> List Korpus -> List Korpus
+addKorpusBetween idx korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        newId = String.fromInt (maxId + 1)
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+    in
+    List.take (idx + 1) korpusy ++ [ newKorpus ] ++ List.drop (idx + 1) korpusy
+
+deleteKorpus : String -> List Korpus -> List Korpus
+deleteKorpus targetId korpusy =
+    let
+        filtered = List.filter (\k -> k.id /= targetId) korpusy
+    in
+    if List.isEmpty filtered then
+        [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+    else
+        filtered
+
+toggleKorpusQueen : String -> List Korpus -> List Korpus
+toggleKorpusQueen targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasQueen = not k.hasQueen } else k) korpusy
+
+toggleKorpusExcluder : String -> List Korpus -> List Korpus
+toggleKorpusExcluder targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasExcluderAbove = not k.hasExcluderAbove } else k) korpusy
+
+updateKorpusyForHive : String -> String -> List Korpus -> Model -> (Model, Cmd Msg)
+updateKorpusyForHive apiaryId hiveId newKorpusy model =
+    let
+        updatedHives =
+            List.map
+                (\h ->
+                    if h.id == hiveId then
+                        { h | korpusy = newKorpusy }
+                    else
+                        h
+                )
+                model.hives
+
+        updatedHive =
+            List.head (List.filter (\h -> h.id == hiveId) updatedHives)
+    in
+    case updatedHive of
+        Just h ->
+            ( { model | hives = updatedHives }
+            , jsUpdateHiveFull { apiaryId = apiaryId, hiveId = hiveId, fields = Encode.object [ ("korpusy", encodeKorpusy h.korpusy) ] }
+            )
+        Nothing ->
+            ( { model | hives = updatedHives }, Cmd.none )
