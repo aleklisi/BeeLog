@@ -1,0 +1,27 @@
+# Mating Apiaries
+
+## Purpose
+Manages mating apiaries (trutowiska) and mating hives (uliki weselne), their lifecycle states, timelines, tracking, and history.
+
+## Requirements
+
+### Requirement: Mating Hive States and Lifecycle
+Mating hives SHALL track queen development states and support transitions.
+
+#### Scenario: State Transitions and Automation
+- **WHEN** a mating hive transitions through states: Empty `(P)`, Bezmatek `(B)`, Z matecznikiem `(M)`, Matka wygryziona `(N)`, and Matka unasienniona `(UNC)`
+- **THEN** the system MUST prompt for required details (expected hatching date, breed/line, optional queen marking/opalitkowanie with color and number), automatically calculate expected mating date using configuration settings, and record state changes in a history log.
+
+### Requirement: Timeline and History
+The system MUST visualize time progression and maintain historical state changes for mating hives.
+
+#### Scenario: Timeline Axis and History Log
+- **WHEN** viewing a mating hive
+- **THEN** an interactive timeline axis MUST highlight key periods (now to hatching, hatching to mating, and post-mating danger zone) in distinct colors, and a timestamped history log MUST display state transitions sorted from newest to oldest up to the configured maximum history limit.
+
+### Requirement: Moving Mating Hives
+Users SHALL be able to relocate mating hives between mating apiaries.
+
+#### Scenario: Relocation and Back Navigation
+- **WHEN** a mating hive is moved from Mating Apiary A to Mating Apiary B
+- **THEN** it MUST be reassigned to Apiary B and the back button navigation MUST correctly return to the current apiary view.
