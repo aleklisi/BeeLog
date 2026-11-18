@@ -1,5 +1,7 @@
 # BeeLog (PszczeliGłos / BeeTap)
 
+[![Pokrycie testami Elm](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aleklisi/BeeLog/main/coverage/coverage-badge.json)](https://github.com/aleklisi/BeeLog/actions/workflows/ci.yml)
+
 BeeLog to nowoczesna, progresywna aplikacja internetowa (PWA) przeznaczona do kompleksowego zarządzania pasieką, pasieczyskami i ulami w terenie. Aplikacja wspiera czytanie tagów NFC z uli oraz dyktowanie głosowe notatek (Speech-to-Text).
 
 ## 🛠️ Stos Technologiczny

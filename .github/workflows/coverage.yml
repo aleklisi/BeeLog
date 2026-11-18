@@ -1,0 +1,32 @@
+name: CI - Test coverage
+on:
+  workflow_call:
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: jorelali/setup-elm@v6
+        with:
+          elm-version: 0.19.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: ${{ runner.os }}-elm-${{ hashFiles('frontend/elm.json') }}
+          restore-keys: ${{ runner.os }}-elm-
+      - run: npm ci
+      - name: Install Elm coverage tool
+        run: npm install --global elm-coverage@0.4.1
+      - name: Measure Elm expression coverage
+        run: elm-coverage src --elm-test ../node_modules/.bin/elm-test --report json > ../coverage-report.json
+        working-directory: frontend
+      - name: Summarize coverage
+        run: node scripts/summarize-coverage.cjs coverage-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: coverage/coverage-badge.json
