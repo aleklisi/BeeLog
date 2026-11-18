@@ -22,8 +22,20 @@ jobs:
       - name: Install Elm coverage tool
         run: npm install --global elm-coverage@0.4.1
       - name: Measure Elm expression coverage
-        run: elm-coverage src --elm-test "$GITHUB_WORKSPACE/node_modules/.bin/elm-test" --report json > ../coverage-report.json
+        run: |
+          if ! elm-coverage src --elm-test "$GITHUB_WORKSPACE/node_modules/.bin/elm-test" --report json > ../coverage-report.json; then
+            echo "elm-coverage failed; captured output follows:"
+            cat ../coverage-report.json
+            exit 1
+          fi
         working-directory: frontend
+      - name: Upload raw coverage output for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elm-coverage-raw-output
+          path: coverage-report.json
+          if-no-files-found: ignore
       - name: Summarize coverage
         run: node scripts/summarize-coverage.cjs coverage-report.json
       - uses: actions/upload-artifact@v4
