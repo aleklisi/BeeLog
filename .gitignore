@@ -10,6 +10,7 @@ frontend/elm-stuff/
 
 # Firebase local cache / debug logs
 .firebase/
+firebase_sdk
 firebase-debug.log
 firestore-debug.log
 
@@ -23,3 +24,9 @@ firestore-debug.log
 *.local
 
 docs/tasks/*
+
+# Test output
+test-results/
+
+# Gemini / IDE
+.gemini/

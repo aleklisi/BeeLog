@@ -23,7 +23,12 @@ type alias Hive =
     { id : String
     , apiaryId : String
     , name : String
+    , hiveType : String
     , frameType : String
+    , broodFrameType : String
+    , broodFrameCount : Int
+    , superFrameType : String
+    , superCount : Int
     , nfcLink : String
     , queen : Queen
     , pollenTrap : String
@@ -145,7 +150,12 @@ type alias Model =
     , showDeleteApiaryModal : Maybe Apiary
     , showNewHiveModal : Bool
     , newHiveName : String
+    , newHiveType : String
     , newHiveFrameType : String
+    , newHiveBroodFrameType : String
+    , newHiveBroodFrameCount : Int
+    , newHiveSuperFrameType : String
+    , newHiveSuperCount : Int
     , showNewUlikModal : Bool
     , newUlikName : String
     , newUlikHiveType : String
@@ -224,7 +234,12 @@ type Msg
     | OpenNewHiveModal
     | CloseNewHiveModal
     | UpdateNewHiveName String
+    | UpdateNewHiveType String
     | UpdateNewHiveFrameType String
+    | UpdateNewHiveBroodFrameType String
+    | UpdateNewHiveBroodFrameCount Int
+    | UpdateNewHiveSuperFrameType String
+    | UpdateNewHiveSuperCount Int
     | SubmitCreateHive String
     | UpdateHiveField String String String String
     | AddKorpusAbove String String Int

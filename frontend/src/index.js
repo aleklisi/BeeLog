@@ -248,13 +248,19 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
                             } else {
                                 hives.push({
                                     id: hDoc.id,
+                                    apiaryId: apiaryId,
                                     name: hData.name || "",
+                                    hiveType: hData.hiveType || "korpusowy",
                                     frameType: hData.frameType || "Wielkopolska",
+                                    broodFrameType: hData.broodFrameType || "Wielkopolska",
+                                    broodFrameCount: hData.broodFrameCount !== undefined ? hData.broodFrameCount : 10,
+                                    superFrameType: hData.superFrameType || "Wielkopolska 1/2",
+                                    superCount: hData.superCount !== undefined ? hData.superCount : 1,
                                     nfcLink: hData.nfcLink || hData.nfcTagId || (baseUrl + '#hive/' + apiaryId + '/' + hDoc.id),
                                     queen: hData.queen || { hasOpalit: false, color: "biały", number: "" },
                                     pollenTrap: hData.pollenTrap || "brak",
                                     order: hData.order !== undefined ? hData.order : 0,
-                                    korpusy: hData.korpusy || []
+                                    korpusy: hData.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
                                 });
                             }
                         });
@@ -649,12 +655,19 @@ app.ports.jsLoadHives.subscribe(async ({ apiaryId, deepLinkId }) => {
                 const data = docSnap.data();
                 hives.push({
                     id: docSnap.id,
+                    apiaryId: targetApiaryId,
                     name: data.name || "",
+                    hiveType: data.hiveType || "korpusowy",
                     frameType: data.frameType || "Wielkopolska",
+                    broodFrameType: data.broodFrameType || "Wielkopolska",
+                    broodFrameCount: data.broodFrameCount !== undefined ? data.broodFrameCount : 10,
+                    superFrameType: data.superFrameType || "Wielkopolska 1/2",
+                    superCount: data.superCount !== undefined ? data.superCount : 1,
                     nfcLink: data.nfcLink || data.nfcTagId || "",
                     queen: data.queen || { hasOpalit: false, color: "biały", number: "" },
                     pollenTrap: data.pollenTrap || "brak",
-                    order: data.order !== undefined ? data.order : 0
+                    order: data.order !== undefined ? data.order : 0,
+                    korpusy: data.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
                 });
             });
             hives.sort((a, b) => a.order - b.order);
@@ -683,8 +696,15 @@ app.ports.jsSaveHiveOrders.subscribe(async ({ apiaryId, hives }) => {
     }
 });
 
-app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
+app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, broodFrameType, broodFrameCount, superFrameType, superCount }) => {
     const baseUrl = window.location.href.split('#')[0];
+    const hType = hiveType || "korpusowy";
+    const fType = frameType || "Wielkopolska";
+    const bType = broodFrameType || "Wielkopolska";
+    const bCount = broodFrameCount !== undefined ? broodFrameCount : 10;
+    const sType = superFrameType || "Wielkopolska 1/2";
+    const sCount = superCount !== undefined ? superCount : 1;
+    const korpusyVal = hType === "korpusowy" ? [{ id: "1", hasQueen: false, hasExcluderAbove: false }] : [];
     if (window.__E2E__) {
         const state = getE2EState();
         if (!state.hives[apiaryId]) state.hives[apiaryId] = [];
@@ -692,13 +712,19 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
         const nfcLink = baseUrl + '#hive/' + apiaryId + '/' + hiveId;
         state.hives[apiaryId].push({
             id: hiveId,
+            apiaryId: apiaryId,
             name: name,
-            frameType: frameType || "Wielkopolska",
+            hiveType: hType,
+            frameType: fType,
+            broodFrameType: bType,
+            broodFrameCount: bCount,
+            superFrameType: sType,
+            superCount: sCount,
             nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "Biały", number: "" },
             pollenTrap: "brak",
             order: state.hives[apiaryId].length,
-            korpusy: [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
+            korpusy: korpusyVal
         });
         saveE2EState(state);
         app.ports.hivesReceived.send(state.hives[apiaryId]);
@@ -711,12 +737,17 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, frameType }) => {
         await setDoc(newDocRef, {
             apiaryId: apiaryId,
             name: name,
-            frameType: frameType,
+            hiveType: hType,
+            frameType: fType,
+            broodFrameType: bType,
+            broodFrameCount: bCount,
+            superFrameType: sType,
+            superCount: sCount,
             nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "biały", number: "" },
             pollenTrap: "brak",
             order: 0,
-            korpusy: [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
+            korpusy: korpusyVal
         });
     } catch (error) {
         app.ports.operationError.send(error.message);

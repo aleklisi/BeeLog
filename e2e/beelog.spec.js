@@ -142,6 +142,40 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('h3:has-text("Ul 3")')).not.toBeVisible();
   });
 
+  test('6.5. Tworzenie i konfiguracja uli typu leżak i kombinowany', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => {
+      if (window.app && window.app.ports && window.app.ports.authStateChanged) {
+        window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+      }
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible({ timeout: 5000 });
+
+    // Dodaj pasieczysko
+    await page.click('text=+ Dodaj Pasieczysko');
+    await page.fill('input[placeholder="Nazwa pasieczyska"]', 'Pasieka Leżakowa');
+    await page.click('button:has-text("Zapisz")');
+
+    await page.click('text=Pasieka Leżakowa');
+    await expect(page.locator('text=Pasieka: Pasieka Leżakowa')).toBeVisible();
+
+    // Dodaj ul leżak
+    await page.click('text=+ Dodaj Nowy Ul');
+    await page.fill('input[placeholder="np. Ul #04"]', 'Ul Leżak 1');
+    await page.selectOption('select', { value: 'lezak' });
+    await page.fill('input[type="number"]', '18');
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ul Leżak 1')).toBeVisible();
+
+    // Wejdź w kartę ula leżaka i sprawdź konfigurację
+    await page.click('text=Ul Leżak 1');
+    await expect(page.locator('text=Karta Ula: Ul Leżak 1')).toBeVisible();
+    await expect(page.locator('text=Konfiguracja Gniazda i Nadstawek')).toBeVisible();
+    await expect(page.locator('text=Liczba ramek: 18')).toBeVisible();
+  });
+
   test('7. Trutowisko i Uliki Weselne', async ({ page }) => {
     await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
     await page.reload();

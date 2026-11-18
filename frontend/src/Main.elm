@@ -93,7 +93,12 @@ init flags =
       , showDeleteApiaryModal = Nothing
       , showNewHiveModal = False
       , newHiveName = ""
+      , newHiveType = "korpusowy"
       , newHiveFrameType = "Wielkopolska"
+      , newHiveBroodFrameType = "Wielkopolska"
+      , newHiveBroodFrameCount = 10
+      , newHiveSuperFrameType = "Wielkopolska 1/2"
+      , newHiveSuperCount = 1
       , showNewUlikModal = False
       , newUlikName = ""
       , newUlikHiveType = "Mini plus"
@@ -129,7 +134,7 @@ port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cm
 port jsUpdateApiary : { apiaryId : String, name : String } -> Cmd msg
 port jsDeleteApiary : { apiaryId : String } -> Cmd msg
 port jsLoadHives : { apiaryId : String, deepLinkId : String } -> Cmd msg
-port jsCreateHive : { apiaryId : String, name : String, frameType : String } -> Cmd msg
+port jsCreateHive : { apiaryId : String, name : String, hiveType : String, frameType : String, broodFrameType : String, broodFrameCount : Int, superFrameType : String, superCount : Int } -> Cmd msg
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
 port jsUpdateHiveFull : { apiaryId : String, hiveId : String, fields : Value } -> Cmd msg
 port jsLoadUliki : { apiaryId : String, deepLinkId : String } -> Cmd msg
@@ -521,7 +526,18 @@ update msg model =
                     ( { model | errorMessage = Just ("Błąd dekodowania ulików weselnych: " ++ err) }, Cmd.none )
 
         OpenNewHiveModal ->
-            ( { model | showNewHiveModal = True, newHiveName = "", newHiveFrameType = "Dadant" }, Cmd.none )
+            ( { model
+                | showNewHiveModal = True
+                , newHiveName = ""
+                , newHiveType = "korpusowy"
+                , newHiveFrameType = "Wielkopolska"
+                , newHiveBroodFrameType = "Wielkopolska"
+                , newHiveBroodFrameCount = 10
+                , newHiveSuperFrameType = "Wielkopolska 1/2"
+                , newHiveSuperCount = 1
+              }
+            , Cmd.none
+            )
 
         CloseNewHiveModal ->
             ( { model | showNewHiveModal = False }, Cmd.none )
@@ -529,12 +545,36 @@ update msg model =
         UpdateNewHiveName name ->
             ( { model | newHiveName = name }, Cmd.none )
 
+        UpdateNewHiveType ht ->
+            ( { model | newHiveType = ht }, Cmd.none )
+
         UpdateNewHiveFrameType ft ->
             ( { model | newHiveFrameType = ft }, Cmd.none )
 
+        UpdateNewHiveBroodFrameType bft ->
+            ( { model | newHiveBroodFrameType = bft }, Cmd.none )
+
+        UpdateNewHiveBroodFrameCount bfc ->
+            ( { model | newHiveBroodFrameCount = bfc }, Cmd.none )
+
+        UpdateNewHiveSuperFrameType sft ->
+            ( { model | newHiveSuperFrameType = sft }, Cmd.none )
+
+        UpdateNewHiveSuperCount sc ->
+            ( { model | newHiveSuperCount = sc }, Cmd.none )
+
         SubmitCreateHive apiaryId ->
             ( { model | showNewHiveModal = False }
-            , jsCreateHive { apiaryId = apiaryId, name = model.newHiveName, frameType = model.newHiveFrameType }
+            , jsCreateHive
+                { apiaryId = apiaryId
+                , name = model.newHiveName
+                , hiveType = model.newHiveType
+                , frameType = model.newHiveFrameType
+                , broodFrameType = model.newHiveBroodFrameType
+                , broodFrameCount = model.newHiveBroodFrameCount
+                , superFrameType = model.newHiveSuperFrameType
+                , superCount = model.newHiveSuperCount
+                }
             )
 
         OpenNewUlikModal ->
@@ -1282,14 +1322,36 @@ modalsView model =
             Nothing ->
                 text ""
         , if model.showNewHiveModal then
-            div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
-                [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
+            div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center", style "z-index" "1000" ]
+                [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "450px", style "max-height" "90vh", style "overflow-y" "auto", style "color" textColor ]
                     [ h3 [ style "color" headingColor ] [ text "Nowy Ul" ]
                     , label [] [ text "Nazwa / Numer ula:" ]
                     , input [ type_ "text", placeholder "np. Ul #04", value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , label [] [ text "Typ ramki:" ]
-                    , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                        (List.map (\ft -> option [ value ft, selected (model.newHiveFrameType == ft) ] [ text ft ]) model.frameTypes)
+                    , label [] [ text "Typ ula:" ]
+                    , select [ value model.newHiveType, onInput UpdateNewHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                        [ option [ value "korpusowy", selected (model.newHiveType == "korpusowy") ] [ text "Ul korpusowy" ]
+                        , option [ value "lezak", selected (model.newHiveType == "lezak") ] [ text "Ul leżak" ]
+                        , option [ value "kombinowany", selected (model.newHiveType == "kombinowany") ] [ text "Ul kombinowany" ]
+                        ]
+                    , if model.newHiveType == "korpusowy" then
+                        div []
+                            [ label [] [ text "Typ ramki:" ]
+                            , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                (List.map (\ft -> option [ value ft, selected (model.newHiveFrameType == ft) ] [ text ft ]) model.frameTypes)
+                            ]
+                      else
+                        div []
+                            [ label [] [ text "Typ ramki gniazdowej:" ]
+                            , select [ value model.newHiveBroodFrameType, onInput UpdateNewHiveBroodFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                (List.map (\ft -> option [ value ft, selected (model.newHiveBroodFrameType == ft) ] [ text ft ]) model.frameTypes)
+                            , label [] [ text "Liczba ramek gniazdowych:" ]
+                            , input [ type_ "number", value (String.fromInt model.newHiveBroodFrameCount), onInput (\val -> UpdateNewHiveBroodFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
+                            , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
+                            , label [] [ text "Liczba nadstawek:" ]
+                            , input [ type_ "number", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Maybe.withDefault 1 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
                         , case model.viewState of

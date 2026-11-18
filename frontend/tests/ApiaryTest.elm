@@ -3,7 +3,9 @@ module ApiaryTest exposing (suite)
 import Test exposing (..)
 import Expect
 import Json.Decode as Decode
-import Main exposing (..) -- We need to expose types or just use the decoders if they were exposed
+import Types.Core exposing (..)
+import Types.Decoders exposing (..)
+import Main exposing (..)
 
 -- Note: Since Main is a port module and we're importing it, 
 -- we should ensure the types and decoders are testable.
@@ -44,6 +46,27 @@ suite =
                                     Expect.fail "Empty list"
                         Err err ->
                             Expect.fail ("Failed to decode hives: " ++ Decode.errorToString err)
+            , test "decodes lezak and kombinowany hives with type-specific parameters" <|
+                \() ->
+                    let
+                        json = "[{\"id\": \"h2\", \"name\": \"Ul Leżak\", \"hiveType\": \"lezak\", \"broodFrameType\": \"Warszawska zwykła\", \"broodFrameCount\": 17, \"superFrameType\": \"Wielkopolska 1/2\", \"superCount\": 2, \"frameType\": \"Wielkopolska\", \"nfcTagId\": \"456\"}]"
+                    in
+                    case Decode.decodeString decodeHives json of
+                        Ok hives ->
+                            case List.head hives of
+                                Just hive ->
+                                    Expect.all
+                                        [ \h -> Expect.equal "lezak" h.hiveType
+                                        , \h -> Expect.equal "Warszawska zwykła" h.broodFrameType
+                                        , \h -> Expect.equal 17 h.broodFrameCount
+                                        , \h -> Expect.equal "Wielkopolska 1/2" h.superFrameType
+                                        , \h -> Expect.equal 2 h.superCount
+                                        ]
+                                        hive
+                                Nothing ->
+                                    Expect.fail "Empty list"
+                        Err err ->
+                            Expect.fail ("Failed to decode lezak hive: " ++ Decode.errorToString err)
             ]
         , describe "Apiary Decoder"
             [ test "decodes apiaries with members" <|
@@ -202,40 +225,7 @@ suite =
             ]
         ]
 
--- Helper decoders copied from Main.elm (since it's a port module, direct import might be tricky for internals)
--- In a real scenario, we'd move decoders to a separate module.
-
-type alias Korpus =
-    { id : String
-    , hasQueen : Bool
-    , hasExcluderAbove : Bool
-    }
-
-decodeQueen =
-    Decode.map3 (\h c n -> { hasOpalit = h, color = c, number = n })
-        (Decode.field "hasOpalit" Decode.bool)
-        (Decode.field "color" Decode.string)
-        (Decode.field "number" Decode.string)
-
-decodeHives =
-    Decode.list
-        (Decode.map5 (\i n f nf q -> { id = i, name = n, frameType = f, nfcTagId = nf, queen = q })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "frameType" Decode.string)
-            (Decode.field "nfcTagId" Decode.string)
-            (Decode.field "queen" decodeQueen)
-        )
-
-decodeApiaries =
-    Decode.list
-        (Decode.map5 (\i n a m ul -> { id = i, name = n, adminId = a, members = m, uliki = ul })
-            (Decode.field "id" Decode.string)
-            (Decode.field "name" Decode.string)
-            (Decode.field "adminId" Decode.string)
-            (Decode.field "members" (Decode.keyValuePairs Decode.string))
-            (Decode.field "uliki" (Decode.list Decode.value) |> Decode.maybe |> Decode.map (Maybe.withDefault []))
-        )
+-- Helper functions for date & korpus tests
 
 parseDate : String -> Maybe (Int, Int, Int)
 parseDate str =
