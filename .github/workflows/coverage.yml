@@ -22,7 +22,7 @@ jobs:
       - name: Install Elm coverage tool
         run: npm install --global elm-coverage@0.4.1
       - name: Measure Elm expression coverage
-        run: elm-coverage src --elm-test ../node_modules/.bin/elm-test --report json > ../coverage-report.json
+        run: elm-coverage src --elm-test "$GITHUB_WORKSPACE/node_modules/.bin/elm-test" --report json > ../coverage-report.json
         working-directory: frontend
       - name: Summarize coverage
         run: node scripts/summarize-coverage.cjs coverage-report.json
