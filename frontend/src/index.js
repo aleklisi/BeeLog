@@ -696,14 +696,18 @@ app.ports.jsSaveHiveOrders.subscribe(async ({ apiaryId, hives }) => {
     }
 });
 
-app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, broodFrameType, broodFrameCount, superFrameType, superCount }) => {
+app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, broodFrameType, broodFrameCount, maxBroodFrames, hasSuper, superFrameType, superCount, superFrameCount, maxSuperFrames }) => {
     const baseUrl = window.location.href.split('#')[0];
     const hType = hiveType || "korpusowy";
     const fType = frameType || "Wielkopolska";
     const bType = broodFrameType || "Wielkopolska";
-    const bCount = broodFrameCount !== undefined ? broodFrameCount : 10;
+    const maxB = maxBroodFrames !== undefined ? Number(maxBroodFrames) : 24;
+    const bCount = broodFrameCount !== undefined ? Math.min(Math.max(1, Number(broodFrameCount)), maxB) : Math.min(10, maxB);
+    const hasSup = hasSuper === true || hasSuper === 'true';
     const sType = superFrameType || "Wielkopolska 1/2";
-    const sCount = superCount !== undefined ? superCount : 1;
+    const sCount = superCount !== undefined ? Math.max(0, Number(superCount)) : 1;
+    const maxS = maxSuperFrames !== undefined ? Number(maxSuperFrames) : 18;
+    const sFCount = superFrameCount !== undefined ? Math.min(Math.max(1, Number(superFrameCount)), maxS) : Math.min(10, maxS);
     const korpusyVal = hType === "korpusowy" ? [{ id: "1", hasQueen: false, hasExcluderAbove: false }] : [];
     if (window.__E2E__) {
         const state = getE2EState();
@@ -718,8 +722,12 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, b
             frameType: fType,
             broodFrameType: bType,
             broodFrameCount: bCount,
+            maxBroodFrames: maxB,
+            hasSuper: hasSup,
             superFrameType: sType,
             superCount: sCount,
+            superFrameCount: sFCount,
+            maxSuperFrames: maxS,
             nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "Biały", number: "" },
             pollenTrap: "brak",
@@ -741,8 +749,12 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, b
             frameType: fType,
             broodFrameType: bType,
             broodFrameCount: bCount,
+            maxBroodFrames: maxB,
+            hasSuper: hasSup,
             superFrameType: sType,
             superCount: sCount,
+            superFrameCount: sFCount,
+            maxSuperFrames: maxS,
             nfcLink: nfcLink,
             queen: { hasOpalit: false, color: "biały", number: "" },
             pollenTrap: "brak",
@@ -816,6 +828,13 @@ app.ports.jsDeleteNote.subscribe(async ({ apiaryId, hiveId, noteId }) => {
 });
 
 app.ports.jsUpdateHive.subscribe(async ({ apiaryId, hiveId, field, value }) => {
+    let parsedVal = value;
+    if (['broodFrameCount', 'maxBroodFrames', 'superCount', 'superFrameCount', 'maxSuperFrames'].includes(field)) {
+        parsedVal = parseInt(value, 10);
+        if (isNaN(parsedVal)) parsedVal = value;
+    } else if (field === 'hasSuper') {
+        parsedVal = value === true || value === 'true';
+    }
     if (window.__E2E__) {
         const state = getE2EState();
         if (state.hives[apiaryId]) {
@@ -825,7 +844,7 @@ app.ports.jsUpdateHive.subscribe(async ({ apiaryId, hiveId, field, value }) => {
                         const qField = field.split('.')[1];
                         return { ...h, queen: { ...h.queen, [qField]: value } };
                     }
-                    return { ...h, [field]: value };
+                    return { ...h, [field]: parsedVal };
                 }
                 return h;
             });
@@ -836,7 +855,7 @@ app.ports.jsUpdateHive.subscribe(async ({ apiaryId, hiveId, field, value }) => {
     }
     try {
         const docRef = doc(db, "hives", hiveId);
-        await updateDoc(docRef, { [field]: value });
+        await updateDoc(docRef, { [field]: parsedVal });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

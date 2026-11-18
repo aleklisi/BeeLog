@@ -97,8 +97,12 @@ init flags =
       , newHiveFrameType = "Wielkopolska"
       , newHiveBroodFrameType = "Wielkopolska"
       , newHiveBroodFrameCount = 10
+      , newHiveMaxBroodFrames = 24
+      , newHiveHasSuper = False
       , newHiveSuperFrameType = "Wielkopolska 1/2"
       , newHiveSuperCount = 1
+      , newHiveSuperFrameCount = 10
+      , newHiveMaxSuperFrames = 18
       , showNewUlikModal = False
       , newUlikName = ""
       , newUlikHiveType = "Mini plus"
@@ -134,7 +138,7 @@ port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cm
 port jsUpdateApiary : { apiaryId : String, name : String } -> Cmd msg
 port jsDeleteApiary : { apiaryId : String } -> Cmd msg
 port jsLoadHives : { apiaryId : String, deepLinkId : String } -> Cmd msg
-port jsCreateHive : { apiaryId : String, name : String, hiveType : String, frameType : String, broodFrameType : String, broodFrameCount : Int, superFrameType : String, superCount : Int } -> Cmd msg
+port jsCreateHive : { apiaryId : String, name : String, hiveType : String, frameType : String, broodFrameType : String, broodFrameCount : Int, maxBroodFrames : Int, hasSuper : Bool, superFrameType : String, superCount : Int, superFrameCount : Int, maxSuperFrames : Int } -> Cmd msg
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
 port jsUpdateHiveFull : { apiaryId : String, hiveId : String, fields : Value } -> Cmd msg
 port jsLoadUliki : { apiaryId : String, deepLinkId : String } -> Cmd msg
@@ -533,8 +537,12 @@ update msg model =
                 , newHiveFrameType = "Wielkopolska"
                 , newHiveBroodFrameType = "Wielkopolska"
                 , newHiveBroodFrameCount = 10
+                , newHiveMaxBroodFrames = 24
+                , newHiveHasSuper = False
                 , newHiveSuperFrameType = "Wielkopolska 1/2"
                 , newHiveSuperCount = 1
+                , newHiveSuperFrameCount = 10
+                , newHiveMaxSuperFrames = 18
               }
             , Cmd.none
             )
@@ -557,11 +565,23 @@ update msg model =
         UpdateNewHiveBroodFrameCount bfc ->
             ( { model | newHiveBroodFrameCount = bfc }, Cmd.none )
 
+        UpdateNewHiveMaxBroodFrames mbf ->
+            ( { model | newHiveMaxBroodFrames = mbf }, Cmd.none )
+
+        UpdateNewHiveHasSuper hs ->
+            ( { model | newHiveHasSuper = hs }, Cmd.none )
+
         UpdateNewHiveSuperFrameType sft ->
             ( { model | newHiveSuperFrameType = sft }, Cmd.none )
 
         UpdateNewHiveSuperCount sc ->
             ( { model | newHiveSuperCount = sc }, Cmd.none )
+
+        UpdateNewHiveSuperFrameCount sfc ->
+            ( { model | newHiveSuperFrameCount = sfc }, Cmd.none )
+
+        UpdateNewHiveMaxSuperFrames msf ->
+            ( { model | newHiveMaxSuperFrames = msf }, Cmd.none )
 
         SubmitCreateHive apiaryId ->
             ( { model | showNewHiveModal = False }
@@ -572,8 +592,12 @@ update msg model =
                 , frameType = model.newHiveFrameType
                 , broodFrameType = model.newHiveBroodFrameType
                 , broodFrameCount = model.newHiveBroodFrameCount
+                , maxBroodFrames = model.newHiveMaxBroodFrames
+                , hasSuper = model.newHiveHasSuper
                 , superFrameType = model.newHiveSuperFrameType
                 , superCount = model.newHiveSuperCount
+                , superFrameCount = model.newHiveSuperFrameCount
+                , maxSuperFrames = model.newHiveMaxSuperFrames
                 }
             )
 
@@ -1339,6 +1363,32 @@ modalsView model =
                             , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveFrameType == ft) ] [ text ft ]) model.frameTypes)
                             ]
+                      else if model.newHiveType == "lezak" then
+                        div []
+                            [ label [] [ text "Typ ramki gniazdowej:" ]
+                            , select [ value model.newHiveBroodFrameType, onInput UpdateNewHiveBroodFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                (List.map (\ft -> option [ value ft, selected (model.newHiveBroodFrameType == ft) ] [ text ft ]) model.frameTypes)
+                            , label [] [ text "Maksymalna liczba ramek w gnieździe:" ]
+                            , input [ type_ "number", value (String.fromInt model.newHiveMaxBroodFrames), onInput (\val -> UpdateNewHiveMaxBroodFrames (Maybe.withDefault 24 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , label [] [ text "Początkowa liczba ramek w gnieździe:" ]
+                            , input [ type_ "number", value (String.fromInt model.newHiveBroodFrameCount), onInput (\val -> UpdateNewHiveBroodFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , div [ style "margin-bottom" "10px", style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                                [ input [ type_ "checkbox", checked model.newHiveHasSuper, onCheck UpdateNewHiveHasSuper, id "newHiveHasSuperCheck" ] []
+                                , label [ for "newHiveHasSuperCheck", style "cursor" "pointer", style "font-weight" "bold" ] [ text "Czy posiada nadstawkę?" ]
+                                ]
+                            , if model.newHiveHasSuper then
+                                div [ style "padding-left" "10px", style "border-left" "3px solid #3498db", style "margin-bottom" "15px" ]
+                                    [ label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
+                                    , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                                        (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
+                                    , label [] [ text "Maksymalna liczba ramek w nadstawce:" ]
+                                    , input [ type_ "number", value (String.fromInt model.newHiveMaxSuperFrames), onInput (\val -> UpdateNewHiveMaxSuperFrames (Maybe.withDefault 18 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                    , label [] [ text "Początkowa liczba ramek w nadstawce:" ]
+                                    , input [ type_ "number", value (String.fromInt model.newHiveSuperFrameCount), onInput (\val -> UpdateNewHiveSuperFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                    ]
+                              else
+                                text ""
+                            ]
                       else
                         div []
                             [ label [] [ text "Typ ramki gniazdowej:" ]
@@ -1349,7 +1399,7 @@ modalsView model =
                             , label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
                             , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
-                            , label [] [ text "Liczba nadstawek:" ]
+                            , label [] [ text "Początkowa liczba nadstawek:" ]
                             , input [ type_ "number", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Maybe.withDefault 1 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]

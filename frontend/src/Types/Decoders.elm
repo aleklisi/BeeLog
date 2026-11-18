@@ -60,6 +60,38 @@ decodeUlikQueen =
         (Decode.field "color" (Decode.oneOf [ Decode.string, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
         (Decode.field "number" (Decode.oneOf [ Decode.string, Decode.int |> Decode.map String.fromInt, Decode.succeed "" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "")))
 
+decodeIntField : String -> Int -> Decode.Decoder Int
+decodeIntField fieldName defaultVal =
+    Decode.field fieldName
+        (Decode.oneOf
+            [ Decode.int
+            , Decode.string
+                |> Decode.andThen
+                    (\s ->
+                        case String.toInt s of
+                            Just i ->
+                                Decode.succeed i
+
+                            Nothing ->
+                                Decode.fail "not an int"
+                    )
+            ]
+        )
+        |> Decode.maybe
+        |> Decode.map (Maybe.withDefault defaultVal)
+
+decodeBoolField : String -> Bool -> Decode.Decoder Bool
+decodeBoolField fieldName defaultVal =
+    Decode.field fieldName
+        (Decode.oneOf
+            [ Decode.bool
+            , Decode.string |> Decode.map (\s -> String.toLower s == "true")
+            , Decode.int |> Decode.map (\i -> i /= 0)
+            ]
+        )
+        |> Decode.maybe
+        |> Decode.map (Maybe.withDefault defaultVal)
+
 decodeHives : Decode.Decoder (List Hive)
 decodeHives =
     Decode.list
@@ -70,13 +102,17 @@ decodeHives =
             |> andMap (Decode.field "hiveType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "korpusowy"))
             |> andMap (Decode.field "frameType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Wielkopolska"))
             |> andMap (Decode.field "broodFrameType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Wielkopolska"))
-            |> andMap (Decode.field "broodFrameCount" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 10))
+            |> andMap (decodeIntField "broodFrameCount" 10)
+            |> andMap (decodeIntField "maxBroodFrames" 24)
+            |> andMap (decodeBoolField "hasSuper" False)
             |> andMap (Decode.field "superFrameType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "Wielkopolska 1/2"))
-            |> andMap (Decode.field "superCount" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 1))
+            |> andMap (decodeIntField "superCount" 1)
+            |> andMap (decodeIntField "superFrameCount" 10)
+            |> andMap (decodeIntField "maxSuperFrames" 18)
             |> andMap (Decode.oneOf [ Decode.field "nfcLink" Decode.string, Decode.field "nfcTagId" Decode.string ] |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
             |> andMap (Decode.field "queen" decodeQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { hasOpalit = False, color = "", number = "" }))
             |> andMap (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
-            |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
+            |> andMap (decodeIntField "order" 0)
             |> andMap (Decode.field "korpusy" (Decode.list decodeKorpus) |> Decode.maybe |> Decode.map (Maybe.withDefault [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]))
         )
 

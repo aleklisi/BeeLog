@@ -161,11 +161,11 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('text=Pasieka Leżakowa');
     await expect(page.locator('text=Pasieka: Pasieka Leżakowa')).toBeVisible();
 
-    // Dodaj ul leżak
+    // Dodaj ul leżak z nadstawką
     await page.click('text=+ Dodaj Nowy Ul');
     await page.fill('input[placeholder="np. Ul #04"]', 'Ul Leżak 1');
     await page.selectOption('select', { value: 'lezak' });
-    await page.fill('input[type="number"]', '18');
+    await page.check('input#newHiveHasSuperCheck');
     await page.click('button:has-text("Zapisz")');
     await expect(page.locator('text=Ul Leżak 1')).toBeVisible();
 
@@ -173,7 +173,37 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('text=Ul Leżak 1');
     await expect(page.locator('text=Karta Ula: Ul Leżak 1')).toBeVisible();
     await expect(page.locator('text=Konfiguracja Gniazda i Nadstawek')).toBeVisible();
-    await expect(page.locator('text=Liczba ramek: 18')).toBeVisible();
+    await expect(page.locator('text=Maks. pojemność: 24 ramek')).toBeVisible();
+    await expect(page.locator('text=10 / 24')).toBeVisible();
+
+    // Zwiększ liczbę ramek w gnieździe przyciskiem ➕
+    await page.click('button:has-text("➕")');
+    await expect(page.locator('text=11 / 24')).toBeVisible();
+
+    // Zmniejsz liczbę ramek w gnieździe przyciskiem ➖
+    await page.click('button:has-text("➖")');
+    await expect(page.locator('text=10 / 24')).toBeVisible();
+
+    // Wróć do listy uli i dodaj ul kombinowany
+    await page.click('button:has-text("← Powrót")');
+    await page.click('text=+ Dodaj Nowy Ul');
+    await page.fill('input[placeholder="np. Ul #04"]', 'Ul Kombinowany 1');
+    await page.selectOption('select', { value: 'kombinowany' });
+    await page.click('button:has-text("Zapisz")');
+    await expect(page.locator('text=Ul Kombinowany 1')).toBeVisible();
+
+    // Wejdź w kartę ula kombinowanego i przetestuj przyciski nadstawek
+    await page.click('text=Ul Kombinowany 1');
+    await expect(page.locator('text=Karta Ula: Ul Kombinowany 1')).toBeVisible();
+    await expect(page.locator('text=Liczba nadstawek: 1')).toBeVisible();
+
+    // Kliknij "Dodaj nadstawkę"
+    await page.click('button:has-text("➕ Dodaj nadstawkę")');
+    await expect(page.locator('text=Liczba nadstawek: 2')).toBeVisible();
+
+    // Kliknij "Zabierz nadstawkę"
+    await page.click('button:has-text("➖ Zabierz nadstawkę")');
+    await expect(page.locator('text=Liczba nadstawek: 1')).toBeVisible();
   });
 
   test('7. Trutowisko i Uliki Weselne', async ({ page }) => {

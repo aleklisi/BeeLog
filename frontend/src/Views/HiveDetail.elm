@@ -50,6 +50,28 @@ hiveDetailView user info model =
                                 , select [ onInput (\val -> UpdateHiveField actualApiaryId hive.id "frameType" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
                                     (List.map (\ft -> option [ value ft, selected (hive.frameType == ft) ] [ text ft ]) model.frameTypes)
                                 ]
+                          else if hive.hiveType == "lezak" then
+                            div []
+                                [ label [] [ text "Typ ramki gniazdowej:" ]
+                                , select [ onInput (\val -> UpdateHiveField actualApiaryId hive.id "broodFrameType" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
+                                    (List.map (\ft -> option [ value ft, selected (hive.broodFrameType == ft) ] [ text ft ]) model.frameTypes)
+                                , label [] [ text "Maksymalna liczba ramek w gnieździe:" ]
+                                , input [ type_ "number", value (String.fromInt hive.maxBroodFrames), onInput (\val -> UpdateHiveField actualApiaryId hive.id "maxBroodFrames" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
+                                , div [ style "margin-top" "5px", style "margin-bottom" "12px", style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                                    [ input [ type_ "checkbox", checked hive.hasSuper, onCheck (\b -> UpdateHiveField actualApiaryId hive.id "hasSuper" (if b then "true" else "false")), id "detailHasSuperCheck" ] []
+                                    , label [ for "detailHasSuperCheck", style "cursor" "pointer", style "font-weight" "bold" ] [ text "Czy jest nadstawka" ]
+                                    ]
+                                , if hive.hasSuper then
+                                    div [ style "padding-left" "10px", style "border-left" "3px solid #3498db", style "margin-bottom" "10px" ]
+                                        [ label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
+                                        , select [ onInput (\val -> UpdateHiveField actualApiaryId hive.id "superFrameType" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
+                                            (List.map (\ft -> option [ value ft, selected (hive.superFrameType == ft) ] [ text ft ]) model.frameTypes)
+                                        , label [] [ text "Maksymalna liczba ramek w nadstawce:" ]
+                                        , input [ type_ "number", value (String.fromInt hive.maxSuperFrames), onInput (\val -> UpdateHiveField actualApiaryId hive.id "maxSuperFrames" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
+                                        ]
+                                  else
+                                    text ""
+                                ]
                           else
                             div []
                                 [ label [] [ text "Typ ramki gniazdowej:" ]
@@ -60,8 +82,6 @@ hiveDetailView user info model =
                                 , label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
                                 , select [ onInput (\val -> UpdateHiveField actualApiaryId hive.id "superFrameType" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
                                     (List.map (\ft -> option [ value ft, selected (hive.superFrameType == ft) ] [ text ft ]) model.frameTypes)
-                                , label [] [ text "Liczba nadstawek:" ]
-                                , input [ type_ "number", value (String.fromInt hive.superCount), onInput (\val -> UpdateHiveField actualApiaryId hive.id "superCount" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
                                 ]
                         , label [] [ text "Poławiacz pyłku:" ]
                         , select [ onInput (\val -> UpdatePollenTrap actualApiaryId hive.id val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
@@ -107,6 +127,50 @@ hiveDetailView user info model =
                         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                             (List.indexedMap (korpusItemView actualApiaryId hive.id (List.length hive.korpusy) model) hive.korpusy)
                         ]
+                  else if hive.hiveType == "lezak" then
+                    div []
+                        [ h3 [ style "color" headingColor ] [ text "Konfiguracja Gniazda i Nadstawek" ]
+                        , div [ style "background" (if model.darkMode then "#242424" else "#fdfefe"), style "border" ("1px solid " ++ (if model.darkMode then "#444" else "#dcdde1")), style "padding" "14px", style "border-radius" "6px", style "margin-bottom" "10px", style "color" textColor ]
+                            [ p [ style "font-weight" "bold", style "margin-top" "0" ] [ text "Gniazdo:" ]
+                            , p [] [ text ("Ramka: " ++ hive.broodFrameType ++ " | Maks. pojemność: " ++ String.fromInt hive.maxBroodFrames ++ " ramek") ]
+                            , div [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "margin-top" "10px" ]
+                                [ text "Liczba ramek:"
+                                , button
+                                    [ onClick (UpdateHiveField actualApiaryId hive.id "broodFrameCount" (String.fromInt (Basics.max 1 (hive.broodFrameCount - 1))))
+                                    , style "padding" "6px 12px", style "font-size" "16px", style "border-radius" "4px", style "cursor" "pointer", style "background" (if model.darkMode then "#444" else "#e0e0e0"), style "border" "none", style "color" textColor
+                                    ]
+                                    [ text "➖" ]
+                                , span [ style "font-weight" "bold", style "font-size" "18px" ] [ text (String.fromInt hive.broodFrameCount ++ " / " ++ String.fromInt hive.maxBroodFrames) ]
+                                , button
+                                    [ onClick (UpdateHiveField actualApiaryId hive.id "broodFrameCount" (String.fromInt (Basics.min hive.maxBroodFrames (hive.broodFrameCount + 1))))
+                                    , style "padding" "6px 12px", style "font-size" "16px", style "border-radius" "4px", style "cursor" "pointer", style "background" (if model.darkMode then "#444" else "#e0e0e0"), style "border" "none", style "color" textColor
+                                    ]
+                                    [ text "➕" ]
+                                ]
+                            ]
+                        , if hive.hasSuper then
+                            div [ style "background" (if model.darkMode then "#242424" else "#fdfefe"), style "border" ("1px solid " ++ (if model.darkMode then "#444" else "#dcdde1")), style "padding" "14px", style "border-radius" "6px", style "margin-bottom" "15px", style "color" textColor ]
+                                [ p [ style "font-weight" "bold", style "margin-top" "0" ] [ text "Nadstawka:" ]
+                                , p [] [ text ("Ramka nadstawki: " ++ hive.superFrameType ++ " | Maks. pojemność: " ++ String.fromInt hive.maxSuperFrames ++ " ramek") ]
+                                , div [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "margin-top" "10px" ]
+                                    [ text "Liczba ramek w nadstawce:"
+                                    , button
+                                        [ onClick (UpdateHiveField actualApiaryId hive.id "superFrameCount" (String.fromInt (Basics.max 1 (hive.superFrameCount - 1))))
+                                        , style "padding" "6px 12px", style "font-size" "16px", style "border-radius" "4px", style "cursor" "pointer", style "background" (if model.darkMode then "#444" else "#e0e0e0"), style "border" "none", style "color" textColor
+                                        ]
+                                        [ text "➖" ]
+                                    , span [ style "font-weight" "bold", style "font-size" "18px" ] [ text (String.fromInt hive.superFrameCount ++ " / " ++ String.fromInt hive.maxSuperFrames) ]
+                                    , button
+                                        [ onClick (UpdateHiveField actualApiaryId hive.id "superFrameCount" (String.fromInt (Basics.min hive.maxSuperFrames (hive.superFrameCount + 1))))
+                                        , style "padding" "6px 12px", style "font-size" "16px", style "border-radius" "4px", style "cursor" "pointer", style "background" (if model.darkMode then "#444" else "#e0e0e0"), style "border" "none", style "color" textColor
+                                        ]
+                                        [ text "➕" ]
+                                    ]
+                                ]
+                          else
+                            div [ style "background" (if model.darkMode then "#242424" else "#fdfefe"), style "border" ("1px solid " ++ (if model.darkMode then "#444" else "#dcdde1")), style "padding" "14px", style "border-radius" "6px", style "margin-bottom" "15px", style "color" (if model.darkMode then "#aaa" else "#777") ]
+                                [ p [ style "margin" "0", style "font-style" "italic" ] [ text "Brak nadstawki (zaznacz pole „Czy jest nadstawka” w Danych Technicznych powyżej, aby dodać)." ] ]
+                        ]
                   else
                     div []
                         [ h3 [ style "color" headingColor ] [ text "Konfiguracja Gniazda i Nadstawek" ]
@@ -117,6 +181,19 @@ hiveDetailView user info model =
                         , div [ style "background" (if model.darkMode then "#242424" else "#fdfefe"), style "border" ("1px solid " ++ (if model.darkMode then "#444" else "#dcdde1")), style "padding" "14px", style "border-radius" "6px", style "margin-bottom" "15px", style "color" textColor ]
                             [ p [ style "font-weight" "bold", style "margin-top" "0" ] [ text "Nadstawki:" ]
                             , p [] [ text ("Ramka nadstawki: " ++ hive.superFrameType ++ " | Liczba nadstawek: " ++ String.fromInt hive.superCount) ]
+                            , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px", style "flex-wrap" "wrap" ]
+                                [ button
+                                    [ onClick (UpdateHiveField actualApiaryId hive.id "superCount" (String.fromInt (hive.superCount + 1)))
+                                    , style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-weight" "bold"
+                                    ]
+                                    [ text "➕ Dodaj nadstawkę" ]
+                                , button
+                                    [ onClick (UpdateHiveField actualApiaryId hive.id "superCount" (String.fromInt (Basics.max 0 (hive.superCount - 1))))
+                                    , style "padding" "8px 14px", style "background" (if hive.superCount <= 0 then "#bdc3c7" else "#e74c3c"), style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if hive.superCount <= 0 then "not-allowed" else "pointer"), style "font-weight" "bold"
+                                    , disabled (hive.superCount <= 0)
+                                    ]
+                                    [ text "➖ Zabierz nadstawkę" ]
+                                ]
                             ]
                         ]
                 , hr [] []

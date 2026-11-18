@@ -27,8 +27,12 @@ type alias Hive =
     , frameType : String
     , broodFrameType : String
     , broodFrameCount : Int
+    , maxBroodFrames : Int
+    , hasSuper : Bool
     , superFrameType : String
     , superCount : Int
+    , superFrameCount : Int
+    , maxSuperFrames : Int
     , nfcLink : String
     , queen : Queen
     , pollenTrap : String
@@ -154,8 +158,12 @@ type alias Model =
     , newHiveFrameType : String
     , newHiveBroodFrameType : String
     , newHiveBroodFrameCount : Int
+    , newHiveMaxBroodFrames : Int
+    , newHiveHasSuper : Bool
     , newHiveSuperFrameType : String
     , newHiveSuperCount : Int
+    , newHiveSuperFrameCount : Int
+    , newHiveMaxSuperFrames : Int
     , showNewUlikModal : Bool
     , newUlikName : String
     , newUlikHiveType : String
@@ -238,8 +246,12 @@ type Msg
     | UpdateNewHiveFrameType String
     | UpdateNewHiveBroodFrameType String
     | UpdateNewHiveBroodFrameCount Int
+    | UpdateNewHiveMaxBroodFrames Int
+    | UpdateNewHiveHasSuper Bool
     | UpdateNewHiveSuperFrameType String
     | UpdateNewHiveSuperCount Int
+    | UpdateNewHiveSuperFrameCount Int
+    | UpdateNewHiveMaxSuperFrames Int
     | SubmitCreateHive String
     | UpdateHiveField String String String String
     | AddKorpusAbove String String Int

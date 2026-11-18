@@ -49,7 +49,7 @@ suite =
             , test "decodes lezak and kombinowany hives with type-specific parameters" <|
                 \() ->
                     let
-                        json = "[{\"id\": \"h2\", \"name\": \"Ul Leżak\", \"hiveType\": \"lezak\", \"broodFrameType\": \"Warszawska zwykła\", \"broodFrameCount\": 17, \"superFrameType\": \"Wielkopolska 1/2\", \"superCount\": 2, \"frameType\": \"Wielkopolska\", \"nfcTagId\": \"456\"}]"
+                        json = "[{\"id\": \"h2\", \"name\": \"Ul Leżak\", \"hiveType\": \"lezak\", \"broodFrameType\": \"Warszawska zwykła\", \"broodFrameCount\": 17, \"maxBroodFrames\": 24, \"hasSuper\": true, \"superFrameType\": \"Wielkopolska 1/2\", \"superCount\": 1, \"superFrameCount\": 12, \"maxSuperFrames\": 18, \"frameType\": \"Wielkopolska\", \"nfcTagId\": \"456\"}]"
                     in
                     case Decode.decodeString decodeHives json of
                         Ok hives ->
@@ -59,8 +59,12 @@ suite =
                                         [ \h -> Expect.equal "lezak" h.hiveType
                                         , \h -> Expect.equal "Warszawska zwykła" h.broodFrameType
                                         , \h -> Expect.equal 17 h.broodFrameCount
+                                        , \h -> Expect.equal 24 h.maxBroodFrames
+                                        , \h -> Expect.equal True h.hasSuper
                                         , \h -> Expect.equal "Wielkopolska 1/2" h.superFrameType
-                                        , \h -> Expect.equal 2 h.superCount
+                                        , \h -> Expect.equal 1 h.superCount
+                                        , \h -> Expect.equal 12 h.superFrameCount
+                                        , \h -> Expect.equal 18 h.maxSuperFrames
                                         ]
                                         hive
                                 Nothing ->
