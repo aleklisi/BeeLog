@@ -184,6 +184,15 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("➖")');
     await expect(page.locator('text=10 / 24')).toBeVisible();
 
+    // Sprawdź przełączanie pola "Czy jest nadstawka" w widoku ula
+    await expect(page.locator('input#detailHasSuperCheck')).toBeChecked();
+    await page.uncheck('input#detailHasSuperCheck');
+    await expect(page.locator('input#detailHasSuperCheck')).not.toBeChecked();
+    await expect(page.locator('text=Brak nadstawki')).toBeVisible();
+    await page.check('input#detailHasSuperCheck');
+    await expect(page.locator('input#detailHasSuperCheck')).toBeChecked();
+    await expect(page.locator('text=Typ ramki nadstawkowej')).toBeVisible();
+
     // Wróć do listy uli i dodaj ul kombinowany
     await page.click('button:has-text("← Powrót")');
     await page.click('text=+ Dodaj Nowy Ul');
@@ -741,32 +750,80 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Edytor Korpusów (Stan Ula)')).toBeVisible();
     await expect(page.locator('text=Korpus #1')).toBeVisible();
 
-    // Dodaj korpusy do 5 korpusów
-    await page.click('button[title="Dodaj korpus nad"]');
-    await expect(page.locator('text=Korpus #2')).toBeVisible();
+    const korpusOrder = async () => page.locator('[data-korpus-id]').evaluateAll(
+      nodes => nodes.map(node => node.getAttribute('data-korpus-id'))
+    );
+    const dragKorpusTo = async (sourceSelector, targetSelector) => {
+      const sourceLocator = page.locator(sourceSelector);
+      const targetLocator = page.locator(targetSelector);
+      await sourceLocator.scrollIntoViewIfNeeded();
+      const source = await sourceLocator.boundingBox();
+      await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+      await page.mouse.down();
+      await targetLocator.scrollIntoViewIfNeeded();
+      const target = await targetLocator.boundingBox();
+      await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+      await page.mouse.up();
+    };
 
-    await page.click('button[title="Dodaj korpus pod"]');
-    await expect(page.locator('text=Korpus #3')).toBeVisible();
+    await expect.poll(korpusOrder).toEqual(['1']);
 
-    await page.click('button[title="Dodaj korpus nad"]');
-    await expect(page.locator('text=Korpus #4')).toBeVisible();
+    // Dodanie nad wskazanym korpusem (również gdy nie jest pierwszy).
+    await page.locator('[data-korpus-id="1"] button[title="Dodaj korpus nad"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '1']);
 
-    await page.click('button[title="Dodaj korpus pod"]');
-    await expect(page.locator('text=Korpus #5')).toBeVisible();
+    // Dodanie pod wskazanym korpusem.
+    await page.locator('[data-korpus-id="2"] button[title="Dodaj korpus pod"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '3', '1']);
 
-    // Zaznacz matkę w korpusie
-    await page.locator('label:has-text("Matka") input[type="checkbox"]').first().click();
+    // Dodanie nad i pod korpusem ze środka stosu.
+    await page.locator('[data-korpus-id="3"] button[title="Dodaj korpus nad"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '4', '3', '1']);
+    await page.locator('[data-korpus-id="4"] button[title="Dodaj korpus pod"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '4', '5', '3', '1']);
+    await expect(page.locator('[data-korpus-id="1"]')).toContainText('Korpus #1');
 
-    // Zaznacz kratę odgrodową nad korpusem
-    await page.locator('label:has-text("Krata") input[type="checkbox"]').first().click();
-    await expect(page.locator('text=🟧 Krata odgrodowa')).toBeVisible();
+    // Dane matki i kraty pozostają przy tym samym korpusie.
+    const korpus3 = page.locator('[data-korpus-id="3"]');
+    await korpus3.locator('label:has-text("Matka") input[type="checkbox"]').check();
+    await korpus3.locator('label:has-text("Krata") input[type="checkbox"]').check();
+    await korpus3.locator('label:has-text("Folia na korpusie") input[type="checkbox"]').check();
+    await korpus3.locator('label:has-text("Otwarty wylotek w korpusie") input[type="checkbox"]').check();
+    await expect(korpus3.locator('label:has-text("Matka") input[type="checkbox"]')).toBeChecked();
+    await expect(korpus3.locator('label:has-text("Krata") input[type="checkbox"]')).toBeChecked();
+    await expect(korpus3.locator('label:has-text("Folia na korpusie") input[type="checkbox"]')).toBeChecked();
+    await expect(korpus3.locator('label:has-text("Otwarty wylotek w korpusie") input[type="checkbox"]')).toBeChecked();
+    await expect(korpus3).toContainText('Szczelna folia nad korpusem');
+    await page.locator('button[title="Zapisz pełny stan ula jako notatkę"]').click();
+    await expect(page.locator('body')).toContainText('Korpusy (od góry):');
+    await expect(page.locator('body')).toContainText('Korpus #3: matka tak, krata nad korpusem tak, folia nad korpusem tak, otwarty wylotek tak');
 
-    // Usuń kolejne korpusy
-    const deleteButtons = page.locator('button[title="Usuń korpus"]');
-    while (await deleteButtons.count() > 1) {
-      await deleteButtons.first().click();
-    }
-    await expect(page.locator('text=Korpus #1')).toBeVisible();
+    // Usunięcie korpusu ze środka usuwa jego ID, nie najniższy korpus.
+    await page.locator('[data-korpus-id="4"] button[title="Usuń ten korpus"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '5', '3', '1']);
+    await expect(page.locator('[data-korpus-id="3"] label:has-text("Matka") input[type="checkbox"]')).toBeChecked();
+    await expect(page.locator('[data-korpus-id="3"] label:has-text("Krata") input[type="checkbox"]')).toBeChecked();
+    await expect(page.locator('[data-korpus-id="3"] label:has-text("Folia na korpusie") input[type="checkbox"]')).toBeChecked();
+    await expect(page.locator('[data-korpus-id="3"] label:has-text("Otwarty wylotek w korpusie") input[type="checkbox"]')).toBeChecked();
+
+    // Upuszczenie w górnej strefie przesuwa korpus nad cel.
+    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-drop-position="above"]');
+    await expect.poll(korpusOrder).toEqual(['2', '5', '1', '3']);
+    await expect(page.locator('[data-korpus-id="1"]')).toContainText('Korpus #1');
+
+    // Upuszczenie w dolnej strefie przenosi Korpus #1 na dół bez zmiany jego nazwy.
+    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-drop-position="below"]');
+    await expect.poll(korpusOrder).toEqual(['2', '5', '3', '1']);
+    await expect(page.locator('[data-korpus-id="1"]')).toContainText('Korpus #1');
+
+    // Pozostałe usunięcia oraz blokada usunięcia ostatniego korpusu.
+    await page.locator('[data-korpus-id="3"] button[title="Usuń ten korpus"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '5', '1']);
+    await page.locator('[data-korpus-id="1"] button[title="Usuń ten korpus"]').click();
+    await expect.poll(korpusOrder).toEqual(['2', '5']);
+    await page.locator('[data-korpus-id="2"] button[title="Usuń ten korpus"]').click();
+    await expect.poll(korpusOrder).toEqual(['5']);
+    await expect(page.locator('[data-korpus-id="5"] button[disabled]')).toHaveCount(1);
   });
 
 });

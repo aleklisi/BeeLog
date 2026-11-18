@@ -66,6 +66,7 @@ init flags =
       , viewState = LoginView
       , apiaries = []
       , hives = []
+      , draggedKorpusId = Nothing
       , uliki = []
       , notes = []
       , errorMessage = Nothing
@@ -575,7 +576,7 @@ update msg model =
             ( { model | newHiveSuperFrameType = sft }, Cmd.none )
 
         UpdateNewHiveSuperCount sc ->
-            ( { model | newHiveSuperCount = sc }, Cmd.none )
+            ( { model | newHiveSuperCount = Basics.max 0 sc }, Cmd.none )
 
         UpdateNewHiveSuperFrameCount sfc ->
             ( { model | newHiveSuperFrameCount = sfc }, Cmd.none )
@@ -595,7 +596,7 @@ update msg model =
                 , maxBroodFrames = model.newHiveMaxBroodFrames
                 , hasSuper = model.newHiveHasSuper
                 , superFrameType = model.newHiveSuperFrameType
-                , superCount = model.newHiveSuperCount
+                , superCount = Basics.max 0 model.newHiveSuperCount
                 , superFrameCount = model.newHiveSuperFrameCount
                 , maxSuperFrames = model.newHiveMaxSuperFrames
                 }
@@ -622,25 +623,92 @@ update msg model =
             ( { model | currentDate = dateStr }, Cmd.none )
 
         UpdateHiveField apiaryId hiveId field value ->
-            ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
+            let
+                updateHiveRecord h =
+                    if h.id == hiveId then
+                        case field of
+                            "name" ->
+                                { h | name = value }
 
-        AddKorpusAbove apiaryId hiveId idx ->
+                            "hiveType" ->
+                                { h | hiveType = value }
+
+                            "frameType" ->
+                                { h | frameType = value }
+
+                            "broodFrameType" ->
+                                { h | broodFrameType = value }
+
+                            "broodFrameCount" ->
+                                { h | broodFrameCount = Maybe.withDefault h.broodFrameCount (String.toInt value) }
+
+                            "maxBroodFrames" ->
+                                { h | maxBroodFrames = Maybe.withDefault h.maxBroodFrames (String.toInt value) }
+
+                            "hasSuper" ->
+                                { h | hasSuper = value == "true" }
+
+                            "superFrameType" ->
+                                { h | superFrameType = value }
+
+                            "superCount" ->
+                                { h | superCount = Maybe.withDefault h.superCount (String.toInt value) }
+
+                            "superFrameCount" ->
+                                { h | superFrameCount = Maybe.withDefault h.superFrameCount (String.toInt value) }
+
+                            "maxSuperFrames" ->
+                                { h | maxSuperFrames = Maybe.withDefault h.maxSuperFrames (String.toInt value) }
+
+                            "pollenTrap" ->
+                                { h | pollenTrap = value }
+
+                            "queen.hasOpalit" ->
+                                let
+                                    q = h.queen
+                                in
+                                { h | queen = { q | hasOpalit = value == "true" } }
+
+                            "queen.color" ->
+                                let
+                                    q = h.queen
+                                in
+                                { h | queen = { q | color = value } }
+
+                            "queen.number" ->
+                                let
+                                    q = h.queen
+                                in
+                                { h | queen = { q | number = value } }
+
+                            _ ->
+                                h
+
+                    else
+                        h
+
+                updatedHives =
+                    List.map updateHiveRecord model.hives
+            in
+            ( { model | hives = updatedHives }, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = field, value = value } )
+
+        AddKorpusAbove apiaryId hiveId korpusId ->
             let
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                newKorpusy = addKorpusAbove idx korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+                newKorpusy = addKorpusAbove korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
-        AddKorpusBelow apiaryId hiveId idx ->
+        AddKorpusBelow apiaryId hiveId korpusId ->
             let
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
-                newKorpusy = addKorpusBelow idx korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+                newKorpusy = addKorpusBelow korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
@@ -649,7 +717,7 @@ update msg model =
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                 newKorpusy = addKorpusBetween idx korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
@@ -659,7 +727,7 @@ update msg model =
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                 newKorpusy = deleteKorpus korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
@@ -669,7 +737,7 @@ update msg model =
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                 newKorpusy = toggleKorpusQueen korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
@@ -679,10 +747,75 @@ update msg model =
                 maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
                 korpusy = case maybeHive of
                     Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                 newKorpusy = toggleKorpusExcluder korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        ToggleKorpusFoil apiaryId hiveId korpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+                newKorpusy = toggleKorpusFoil korpusId korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        ToggleKorpusEntrance apiaryId hiveId korpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                korpusy = case maybeHive of
+                    Just h -> h.korpusy
+                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+                newKorpusy = toggleKorpusEntrance korpusId korpusy
+            in
+            updateKorpusyForHive apiaryId hiveId newKorpusy model
+
+        StartKorpusDrag korpusId ->
+            ( { model | draggedKorpusId = Just korpusId }, Cmd.none )
+
+        DropKorpusOn apiaryId hiveId targetKorpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+            in
+            case ( model.draggedKorpusId, maybeHive ) of
+                ( Just draggedKorpusId, Just hive ) ->
+                    let
+                        reordered = moveKorpusBefore draggedKorpusId targetKorpusId hive.korpusy
+                        clearedModel = { model | draggedKorpusId = Nothing }
+                    in
+                    if reordered == hive.korpusy then
+                        ( clearedModel, Cmd.none )
+                    else
+                        updateKorpusyForHive apiaryId hiveId reordered clearedModel
+
+                _ ->
+                    ( { model | draggedKorpusId = Nothing }, Cmd.none )
+
+        DropKorpusAfter apiaryId hiveId targetKorpusId ->
+            let
+                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+            in
+            case ( model.draggedKorpusId, maybeHive ) of
+                ( Just draggedKorpusId, Just hive ) ->
+                    let
+                        reordered = moveKorpusAfter draggedKorpusId targetKorpusId hive.korpusy
+                        clearedModel = { model | draggedKorpusId = Nothing }
+                    in
+                    if reordered == hive.korpusy then
+                        ( clearedModel, Cmd.none )
+                    else
+                        updateKorpusyForHive apiaryId hiveId reordered clearedModel
+
+                _ ->
+                    ( { model | draggedKorpusId = Nothing }, Cmd.none )
+
+        EndKorpusDrag ->
+            ( { model | draggedKorpusId = Nothing }, Cmd.none )
+
+        NoOp ->
+            ( model, Cmd.none )
 
         UpdateUlikField apiaryId ulikId field value ->
             let
@@ -1078,7 +1211,11 @@ update msg model =
             ( { model | uliki = newUliki }, cmd )
 
         UpdatePollenTrap apiaryId hiveId trap ->
-            ( model, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
+            let
+                updatedHives =
+                    List.map (\h -> if h.id == hiveId then { h | pollenTrap = trap } else h) model.hives
+            in
+            ( { model | hives = updatedHives }, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
 
         CopyUserId uid ->
             ( model, jsCopyText uid )
@@ -1372,9 +1509,9 @@ modalsView model =
                             , input [ type_ "number", value (String.fromInt model.newHiveMaxBroodFrames), onInput (\val -> UpdateNewHiveMaxBroodFrames (Maybe.withDefault 24 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             , label [] [ text "Początkowa liczba ramek w gnieździe:" ]
                             , input [ type_ "number", value (String.fromInt model.newHiveBroodFrameCount), onInput (\val -> UpdateNewHiveBroodFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                            , div [ style "margin-bottom" "10px", style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                            , label [ style "margin-bottom" "10px", style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "font-weight" "bold" ]
                                 [ input [ type_ "checkbox", checked model.newHiveHasSuper, onCheck UpdateNewHiveHasSuper, id "newHiveHasSuperCheck" ] []
-                                , label [ for "newHiveHasSuperCheck", style "cursor" "pointer", style "font-weight" "bold" ] [ text "Czy posiada nadstawkę?" ]
+                                , span [] [ text "Czy posiada nadstawkę?" ]
                                 ]
                             , if model.newHiveHasSuper then
                                 div [ style "padding-left" "10px", style "border-left" "3px solid #3498db", style "margin-bottom" "15px" ]
@@ -1400,7 +1537,7 @@ modalsView model =
                             , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
                             , label [] [ text "Początkowa liczba nadstawek:" ]
-                            , input [ type_ "number", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Maybe.withDefault 1 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                            , input [ type_ "number", attribute "min" "0", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Basics.max 0 (Maybe.withDefault 0 (String.toInt val)))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                         [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
@@ -1618,15 +1755,45 @@ hiveSnapshotText hive =
             "powałkowy" -> "Powałkowy"
             "dennicowy" -> "Dennicowy"
             _ -> "Brak"
+        hiveSpecificText =
+            if hive.hiveType == "lezak" then
+                [ "Gniazdo: " ++ hive.broodFrameType ++ ", " ++ String.fromInt hive.broodFrameCount ++ " / " ++ String.fromInt hive.maxBroodFrames ++ " ramek"
+                , if hive.hasSuper then
+                    "Nadstawka: Tak — " ++ hive.superFrameType ++ ", " ++ String.fromInt hive.superFrameCount ++ " / " ++ String.fromInt hive.maxSuperFrames ++ " ramek"
+                  else
+                    "Nadstawka: Nie"
+                ]
+            else if hive.hiveType == "kombinowany" then
+                [ "Gniazdo: " ++ hive.broodFrameType ++ ", " ++ String.fromInt hive.broodFrameCount ++ " ramek"
+                , "Nadstawki: " ++ String.fromInt hive.superCount ++ " (ramka: " ++ hive.superFrameType ++ ")"
+                ]
+            else if hive.hiveType == "korpusowy" then
+                [ "Typ ramki: " ++ hive.frameType, "Korpusy (od góry):" ]
+                    ++ List.map snapshotKorpusText hive.korpusy
+            else
+                [ "Typ ramki: " ++ hive.frameType ]
     in
     String.join "\n"
-        [ "📸 Zrzut Stanu Ula:"
+        ([ "📸 Zrzut Stanu Ula:"
         , "Nazwa: " ++ hive.name
-        , "Typ ramki: " ++ hive.frameType
-        , "Poławiacz pyłku: " ++ pollenText
-        , "Link NFC: " ++ (if hive.nfcLink == "" then "Brak" else hive.nfcLink)
-        , "Matka pszczela (opalitek): " ++ opalitText
+        , "Typ ula: " ++ hive.hiveType
         ]
+        ++ hiveSpecificText
+        ++ [ "Poławiacz pyłku: " ++ pollenText
+        , "Matka pszczela (opalitek): " ++ opalitText
+        ])
+
+snapshotKorpusText : Korpus -> String
+snapshotKorpusText korpus =
+    let
+        yesNo value =
+            if value then "tak" else "nie"
+    in
+    "Korpus #" ++ korpus.id
+        ++ ": matka " ++ yesNo korpus.hasQueen
+        ++ ", krata nad korpusem " ++ yesNo korpus.hasExcluderAbove
+        ++ ", folia nad korpusem " ++ yesNo korpus.hasFoilAbove
+        ++ ", otwarty wylotek " ++ yesNo korpus.hasOpenEntrance
 
 ulikSnapshotText : UlikWeselny -> String
 ulikSnapshotText ulik =
@@ -1677,40 +1844,101 @@ encodeUlikHistoryEntry h =
         , ( "number", Encode.string h.number )
         ]
 
-addKorpusAbove : Int -> List Korpus -> List Korpus
-addKorpusAbove idx korpusy =
+addKorpusAbove : String -> List Korpus -> List Korpus
+addKorpusAbove targetId korpusy =
     let
-        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
-        newId = String.fromInt (maxId + 1)
-        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+        newKorpus = createKorpus korpusy
     in
-    if idx <= 0 then
-        newKorpus :: korpusy
-    else
-        List.take idx korpusy ++ [ newKorpus ] ++ List.drop idx korpusy
+    insertKorpusBefore targetId newKorpus korpusy
 
-addKorpusBelow : Int -> List Korpus -> List Korpus
-addKorpusBelow idx korpusy =
-    addKorpusBetween idx korpusy
+addKorpusBelow : String -> List Korpus -> List Korpus
+addKorpusBelow targetId korpusy =
+    insertKorpusAfter targetId (createKorpus korpusy) korpusy
 
 addKorpusBetween : Int -> List Korpus -> List Korpus
 addKorpusBetween idx korpusy =
     let
         maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
         newId = String.fromInt (maxId + 1)
-        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
     in
     List.take (idx + 1) korpusy ++ [ newKorpus ] ++ List.drop (idx + 1) korpusy
 
+createKorpus : List Korpus -> Korpus
+createKorpus korpusy =
+    let
+        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+    in
+    { id = String.fromInt (maxId + 1), hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
+
+insertKorpusBefore : String -> Korpus -> List Korpus -> List Korpus
+insertKorpusBefore targetId korpus korpusy =
+    case korpusy of
+        [] ->
+            [ korpus ]
+
+        current :: rest ->
+            if current.id == targetId then
+                korpus :: current :: rest
+            else
+                current :: insertKorpusBefore targetId korpus rest
+
+insertKorpusAfter : String -> Korpus -> List Korpus -> List Korpus
+insertKorpusAfter targetId korpus korpusy =
+    case korpusy of
+        [] ->
+            [ korpus ]
+
+        current :: rest ->
+            if current.id == targetId then
+                current :: korpus :: rest
+            else
+                current :: insertKorpusAfter targetId korpus rest
+
+moveKorpusBefore : String -> String -> List Korpus -> List Korpus
+moveKorpusBefore draggedId targetId korpusy =
+    if draggedId == targetId then
+        korpusy
+    else
+        let
+            maybeDragged = List.head (List.filter (\k -> k.id == draggedId) korpusy)
+            targetExists = List.any (\k -> k.id == targetId) korpusy
+        in
+        case maybeDragged of
+            Just dragged ->
+                if targetExists then
+                    insertKorpusBefore targetId dragged (List.filter (\k -> k.id /= draggedId) korpusy)
+                else
+                    korpusy
+
+            Nothing ->
+                korpusy
+
+moveKorpusAfter : String -> String -> List Korpus -> List Korpus
+moveKorpusAfter draggedId targetId korpusy =
+    if draggedId == targetId then
+        korpusy
+    else
+        let
+            maybeDragged = List.head (List.filter (\k -> k.id == draggedId) korpusy)
+            targetExists = List.any (\k -> k.id == targetId) korpusy
+        in
+        case maybeDragged of
+            Just dragged ->
+                if targetExists then
+                    insertKorpusAfter targetId dragged (List.filter (\k -> k.id /= draggedId) korpusy)
+                else
+                    korpusy
+
+            Nothing ->
+                korpusy
+
 deleteKorpus : String -> List Korpus -> List Korpus
 deleteKorpus targetId korpusy =
-    let
-        filtered = List.filter (\k -> k.id /= targetId) korpusy
-    in
-    if List.isEmpty filtered then
-        [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+    if List.length korpusy <= 1 then
+        korpusy
     else
-        filtered
+        List.filter (\k -> k.id /= targetId) korpusy
 
 toggleKorpusQueen : String -> List Korpus -> List Korpus
 toggleKorpusQueen targetId korpusy =
@@ -1719,6 +1947,14 @@ toggleKorpusQueen targetId korpusy =
 toggleKorpusExcluder : String -> List Korpus -> List Korpus
 toggleKorpusExcluder targetId korpusy =
     List.map (\k -> if k.id == targetId then { k | hasExcluderAbove = not k.hasExcluderAbove } else k) korpusy
+
+toggleKorpusFoil : String -> List Korpus -> List Korpus
+toggleKorpusFoil targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasFoilAbove = not k.hasFoilAbove } else k) korpusy
+
+toggleKorpusEntrance : String -> List Korpus -> List Korpus
+toggleKorpusEntrance targetId korpusy =
+    List.map (\k -> if k.id == targetId then { k | hasOpenEntrance = not k.hasOpenEntrance } else k) korpusy
 
 updateKorpusyForHive : String -> String -> List Korpus -> Model -> (Model, Cmd Msg)
 updateKorpusyForHive apiaryId hiveId newKorpusy model =

@@ -1,21 +1,43 @@
-MIT License
+BeeLog Non-Commercial License
+Version 1.0, November 2026
 
-Copyright (c) 2026 Aleksander Lisiecki
+Copyright (c) 2026 Aleksander Lisiecki. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Permission for non-commercial use
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Subject to the terms below, the copyright holder grants you permission to
+use, reproduce, modify, and distribute this software and its source code solely
+for non-commercial purposes, provided that you retain this license and the
+copyright notice in all copies or substantial portions of the software.
+
+2. Commercial use requires permission
+
+You may not make commercial use of this software without obtaining prior
+written permission from the copyright holder. Commercial use includes, but is
+not limited to: using the software in or for a business or other commercial
+organization; selling or sublicensing the software; offering it as part of a
+paid product or service; or using it to provide a service for commercial
+advantage or monetary compensation.
+
+To request permission for commercial use, contact the copyright holder.
+Permission may be granted under a separate written agreement.
+
+3. Other rights
+
+No rights are granted to use the copyright holder's name, trademarks, or logos.
+This license does not grant patent rights. Components that are identified as
+third-party materials remain subject to their own licenses.
+
+4. Termination
+
+The permissions granted by this license terminate automatically if you fail to
+comply with its terms. If the violation is corrected, the permissions are
+reinstated as permitted by applicable law.
+
+5. Disclaimer
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.

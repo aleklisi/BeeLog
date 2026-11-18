@@ -254,13 +254,17 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
                                     frameType: hData.frameType || "Wielkopolska",
                                     broodFrameType: hData.broodFrameType || "Wielkopolska",
                                     broodFrameCount: hData.broodFrameCount !== undefined ? hData.broodFrameCount : 10,
+                                    maxBroodFrames: hData.maxBroodFrames !== undefined ? hData.maxBroodFrames : 24,
+                                    hasSuper: hData.hasSuper === true || hData.hasSuper === 'true',
                                     superFrameType: hData.superFrameType || "Wielkopolska 1/2",
                                     superCount: hData.superCount !== undefined ? hData.superCount : 1,
+                                    superFrameCount: hData.superFrameCount !== undefined ? hData.superFrameCount : 10,
+                                    maxSuperFrames: hData.maxSuperFrames !== undefined ? hData.maxSuperFrames : 18,
                                     nfcLink: hData.nfcLink || hData.nfcTagId || (baseUrl + '#hive/' + apiaryId + '/' + hDoc.id),
                                     queen: hData.queen || { hasOpalit: false, color: "biały", number: "" },
                                     pollenTrap: hData.pollenTrap || "brak",
                                     order: hData.order !== undefined ? hData.order : 0,
-                                    korpusy: hData.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
+                                    korpusy: hData.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false, hasFoilAbove: false, hasOpenEntrance: false }]
                                 });
                             }
                         });
@@ -661,13 +665,17 @@ app.ports.jsLoadHives.subscribe(async ({ apiaryId, deepLinkId }) => {
                     frameType: data.frameType || "Wielkopolska",
                     broodFrameType: data.broodFrameType || "Wielkopolska",
                     broodFrameCount: data.broodFrameCount !== undefined ? data.broodFrameCount : 10,
+                    maxBroodFrames: data.maxBroodFrames !== undefined ? data.maxBroodFrames : 24,
+                    hasSuper: data.hasSuper === true || data.hasSuper === 'true',
                     superFrameType: data.superFrameType || "Wielkopolska 1/2",
                     superCount: data.superCount !== undefined ? data.superCount : 1,
+                    superFrameCount: data.superFrameCount !== undefined ? data.superFrameCount : 10,
+                    maxSuperFrames: data.maxSuperFrames !== undefined ? data.maxSuperFrames : 18,
                     nfcLink: data.nfcLink || data.nfcTagId || "",
                     queen: data.queen || { hasOpalit: false, color: "biały", number: "" },
                     pollenTrap: data.pollenTrap || "brak",
                     order: data.order !== undefined ? data.order : 0,
-                    korpusy: data.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false }]
+                    korpusy: data.korpusy || [{ id: "1", hasQueen: false, hasExcluderAbove: false, hasFoilAbove: false, hasOpenEntrance: false }]
                 });
             });
             hives.sort((a, b) => a.order - b.order);
@@ -708,7 +716,7 @@ app.ports.jsCreateHive.subscribe(async ({ apiaryId, name, hiveType, frameType, b
     const sCount = superCount !== undefined ? Math.max(0, Number(superCount)) : 1;
     const maxS = maxSuperFrames !== undefined ? Number(maxSuperFrames) : 18;
     const sFCount = superFrameCount !== undefined ? Math.min(Math.max(1, Number(superFrameCount)), maxS) : Math.min(10, maxS);
-    const korpusyVal = hType === "korpusowy" ? [{ id: "1", hasQueen: false, hasExcluderAbove: false }] : [];
+    const korpusyVal = hType === "korpusowy" ? [{ id: "1", hasQueen: false, hasExcluderAbove: false, hasFoilAbove: false, hasOpenEntrance: false }] : [];
     if (window.__E2E__) {
         const state = getE2EState();
         if (!state.hives[apiaryId]) state.hives[apiaryId] = [];

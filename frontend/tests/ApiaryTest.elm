@@ -171,21 +171,21 @@ suite =
             [ test "adds korpus above" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         updated = addKorpusAbove 0 korpusy
                     in
                     Expect.equal 2 (List.length updated)
             , test "adds korpus below" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         updated = addKorpusBelow 0 korpusy
                     in
                     Expect.equal 2 (List.length updated)
             , test "expands hive to 5 korpusy and then deletes subsequent korpusy" <|
                 \() ->
                     let
-                        initial = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        initial = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         step1 = addKorpusAbove 0 initial
                         step2 = addKorpusBelow 1 step1
                         step3 = addKorpusAbove 1 step2
@@ -204,14 +204,14 @@ suite =
             , test "deletes korpus and keeps at least one" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         updated = deleteKorpus "1" korpusy
                     in
                     Expect.equal 1 (List.length updated)
             , test "toggles queen in korpus" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         updated = toggleKorpusQueen "1" korpusy
                     in
                     case List.head updated of
@@ -220,7 +220,7 @@ suite =
             , test "toggles excluder above korpus" <|
                 \() ->
                     let
-                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+                        korpusy = [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
                         updated = toggleKorpusExcluder "1" korpusy
                     in
                     case List.head updated of
@@ -329,7 +329,7 @@ addKorpusAbove idx korpusy =
     let
         maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
         newId = String.fromInt (maxId + 1)
-        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
     in
     if idx <= 0 then
         newKorpus :: korpusy
@@ -345,7 +345,7 @@ addKorpusBetween idx korpusy =
     let
         maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
         newId = String.fromInt (maxId + 1)
-        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False }
+        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
     in
     List.take (idx + 1) korpusy ++ [ newKorpus ] ++ List.drop (idx + 1) korpusy
 
@@ -355,7 +355,7 @@ deleteKorpus targetId korpusy =
         filtered = List.filter (\k -> k.id /= targetId) korpusy
     in
     if List.isEmpty filtered then
-        [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]
+        [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
     else
         filtered
 

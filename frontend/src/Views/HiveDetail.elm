@@ -3,6 +3,7 @@ module Views.HiveDetail exposing (hiveDetailView)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Keyed as Keyed
 import Json.Decode as Decode
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
@@ -57,9 +58,9 @@ hiveDetailView user info model =
                                     (List.map (\ft -> option [ value ft, selected (hive.broodFrameType == ft) ] [ text ft ]) model.frameTypes)
                                 , label [] [ text "Maksymalna liczba ramek w gnieździe:" ]
                                 , input [ type_ "number", value (String.fromInt hive.maxBroodFrames), onInput (\val -> UpdateHiveField actualApiaryId hive.id "maxBroodFrames" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                                , div [ style "margin-top" "5px", style "margin-bottom" "12px", style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                                , label [ style "margin-top" "5px", style "margin-bottom" "12px", style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "font-weight" "bold" ]
                                     [ input [ type_ "checkbox", checked hive.hasSuper, onCheck (\b -> UpdateHiveField actualApiaryId hive.id "hasSuper" (if b then "true" else "false")), id "detailHasSuperCheck" ] []
-                                    , label [ for "detailHasSuperCheck", style "cursor" "pointer", style "font-weight" "bold" ] [ text "Czy jest nadstawka" ]
+                                    , span [] [ text "Czy jest nadstawka" ]
                                     ]
                                 , if hive.hasSuper then
                                     div [ style "padding-left" "10px", style "border-left" "3px solid #3498db", style "margin-bottom" "10px" ]
@@ -123,9 +124,18 @@ hiveDetailView user info model =
                 , if hive.hiveType == "korpusowy" then
                     div []
                         [ h3 [ style "color" headingColor ] [ text "Edytor Korpusów (Stan Ula)" ]
-                        , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi." ]
+                        , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ]
+                            [ text "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi. "
+                            , span [ title "Chwyć korpus i przeciągnij go na inny, aby zmienić kolejność." , style "color" "#2980b9", style "font-weight" "bold", style "cursor" "help" ] [ text "ⓘ" ]
+                            , text " Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim."
+                            ]
                         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
-                            (List.indexedMap (korpusItemView actualApiaryId hive.id (List.length hive.korpusy) model) hive.korpusy)
+                            [ Keyed.node "div" []
+                                (List.map
+                                    (\korpus -> ( korpus.id, korpusItemView actualApiaryId hive.id (List.length hive.korpusy) model korpus ))
+                                    hive.korpusy
+                                )
+                            ]
                         ]
                   else if hive.hiveType == "lezak" then
                     div []
@@ -242,26 +252,46 @@ noteItemView apiaryId hiveId model note =
             ]
         )
 
-korpusItemView : String -> String -> Int -> Model -> Int -> Korpus -> Html Msg
-korpusItemView apiaryId hiveId totalCount model index korpus =
+korpusItemView : String -> String -> Int -> Model -> Korpus -> Html Msg
+korpusItemView apiaryId hiveId totalCount model korpus =
     let
         boxBg = if model.darkMode then "#242424" else "#fdfefe"
         borderColor = if model.darkMode then "#444" else "#dcdde1"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
     in
-    div []
+    div
+        [ attribute "data-korpus-id" korpus.id
+        , on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id))
+        , on "pointerup" (Decode.succeed (DropKorpusOn apiaryId hiveId korpus.id))
+        , style "cursor" "grab"
+        , style "opacity" (if model.draggedKorpusId == Just korpus.id then "0.55" else "1")
+        ]
         [ if korpus.hasExcluderAbove then
             div [ style "display" "flex", style "align-items" "center", style "justify-content" "center", style "padding" "6px", style "background" (if model.darkMode then "#332200" else "#fcf3cf"), style "border" (if model.darkMode then "1px dashed #f39c12" else "1px dashed #f1c40f"), style "border-radius" "4px", style "margin-bottom" "5px", style "font-size" "13px", style "font-weight" "bold", style "color" (if model.darkMode then "#f1c40f" else "#d68910") ]
                 [ text "🟧 Krata odgrodowa" ]
           else
             text ""
+        , if korpus.hasFoilAbove then
+            div [ style "display" "flex", style "align-items" "center", style "justify-content" "center", style "padding" "6px", style "background" (if model.darkMode then "#173344" else "#eaf2f8"), style "border" (if model.darkMode then "1px dashed #5dade2" else "1px dashed #3498db"), style "border-radius" "4px", style "margin-bottom" "5px", style "font-size" "13px", style "font-weight" "bold", style "color" (if model.darkMode then "#85c1e9" else "#2874a6") ]
+                [ text "🟦 Szczelna folia nad korpusem" ]
+          else
+            text ""
+        , div
+            [ attribute "data-drop-position" "above"
+            , stopPropagationOn "pointerup" (Decode.succeed ( DropKorpusOn apiaryId hiveId korpus.id, True ))
+            , title "Upuść tutaj, aby przenieść korpus nad ten korpus"
+            , style "height" "14px"
+            , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#85c1e9")
+            , style "border-radius" "4px"
+            ]
+            []
         , div [ style "background" boxBg, style "border" ("1px solid " ++ borderColor), style "padding" "14px", style "border-radius" "6px", style "color" textColor ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px", style "flex-wrap" "wrap", style "gap" "8px" ]
-                [ span [ style "font-weight" "bold" ] [ text ("Korpus #" ++ String.fromInt (index + 1)) ]
+                [ span [ style "font-weight" "bold" ] [ text ("Korpus #" ++ korpus.id) ]
                 , div [ style "display" "flex", style "gap" "6px", style "align-items" "center", style "flex-wrap" "wrap" ]
-                    [ button [ onClick (AddKorpusAbove apiaryId hiveId index), style "padding" "6px 10px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title "Dodaj korpus nad" ] [ text "+ ⬆️" ]
-                    , button [ onClick (AddKorpusBelow apiaryId hiveId index), style "padding" "6px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title "Dodaj korpus pod" ] [ text "+ ⬇️" ]
-                    , button [ onClick (DeleteKorpus apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title "Usuń korpus" ] [ text "🗑️" ]
+                    [ button [ onClick (AddKorpusAbove apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title "Dodaj korpus nad" ] [ text "+ ⬆️" ]
+                    , button [ onClick (AddKorpusBelow apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title "Dodaj korpus pod" ] [ text "+ ⬇️" ]
+                    , button [ onClick (DeleteKorpus apiaryId hiveId korpus.id), disabled (totalCount <= 1), style "padding" "6px 10px", style "background" (if totalCount <= 1 then "#bdc3c7" else "#c0392b"), style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if totalCount <= 1 then "not-allowed" else "pointer"), style "min-height" "36px", title (if totalCount <= 1 then "W ulu musi pozostać co najmniej jeden korpus" else "Usuń ten korpus") ] [ text "🗑️" ]
                     ]
                 ]
             , div [ style "display" "flex", style "flex-direction" "column", style "gap" "8px", style "margin-top" "8px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
@@ -278,6 +308,29 @@ korpusItemView apiaryId hiveId totalCount model index korpus =
                         , text "Krata odgrodowa nad korpusem"
                         ]
                     ]
+                , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                    [ label [ style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "font-size" "14px", style "padding" "4px 0" ]
+                        [ input [ type_ "checkbox", checked korpus.hasFoilAbove, onCheck (\_ -> ToggleKorpusFoil apiaryId hiveId korpus.id), style "width" "18px", style "height" "18px" ] []
+                        , text "Folia na korpusie"
+                        ]
+                    , span [ title "Szczelna folia odcina korpusy położone nad nią od korpusów poniżej. Oznaczenie działa jak krata odgrodowa i znajduje się nad tym korpusem.", style "cursor" "help", style "font-size" "12px", style "color" (if model.darkMode then "#888" else "#666"), style "border" "1px solid #888", style "border-radius" "50%", style "width" "18px", style "height" "18px", style "display" "inline-flex", style "align-items" "center", style "justify-content" "center" ] [ text "i" ]
+                    ]
+                , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                    [ label [ style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "font-size" "14px", style "padding" "4px 0" ]
+                        [ input [ type_ "checkbox", checked korpus.hasOpenEntrance, onCheck (\_ -> ToggleKorpusEntrance apiaryId hiveId korpus.id), style "width" "18px", style "height" "18px" ] []
+                        , text "Otwarty wylotek w korpusie"
+                        ]
+                    , span [ title "Otwiera wylotek w tym korpusie i pozwala prowadzić ul dwurodzinny.", style "cursor" "help", style "font-size" "12px", style "color" (if model.darkMode then "#888" else "#666"), style "border" "1px solid #888", style "border-radius" "50%", style "width" "18px", style "height" "18px", style "display" "inline-flex", style "align-items" "center", style "justify-content" "center" ] [ text "i" ]
+                    ]
+        , div
+            [ attribute "data-drop-position" "below"
+            , stopPropagationOn "pointerup" (Decode.succeed ( DropKorpusAfter apiaryId hiveId korpus.id, True ))
+            , title "Upuść tutaj, aby przenieść korpus pod ten korpus"
+            , style "height" "14px"
+            , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#82e0aa")
+            , style "border-radius" "4px"
+            ]
+            []
                 ]
             ]
         ]

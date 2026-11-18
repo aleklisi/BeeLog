@@ -25,3 +25,12 @@ Users SHALL be able to relocate mating hives between mating apiaries.
 #### Scenario: Relocation and Back Navigation
 - **WHEN** a mating hive is moved from Mating Apiary A to Mating Apiary B
 - **THEN** it MUST be reassigned to Apiary B and the back button navigation MUST correctly return to the current apiary view.
+
+### Requirement: Korpusowy Mating Hives
+Mating hives SHALL support marking a mating hive as korpusowy and tracking its number of korpusy.
+
+#### Scenario: Configure Korpusowy Status and Count
+- **WHEN** a user creates or edits a mating hive
+- **THEN** they MUST be able to toggle whether the hive is korpusowy and configure its number of korpusy.
+- **AND** when the hive is korpusowy, it MUST have at least one korpus and its current korpus count MUST be visible in the hive details, similarly to frame counts for leżak hives.
+- **AND** a mating hive of type "Mini plus" MUST default to korpusowy.

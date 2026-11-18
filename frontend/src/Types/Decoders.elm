@@ -14,6 +14,8 @@ decodeKorpus =
         |> andMap (Decode.field "id" (Decode.oneOf [ Decode.string, Decode.succeed "1" ] |> Decode.nullable |> Decode.map (Maybe.withDefault "1")))
         |> andMap (Decode.field "hasQueen" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
         |> andMap (Decode.field "hasExcluderAbove" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
+        |> andMap (Decode.field "hasFoilAbove" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
+        |> andMap (Decode.field "hasOpenEntrance" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.nullable |> Decode.map (Maybe.withDefault False)))
 
 encodeKorpus : Korpus -> Encode.Value
 encodeKorpus k =
@@ -21,6 +23,8 @@ encodeKorpus k =
         [ ("id", Encode.string k.id)
         , ("hasQueen", Encode.bool k.hasQueen)
         , ("hasExcluderAbove", Encode.bool k.hasExcluderAbove)
+        , ("hasFoilAbove", Encode.bool k.hasFoilAbove)
+        , ("hasOpenEntrance", Encode.bool k.hasOpenEntrance)
         ]
 
 encodeKorpusy : List Korpus -> Encode.Value
@@ -113,7 +117,7 @@ decodeHives =
             |> andMap (Decode.field "queen" decodeQueen |> Decode.maybe |> Decode.map (Maybe.withDefault { hasOpalit = False, color = "", number = "" }))
             |> andMap (Decode.field "pollenTrap" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "brak"))
             |> andMap (decodeIntField "order" 0)
-            |> andMap (Decode.field "korpusy" (Decode.list decodeKorpus) |> Decode.maybe |> Decode.map (Maybe.withDefault [ { id = "1", hasQueen = False, hasExcluderAbove = False } ]))
+            |> andMap (Decode.field "korpusy" (Decode.list decodeKorpus) |> Decode.maybe |> Decode.map (Maybe.withDefault [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]))
         )
 
 decodeUlikHistoryEntry : Decode.Decoder UlikHistoryEntry

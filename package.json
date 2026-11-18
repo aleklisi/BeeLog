@@ -19,8 +19,8 @@
     "url": "git+https://github.com/aleklisi/BeeLog.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Aleksander Lisiecki",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/aleklisi/BeeLog/issues"

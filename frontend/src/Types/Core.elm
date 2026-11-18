@@ -17,6 +17,8 @@ type alias Korpus =
     { id : String
     , hasQueen : Bool
     , hasExcluderAbove : Bool
+    , hasFoilAbove : Bool
+    , hasOpenEntrance : Bool
     }
 
 type alias Hive =
@@ -140,6 +142,7 @@ type alias Model =
     , viewState : ViewState
     , apiaries : List Apiary
     , hives : List Hive
+    , draggedKorpusId : Maybe String
     , uliki : List UlikWeselny
     , notes : List Note
     , errorMessage : Maybe String
@@ -254,12 +257,19 @@ type Msg
     | UpdateNewHiveMaxSuperFrames Int
     | SubmitCreateHive String
     | UpdateHiveField String String String String
-    | AddKorpusAbove String String Int
-    | AddKorpusBelow String String Int
+    | AddKorpusAbove String String String
+    | AddKorpusBelow String String String
     | AddKorpusBetween String String Int
     | DeleteKorpus String String String
     | ToggleKorpusQueen String String String
     | ToggleKorpusExcluder String String String
+    | ToggleKorpusFoil String String String
+    | ToggleKorpusEntrance String String String
+    | StartKorpusDrag String
+    | DropKorpusOn String String String
+    | DropKorpusAfter String String String
+    | EndKorpusDrag
+    | NoOp
     | UlikiDecoded (Result String (List UlikWeselny))
     | OpenNewUlikModal
     | CloseNewUlikModal
