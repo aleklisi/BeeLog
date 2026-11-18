@@ -3,7 +3,9 @@ module Views.Settings exposing (settingsView)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Types exposing (..)
+import Types.Core exposing (..)
+import Types.Decoders exposing (..)
+import Types.Helpers exposing (..)
 
 settingsView : User -> Model -> Html Msg
 settingsView user model =

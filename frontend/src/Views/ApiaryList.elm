@@ -4,7 +4,9 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Decode
-import Types exposing (..)
+import Types.Core exposing (..)
+import Types.Decoders exposing (..)
+import Types.Helpers exposing (..)
 
 apiariesView : User -> Model -> Html Msg
 apiariesView user model =

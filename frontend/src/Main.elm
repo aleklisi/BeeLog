@@ -6,11 +6,15 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Decode exposing (Value)
 import Json.Encode as Encode
-import Types exposing (..)
+import Types.Core exposing (..)
+import Types.Decoders exposing (..)
+import Types.Helpers exposing (..)
 import Views.ApiaryList exposing (apiariesView)
-import Views.PasieczyskoTowarowe exposing (hiveDetailView, hiveListView)
+import Views.HiveDetail exposing (hiveDetailView)
+import Views.PasieczyskoTowarowe exposing (hiveListView)
 import Views.Settings exposing (settingsView)
-import Views.Trutowisko exposing (ulikDetailView, ulikListView)
+import Views.Trutowisko exposing (ulikListView)
+import Views.UlikDetail exposing (ulikDetailView)
 
 main : Program Flags Model Msg
 main =
