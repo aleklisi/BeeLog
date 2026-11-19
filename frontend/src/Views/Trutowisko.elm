@@ -1,4 +1,4 @@
-module Views.Trutowisko exposing (attentionReason, attentionReasons, ulikListView)
+module Views.Trutowisko exposing (attentionReason, attentionReasons, attentionSummaryText, attentionUlikNames, ulikAttentionReasons, ulikListView)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -52,6 +52,23 @@ attentionReasons state expectedHatchDate expectedMatingDate currentDate =
 attentionReason : String -> String -> String -> String -> Maybe String
 attentionReason state expectedHatchDate expectedMatingDate currentDate =
     List.head (attentionReasons state expectedHatchDate expectedMatingDate currentDate)
+
+
+ulikAttentionReasons : String -> UlikWeselny -> List String
+ulikAttentionReasons currentDate ulik =
+    attentionReasons ulik.state ulik.expectedHatchDate ulik.expectedMatingDate currentDate
+
+
+attentionUlikNames : String -> List UlikWeselny -> List String
+attentionUlikNames currentDate uliki =
+    uliki
+        |> List.filter (\u -> not (List.isEmpty (ulikAttentionReasons currentDate u)))
+        |> List.map .name
+
+
+attentionSummaryText : Translations -> List String -> String
+attentionSummaryText t names =
+    t.localize "Uliki wymagające akcji: " ++ String.join ", " names
 
 
 isBeforeToday : String -> String -> Bool
@@ -242,7 +259,7 @@ ulikCardView t apiaryId model ulik =
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "gap" "8px" ]
             ([ h3 [ style "margin" "0", style "color" headingColor ] [ text ulik.name ] ]
                 ++ (let
-                        reasons = attentionReasons ulik.state ulik.expectedHatchDate ulik.expectedMatingDate model.currentDate
+                        reasons = ulikAttentionReasons model.currentDate ulik
                         combinedReason = String.join " / " (List.map t.localize reasons)
                     in
                     if List.isEmpty reasons then

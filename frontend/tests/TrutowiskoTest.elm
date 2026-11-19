@@ -1,8 +1,27 @@
 module TrutowiskoTest exposing (suite)
 
 import Expect
+import I18n exposing (translationsFor)
 import Test exposing (..)
-import Views.Trutowisko exposing (attentionReason, attentionReasons)
+import Types.Core exposing (Language(..), UlikWeselny)
+import Views.Trutowisko exposing (attentionReason, attentionReasons, attentionSummaryText, attentionUlikNames, ulikAttentionReasons)
+
+
+makeUlik : String -> String -> String -> String -> UlikWeselny
+makeUlik name state expectedHatchDate expectedMatingDate =
+    { id = name
+    , apiaryId = "apiary-1"
+    , name = name
+    , hiveType = "Mini plus"
+    , hasQueen = state /= "bezmatek" && state /= "pusty"
+    , queen = { hasOpalit = False, color = "", number = "", breedLine = "" }
+    , state = state
+    , expectedHatchDate = expectedHatchDate
+    , expectedMatingDate = expectedMatingDate
+    , nfcLink = ""
+    , order = 0
+    , history = []
+    }
 
 
 suite : Test
@@ -71,4 +90,69 @@ suite =
                     , \r -> Expect.equal True (List.length r >= 2)
                     ]
                     reasons
+        , describe "ulikAttentionReasons and attentionUlikNames"
+            [ test "ulikAttentionReasons matches attentionReasons on a UlikWeselny" <|
+                \_ ->
+                    let
+                        ulik = makeUlik "Ulik #01" "bezmatek" "" ""
+                    in
+                    Expect.equal (attentionReasons "bezmatek" "" "" "2026-11-19")
+                        (ulikAttentionReasons "2026-11-19" ulik)
+            , test "attentionUlikNames returns empty list when uliki list is empty" <|
+                \_ ->
+                    Expect.equal [] (attentionUlikNames "2026-11-19" [])
+            , test "attentionUlikNames returns empty list when no ulik requires attention" <|
+                \_ ->
+                    let
+                        uliki =
+                            [ makeUlik "Ulik 1" "pusty" "" ""
+                            , makeUlik "Ulik 2" "matka_czerwi" "2026-10-01" "2026-10-15"
+                            , makeUlik "Ulik 3" "z_matecznikiem" "2026-11-19" ""
+                            , makeUlik "Ulik 4" "matka_wygryziona" "" "2026-11-20"
+                            ]
+                    in
+                    Expect.equal [] (attentionUlikNames "2026-11-19" uliki)
+            , test "attentionUlikNames returns single affected hive name" <|
+                \_ ->
+                    let
+                        uliki =
+                            [ makeUlik "Ulik Spokojny" "matka_czerwi" "" ""
+                            , makeUlik "Ulik Pilny" "bezmatek" "" ""
+                            , makeUlik "Ulik Pusty" "pusty" "" ""
+                            ]
+                    in
+                    Expect.equal [ "Ulik Pilny" ] (attentionUlikNames "2026-11-19" uliki)
+            , test "attentionUlikNames preserves order and filters multiple affected hives across different states and dates" <|
+                \_ ->
+                    let
+                        uliki =
+                            [ makeUlik "Ulik 1 Bezmatek" "bezmatek" "" ""
+                            , makeUlik "Ulik 2 W normie" "matka_czerwi" "2026-10-01" "2026-10-15"
+                            , makeUlik "Ulik 3 Wygryzienie" "z_matecznikiem" "2026-11-18" ""
+                            , makeUlik "Ulik 4 Przyszłość" "z_matecznikiem" "2026-11-25" ""
+                            , makeUlik "Ulik 5 Unasiennienie" "matka_wygryziona" "" "2026-11-18"
+                            , makeUlik "Ulik 6 Deadline30" "matka_wygryziona" "2026-10-01" "2026-11-25"
+                            , makeUlik "Ulik 7 Czerwi" "matka_czerwi" "" ""
+                            ]
+                    in
+                    Expect.equal
+                        [ "Ulik 1 Bezmatek", "Ulik 3 Wygryzienie", "Ulik 5 Unasiennienie", "Ulik 6 Deadline30" ]
+                        (attentionUlikNames "2026-11-19" uliki)
+            , test "attentionSummaryText formats single and multiple names in Polish" <|
+                \_ ->
+                    let
+                        t = translationsFor PL
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal "Uliki wymagające akcji: Ulik A" (attentionSummaryText t [ "Ulik A" ])
+                        , \_ -> Expect.equal "Uliki wymagające akcji: Ulik A, Ulik B" (attentionSummaryText t [ "Ulik A", "Ulik B" ])
+                        ]
+                        ()
+            , test "attentionSummaryText formats names in English" <|
+                \_ ->
+                    let
+                        t = translationsFor EN
+                    in
+                    Expect.equal "Hives requiring action: Hive 1, Hive 2" (attentionSummaryText t [ "Hive 1", "Hive 2" ])
+            ]
         ]

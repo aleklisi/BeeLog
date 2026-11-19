@@ -7,6 +7,7 @@ import Json.Decode as Decode
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
 import Types.Helpers exposing (..)
+import Views.Trutowisko exposing (attentionSummaryText, attentionUlikNames)
 import I18n exposing (Translations)
 
 apiariesView : Translations -> User -> Model -> Html Msg
@@ -56,6 +57,13 @@ apiaryCardView t user model apiary =
                     else
                         HiveListView { apiaryId = apiary.id, apiaryName = apiary.name }
 
+        attentionNames =
+            if isTrutowisko then
+                attentionUlikNames model.currentDate apiary.uliki
+
+            else
+                []
+
         bezmatekCount = List.length (List.filter (\u -> getUlikState u == Bezmatek) apiary.uliki)
         matecznikCount = List.length (List.filter (\u -> getUlikState u == ZMatecznikiem) apiary.uliki)
         pustyUlikCount = List.length (List.filter (\u -> getUlikState u == PustyUlik) apiary.uliki)
@@ -90,7 +98,34 @@ apiaryCardView t user model apiary =
     div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor ]
         [ div [ onClick (NavigateTo navTarget) ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px" ]
-                [ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ]
+                [ div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                    ([ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ] ]
+                        ++ (if not (List.isEmpty attentionNames) then
+                                let
+                                    alertText =
+                                        attentionSummaryText t attentionNames
+                                in
+                                [ button
+                                    [ type_ "button"
+                                    , title alertText
+                                    , attribute "aria-label" alertText
+                                    , attribute "data-testid" "apiary-attention-alert"
+                                    , stopPropagationOn "click" (Decode.succeed ( NoOp, True ))
+                                    , style "color" "#e74c3c"
+                                    , style "background" "transparent"
+                                    , style "border" "none"
+                                    , style "font-size" "22px"
+                                    , style "font-weight" "bold"
+                                    , style "cursor" "help"
+                                    , style "padding" "4px 8px"
+                                    ]
+                                    [ text (t.localize "!") ]
+                                ]
+
+                            else
+                                []
+                           )
+                    )
                 , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                 ]
             , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0 0 8px 0" ] [ text (if isAdmin then t.owner else t.shared) ]

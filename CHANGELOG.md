@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-11-19] Synchronizacja i archiwizacja podsumowania alertów trutowiska
+
+- Zsynchronizowano główną specyfikację mating-apiaries o wymagania alertów na karcie trutowiska i zarchiwizowano zmianę mating-apiary-attention-summary w OpenSpec.
+
+## [2026-11-19] Synchronizacja danych po powrocie z list i szczegółów
+
+- Przy powrocie do listy pasieczysk zsynchronizuj aktualne ule i uliki z kartami pasieczysk, aby podsumowania odzwierciedlały ostatnie zmiany.
+
+## [2026-11-19] Odświeżanie podsumowania trutowiska
+
+- Synchronizuj listę ulików w danych trutowiska po odebraniu zmian, aby liczba ulików i zliczenia stanów były aktualne.
+
+## [2026-11-19] Podsumowanie alertów ulików na karcie trutowiska
+
+- Dodano czerwony wykrzyknik przy karcie trutowiska z listą nazw alertowych ulików w tooltipie i etykiecie dostępności.
+- Wydzielono wspólną logikę sprawdzania alertów dla ulików i zachowano brak alertu dla pasiek towarowych oraz trutowisk bez wymagających akcji ulików.
+- Dodano testy jednostkowe Elm dla filtrowania nazw ulików i formatowania podsumowania oraz test E2E weryfikujący wyświetlanie, fokus i brak nawigacji po kliknięciu wykrzyknika.
+
+## [2026-11-19] Animacja przeciągania korpusów
+
+- Dodano animowane podświetlenie przeciąganego korpusu, płynne reakcje stref upuszczania i efekt uchwytu z klasami Tailwind.
+
+## [2026-11-19] Widoczna instrukcja edytora korpusów
+
+- Przeniesiono opis zarządzania i instrukcję przeciągania korpusów z dymku do widocznej treści edytora.
+
 ## [2026-11-19] Synchronizacja i archiwizacja styli ustawień oraz Tailwind CSS
 
 - Zaktualizowano główną specyfikację settings-and-user o wymagania spójnego wyglądu kontrolek liczbowych i przełączników modułów.

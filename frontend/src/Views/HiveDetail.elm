@@ -126,9 +126,9 @@ hiveDetailView t user info model =
                     div []
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Edytor Korpusów (Stan Ula)") ]
                         , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ]
-                            [ text (t.localize "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi. ")
-                            , span [ title (t.localize "Chwyć korpus i przeciągnij go na inny, aby zmienić kolejność.") , style "color" "#2980b9", style "font-weight" "bold", style "cursor" "help" ] [ text (t.localize "ⓘ") ]
-                            , text (t.localize " Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim.")
+                            [ text (t.localize "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi.")
+                            , br [] []
+                            , text (t.localize "Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim.")
                             ]
                         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                             [ Keyed.node "div" []
@@ -261,9 +261,16 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
         textColor = if model.darkMode then "#e0e0e0" else "#333"
     in
     div
-        [ attribute "data-korpus-id" korpus.id
+        [ class
+            ("transform-gpu transition-[transform,opacity,box-shadow] duration-300 ease-out "
+                ++ (if model.draggedKorpusId == Just korpus.id then
+                        "scale-[1.02] -rotate-1 opacity-60 shadow-xl ring-2 ring-amber-400 z-10"
+                    else
+                        "scale-100 rotate-0 opacity-100 shadow-sm hover:shadow-md"
+                   )
+            )
+        , attribute "data-korpus-id" korpus.id
         , attribute "data-korpus-card" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id)
-        , style "opacity" (if model.draggedKorpusId == Just korpus.id then "0.55" else "1")
         ]
         [ if korpus.hasExcluderAbove then
             div [ style "display" "flex", style "align-items" "center", style "justify-content" "center", style "padding" "6px", style "background" (if model.darkMode then "#332200" else "#fcf3cf"), style "border" (if model.darkMode then "1px dashed #f39c12" else "1px dashed #f1c40f"), style "border-radius" "4px", style "margin-bottom" "5px", style "font-size" "13px", style "font-weight" "bold", style "color" (if model.darkMode then "#f1c40f" else "#d68910") ]
@@ -277,16 +284,18 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
             text (t.localize "")
         , div
             [ attribute "data-korpus-drop" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id ++ "|before")
+            , class "transition-[background-color,opacity] duration-200 ease-out"
             , title (t.localize "Upuść tutaj, aby przenieść korpus nad ten korpus")
             , style "height" "24px"
             , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#85c1e9")
+            , style "opacity" (if model.draggedKorpusId == Nothing then "0.35" else "1")
             , style "border-radius" "4px"
             ]
             []
         , div [ style "background" boxBg, style "border" ("1px solid " ++ borderColor), style "padding" "14px", style "border-radius" "6px", style "color" textColor ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px", style "flex-wrap" "wrap", style "gap" "8px" ]
                 [ span [ style "font-weight" "bold" ] [ text (t.localize "Korpus #" ++ korpus.id) ]
-                , button [ attribute "data-korpus-drag-handle" korpus.id, on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id)), style "touch-action" "none", style "cursor" "grab", style "font-size" "18px", style "padding" "6px 10px", style "border" "1px solid #aaa", style "border-radius" "4px", title (t.localize "Przeciągnij korpus, aby zmienić jego położenie") ] [ text "⠿" ]
+                , button [ attribute "data-korpus-drag-handle" korpus.id, class "transition-transform duration-150 hover:scale-110 active:scale-95", on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id)), style "touch-action" "none", style "cursor" (if model.draggedKorpusId == Just korpus.id then "grabbing" else "grab"), style "font-size" "18px", style "padding" "6px 10px", style "border" "1px solid #aaa", style "border-radius" "4px", title (t.localize "Przeciągnij korpus, aby zmienić jego położenie") ] [ text "⠿" ]
                 , div [ style "display" "flex", style "gap" "6px", style "align-items" "center", style "flex-wrap" "wrap" ]
                     [ button [ onClick (AddKorpusAbove apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title (t.localize "Dodaj korpus nad") ] [ text (t.localize "+ ⬆️") ]
                     , button [ onClick (AddKorpusBelow apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title (t.localize "Dodaj korpus pod") ] [ text (t.localize "+ ⬇️") ]
@@ -323,9 +332,11 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
                     ]
         , div
             [ attribute "data-korpus-drop" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id ++ "|after")
+            , class "transition-[background-color,opacity] duration-200 ease-out"
             , title (t.localize "Upuść tutaj, aby przenieść korpus pod ten korpus")
             , style "height" "24px"
             , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#82e0aa")
+            , style "opacity" (if model.draggedKorpusId == Nothing then "0.35" else "1")
             , style "border-radius" "4px"
             ]
             []

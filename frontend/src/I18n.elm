@@ -121,6 +121,7 @@ localizeText language value =
                 "Sprawdź, czy matka się wygryzła" -> "Check whether the queen has emerged"
                 "Minął oczekiwany termin unasiennienia matki" -> "The expected queen mating date has passed"
                 "Minął deadline 30 dni od wygryzienia – matka nadal nieunasienniona" -> "The 30-day deadline after emergence has passed; the queen is still unmated"
+                "Uliki wymagające akcji: " -> "Hives requiring action: "
                 "Ładowanie uliku..." -> "Loading mating hive..."
                 "Pasieka: " -> "Apiary: "
                 "Trutowisko: " -> "Mating apiary: "

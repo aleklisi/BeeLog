@@ -781,6 +781,111 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.getByText('Trutowisko: Trutowisko Alertów')).toBeVisible();
   });
 
+  test('7.2. Alert wymagający uwagi na karcie trutowiska na liście pasiek', async ({ page }) => {
+    const { yesterday, tomorrow } = await page.evaluate(() => {
+      const dateOffset = offset => {
+        const date = new Date();
+        date.setUTCDate(date.getUTCDate() + offset);
+        return date.toISOString().slice(0, 10);
+      };
+      return { yesterday: dateOffset(-1), tomorrow: dateOffset(1) };
+    });
+
+    await page.evaluate(({ yesterday, tomorrow }) => {
+      const ulikiSingle = [
+        { id: 'single-ok', name: 'Ulik Spokojny', hiveType: 'Mini plus', state: 'pusty', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 0, history: [] },
+        { id: 'single-urgent', name: 'Ulik Pilny', hiveType: 'Mini plus', state: 'bezmatek', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 1, history: [] }
+      ];
+
+      const ulikiMultiple = [
+        { id: 'm-1', name: 'Ulik Jeden', hiveType: 'Mini plus', state: 'bezmatek', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 0, history: [] },
+        { id: 'm-2', name: 'Ulik Dwa', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: yesterday, expectedMatingDate: tomorrow, order: 1, history: [] },
+        { id: 'm-3', name: 'Ulik Trzy', hiveType: 'Mini plus', state: 'pusty', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 2, history: [] },
+        { id: 'm-4', name: 'Ulik Cztery', hiveType: 'Mini plus', state: 'matka_wygryziona', hasQueen: true, expectedHatchDate: tomorrow, expectedMatingDate: yesterday, order: 3, history: [] }
+      ];
+
+      const ulikiClean = [
+        { id: 'clean-1', name: 'Ulik Czysty Pusty', hiveType: 'Mini plus', state: 'pusty', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 0, history: [] },
+        { id: 'clean-2', name: 'Ulik Czysty Przyszłość', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: tomorrow, expectedMatingDate: tomorrow, order: 1, history: [] }
+      ];
+
+      localStorage.setItem('__E2E_STATE__', JSON.stringify({
+        apiaries: [
+          {
+            id: 'mating-single', name: 'Trutowisko Pojedyncze', apiaryType: 'trutowisko',
+            adminId: 'e2e-test-uid', members: {}, order: 0,
+            uliki: ulikiSingle, hives: []
+          },
+          {
+            id: 'mating-multiple', name: 'Trutowisko Wielokrotne', apiaryType: 'trutowisko',
+            adminId: 'e2e-test-uid', members: {}, order: 1,
+            uliki: ulikiMultiple, hives: []
+          },
+          {
+            id: 'mating-clean', name: 'Trutowisko Czyste', apiaryType: 'trutowisko',
+            adminId: 'e2e-test-uid', members: {}, order: 2,
+            uliki: ulikiClean, hives: []
+          },
+          {
+            id: 'comm-1', name: 'Pasieka Towarowa Alert', apiaryType: 'towarowe',
+            adminId: 'e2e-test-uid', members: {}, order: 3,
+            uliki: [], hives: [{ id: 'hive-1', name: 'Ul 1', frameType: 'Dadant', bodyEditor: { bodies: [] }, notes: [] }]
+          }
+        ],
+        uliki: {
+          'mating-single': ulikiSingle,
+          'mating-multiple': ulikiMultiple,
+          'mating-clean': ulikiClean
+        },
+        hives: {
+          'comm-1': [{ id: 'hive-1', name: 'Ul 1', frameType: 'Dadant', bodyEditor: { bodies: [] }, notes: [] }]
+        },
+        notes: {}
+      }));
+    }, { yesterday, tomorrow });
+
+    await page.reload();
+    await page.evaluate(() => {
+      window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+    });
+
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible();
+
+    // 1. Pasieka towarowa nie posiada alertu ulików
+    const commercialHeader = page.getByRole('heading', { level: 3, name: 'Pasieka Towarowa Alert' }).locator('..');
+    await expect(commercialHeader.getByTestId('apiary-attention-alert')).toHaveCount(0);
+
+    // 2. Trutowisko bez aktywnych alertów nie posiada wykrzyknika
+    const cleanHeader = page.getByRole('heading', { level: 3, name: 'Trutowisko Czyste' }).locator('..');
+    await expect(cleanHeader.getByTestId('apiary-attention-alert')).toHaveCount(0);
+
+    // 3. Trutowisko z jednym alertowym ulikem pokazuje wykrzyknik z nazwą tego uliku
+    const singleAlert = page.getByRole('heading', { level: 3, name: 'Trutowisko Pojedyncze' }).locator('..').getByTestId('apiary-attention-alert');
+    await expect(singleAlert).toBeVisible();
+    await expect(singleAlert).toHaveAttribute('title', 'Uliki wymagające akcji: Ulik Pilny');
+    await expect(singleAlert).toHaveAttribute('aria-label', 'Uliki wymagające akcji: Ulik Pilny');
+
+    // 4. Trutowisko z wieloma alertami wymienia wszystkie alertowe uliki w kolejności listy
+    const multipleAlert = page.getByRole('heading', { level: 3, name: 'Trutowisko Wielokrotne' }).locator('..').getByTestId('apiary-attention-alert');
+    await expect(multipleAlert).toBeVisible();
+    await expect(multipleAlert).toHaveAttribute('title', 'Uliki wymagające akcji: Ulik Jeden, Ulik Dwa, Ulik Cztery');
+    await expect(multipleAlert).toHaveAttribute('aria-label', 'Uliki wymagające akcji: Ulik Jeden, Ulik Dwa, Ulik Cztery');
+
+    // 5. Alert jest dostępny przez klawiaturę (focus)
+    await multipleAlert.focus();
+    await expect(multipleAlert).toBeFocused();
+
+    // 6. Kliknięcie w alert nie uruchamia nawigacji karty trutowiska
+    await multipleAlert.click();
+    await expect(page.locator('text=Twoje Pasieczyska')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: 'Trutowisko Wielokrotne' })).toBeVisible();
+
+    // 7. Kliknięcie w treść karty pasieki normalnie otwiera widok trutowiska i zachowuje pojedyncze alerty ulików
+    await page.getByRole('heading', { level: 3, name: 'Trutowisko Wielokrotne' }).click();
+    await expect(page.getByText('Trutowisko: Trutowisko Wielokrotne')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Brak matki w ulu', exact: true })).toBeVisible();
+  });
+
   test('8. Type-specific apiary views', async ({ page }) => {
     await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
     await page.reload();

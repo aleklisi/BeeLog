@@ -149,6 +149,53 @@ init flags =
     , cmd
     )
 
+
+syncApiaryContents : Model -> List Apiary
+syncApiaryContents model =
+    case model.viewState of
+        HiveListView info ->
+            List.map
+                (\apiary ->
+                    if apiary.id == info.apiaryId then
+                        { apiary | hives = model.hives }
+                    else
+                        apiary
+                )
+                model.apiaries
+
+        HiveDetailView info ->
+            List.map
+                (\apiary ->
+                    if apiary.id == info.apiaryId then
+                        { apiary | hives = model.hives }
+                    else
+                        apiary
+                )
+                model.apiaries
+
+        UlikListView info ->
+            List.map
+                (\apiary ->
+                    if apiary.id == info.apiaryId then
+                        { apiary | uliki = model.uliki }
+                    else
+                        apiary
+                )
+                model.apiaries
+
+        UlikDetailView info ->
+            List.map
+                (\apiary ->
+                    if apiary.id == info.apiaryId then
+                        { apiary | uliki = model.uliki }
+                    else
+                        apiary
+                )
+                model.apiaries
+
+        _ ->
+            model.apiaries
+
 -- PORTS (OUT)
 
 port jsLoginGoogle : () -> Cmd msg
@@ -588,7 +635,7 @@ update msg model =
                         _ ->
                             Cmd.none
             in
-            ( { model | viewState = state, apiaryFilter = nextFilter, newApiaryType = nextFilter, ulikFilter = "all", menuExpanded = False, previousPrimaryView = if state == SettingsView then Just model.viewState else Nothing }, cmds )
+            ( { model | apiaries = syncApiaryContents model, viewState = state, apiaryFilter = nextFilter, newApiaryType = nextFilter, ulikFilter = "all", menuExpanded = False, previousPrimaryView = if state == SettingsView then Just model.viewState else Nothing }, cmds )
 
         OpenNewApiaryModal ->
             ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = if model.viewState == MatingApiariesView then "trutowisko" else if model.viewState == CommercialApiariesView then "towarowe" else if model.enablePasieczyskaTowarowe then "towarowe" else "trutowisko" }, Cmd.none )
@@ -780,6 +827,7 @@ update msg model =
             case result of
                 Ok list ->
                     let
+                        updatedApiaries = syncApiaryContents { model | hives = list }
                         (updatedModel, extraCmd) =
                             case model.pendingDeepLink of
                                 Just (PendingHive { apiaryId, hiveId }) ->
@@ -790,11 +838,11 @@ update msg model =
                                             Just h -> if h.apiaryId /= "" then h.apiaryId else apiaryId
                                             Nothing -> apiaryId
                                     in
-                                    ( { model | hives = list, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = actualApiaryId, hiveId = hiveId, hiveName = hiveName } }
+                                    ( { model | hives = list, apiaries = updatedApiaries, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = actualApiaryId, hiveId = hiveId, hiveName = hiveName } }
                                     , jsLoadNotes { apiaryId = actualApiaryId, hiveId = hiveId }
                                     )
                                 _ ->
-                                    ( { model | hives = list }, Cmd.none )
+                                    ( { model | hives = list, apiaries = updatedApiaries }, Cmd.none )
                     in
                     ( updatedModel, extraCmd )
                 Err err ->
@@ -804,6 +852,7 @@ update msg model =
             case result of
                 Ok list ->
                     let
+                        updatedApiaries = syncApiaryContents { model | uliki = list }
                         (updatedModel, extraCmd) =
                             case model.pendingDeepLink of
                                 Just (PendingUlik { apiaryId, ulikId }) ->
@@ -814,11 +863,11 @@ update msg model =
                                             Just u -> if u.apiaryId /= "" then u.apiaryId else apiaryId
                                             Nothing -> apiaryId
                                     in
-                                    ( { model | uliki = list, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = actualApiaryId, ulikId = ulikId, ulikName = ulikName } }
+                                    ( { model | uliki = list, apiaries = updatedApiaries, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = actualApiaryId, ulikId = ulikId, ulikName = ulikName } }
                                     , Cmd.none
                                     )
                                 _ ->
-                                    ( { model | uliki = list }, Cmd.none )
+                                    ( { model | uliki = list, apiaries = updatedApiaries }, Cmd.none )
                     in
                     ( updatedModel, extraCmd )
                 Err err ->
