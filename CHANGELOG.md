@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-11-19] Synchronizacja i archiwizacja obsługi języków
+
+- Przeniesiono wymagania wyboru języka do głównej specyfikacji i zarchiwizowano zmianę OpenSpec.
+
+## [2026-11-19] Dostosowany test przeciągania korpusów
+
+- Test edytora korpusów korzysta z uchwytu przeciągania i nowych stref upuszczania.
+
+## [2026-11-19] Poprawione przeciąganie korpusów
+
+- Dodano uchwyt do przeciągania i ustalanie miejsca upuszczenia po pozycji kursora lub palca.
+
+## [2026-11-19] Aktualizacja oczekiwań testów ustawień
+
+- Dopasowano testy E2E do krótszej etykiety ustawień.
+
+## [2026-11-19] Krótsza etykieta ustawień
+
+- Zmieniono polską etykietę sekcji ustawień na „Ustawienia”.
+
 ## [2026-11-19] Porządki dokumentacji i testy reguł Firestore
 
 - Zaktualizowano instrukcje uruchamiania testów, usunięto nieaktualną dokumentację widoków i dodano osobny cel testów reguł Firestore.
@@ -89,3 +109,11 @@
 - Added `ToggleSettingsSection` message handled in `Main.elm` to collapse/expand individual sections.
 - Updated `openspec/specs/settings-and-user/spec.md` with collapsible-sections requirements.
 - Added two Playwright E2E scenarios covering default-expanded state and collapse/expand behaviour.
+
+## [2026-11-19] Archive queen rearing and apiary navigation
+
+- Synced the apiary views, main navigation, queen rearing, settings, and CI deltas into the main specs and archived the completed change.
+
+## [2026-11-19] Powrót do aktualnego trutowiska uliku
+
+- Zachowano identyfikator trutowiska przy wczytywaniu uliku z Firestore, aby powrót z linku NFC prowadził do jego obecnego miejsca.

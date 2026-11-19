@@ -262,9 +262,7 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
     in
     div
         [ attribute "data-korpus-id" korpus.id
-        , on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id))
-        , on "pointerup" (Decode.succeed (DropKorpusOn apiaryId hiveId korpus.id))
-        , style "cursor" "grab"
+        , attribute "data-korpus-card" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id)
         , style "opacity" (if model.draggedKorpusId == Just korpus.id then "0.55" else "1")
         ]
         [ if korpus.hasExcluderAbove then
@@ -278,10 +276,9 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
           else
             text (t.localize "")
         , div
-            [ attribute "data-drop-position" "above"
-            , stopPropagationOn "pointerup" (Decode.succeed ( DropKorpusOn apiaryId hiveId korpus.id, True ))
+            [ attribute "data-korpus-drop" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id ++ "|before")
             , title (t.localize "Upuść tutaj, aby przenieść korpus nad ten korpus")
-            , style "height" "14px"
+            , style "height" "24px"
             , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#85c1e9")
             , style "border-radius" "4px"
             ]
@@ -289,6 +286,7 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
         , div [ style "background" boxBg, style "border" ("1px solid " ++ borderColor), style "padding" "14px", style "border-radius" "6px", style "color" textColor ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px", style "flex-wrap" "wrap", style "gap" "8px" ]
                 [ span [ style "font-weight" "bold" ] [ text (t.localize "Korpus #" ++ korpus.id) ]
+                , button [ attribute "data-korpus-drag-handle" korpus.id, on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id)), style "touch-action" "none", style "cursor" "grab", style "font-size" "18px", style "padding" "6px 10px", style "border" "1px solid #aaa", style "border-radius" "4px", title (t.localize "Przeciągnij korpus, aby zmienić jego położenie") ] [ text "⠿" ]
                 , div [ style "display" "flex", style "gap" "6px", style "align-items" "center", style "flex-wrap" "wrap" ]
                     [ button [ onClick (AddKorpusAbove apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title (t.localize "Dodaj korpus nad") ] [ text (t.localize "+ ⬆️") ]
                     , button [ onClick (AddKorpusBelow apiaryId hiveId korpus.id), style "padding" "6px 10px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title (t.localize "Dodaj korpus pod") ] [ text (t.localize "+ ⬇️") ]
@@ -324,10 +322,9 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
                     , span [ title (t.localize "Otwiera wylotek w tym korpusie i pozwala prowadzić ul dwurodzinny."), style "cursor" "help", style "font-size" "12px", style "color" (if model.darkMode then "#888" else "#666"), style "border" "1px solid #888", style "border-radius" "50%", style "width" "18px", style "height" "18px", style "display" "inline-flex", style "align-items" "center", style "justify-content" "center" ] [ text (t.localize "i") ]
                     ]
         , div
-            [ attribute "data-drop-position" "below"
-            , stopPropagationOn "pointerup" (Decode.succeed ( DropKorpusAfter apiaryId hiveId korpus.id, True ))
+            [ attribute "data-korpus-drop" (apiaryId ++ "|" ++ hiveId ++ "|" ++ korpus.id ++ "|after")
             , title (t.localize "Upuść tutaj, aby przenieść korpus pod ten korpus")
-            , style "height" "14px"
+            , style "height" "24px"
             , style "background" (if model.draggedKorpusId == Nothing then "transparent" else "#82e0aa")
             , style "border-radius" "4px"
             ]

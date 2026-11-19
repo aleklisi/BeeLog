@@ -883,7 +883,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Przejdź do ustawień
     await page.getByTestId('main-menu-toggle').click();
     await page.click('button:has-text("⚙️ Ustawienia")');
-    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('text=⚙️ Ustawienia')).toBeVisible();
     await page.getByTestId('settings-section-toggle-ogolne').click();
     await expect(page.locator('[data-testid="user-email"]')).toHaveText('e2e@beelog.test');
 
@@ -904,7 +904,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Przejdź ponownie do ustawień i sprawdź czy tryb ciemny nadal jest aktywny
     await page.getByTestId('main-menu-toggle').click();
     await page.click('button:has-text("⚙️ Ustawienia")');
-    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('text=⚙️ Ustawienia')).toBeVisible();
     await page.getByTestId('settings-section-toggle-ogolne').click();
     await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
   });
@@ -923,7 +923,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     // Przejdź do ustawień
     await page.getByTestId('main-menu-toggle').click();
     await page.click('button:has-text("⚙️ Ustawienia")');
-    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('text=⚙️ Ustawienia')).toBeVisible();
     await page.getByTestId('settings-section-toggle-trutowiska').click();
 
     // Dodaj nową rasę/linię matek
@@ -1218,7 +1218,7 @@ test.describe('BeeLog E2E Test Suite', () => {
       await page.getByTestId('main-menu-toggle').click();
     }
     await settingsBtn.click();
-    await expect(page.locator('text=⚙️ Ustawienia aplikacji')).toBeVisible();
+    await expect(page.locator('text=⚙️ Ustawienia')).toBeVisible();
     if (!(await page.getByTestId('commercial-apiaries-toggle').isVisible())) {
       await page.getByTestId('settings-section-toggle-pasieczyska').click();
     }
@@ -1277,7 +1277,7 @@ test.describe('BeeLog E2E Test Suite', () => {
       nodes => nodes.map(node => node.getAttribute('data-korpus-id'))
     );
     const dragKorpusTo = async (sourceSelector, targetSelector) => {
-      const sourceLocator = page.locator(sourceSelector);
+      const sourceLocator = page.locator(sourceSelector).locator('[data-korpus-drag-handle]');
       const targetLocator = page.locator(targetSelector);
       await sourceLocator.scrollIntoViewIfNeeded();
       const source = await sourceLocator.boundingBox();
@@ -1330,12 +1330,12 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('[data-korpus-id="3"] label:has-text("Otwarty wylotek w korpusie") input[type="checkbox"]')).toBeChecked();
 
     // Upuszczenie w górnej strefie przesuwa korpus nad cel.
-    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-drop-position="above"]');
+    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-korpus-drop$="|before"]');
     await expect.poll(korpusOrder).toEqual(['2', '5', '1', '3']);
     await expect(page.locator('[data-korpus-id="1"]')).toContainText('Korpus #1');
 
     // Upuszczenie w dolnej strefie przenosi Korpus #1 na dół bez zmiany jego nazwy.
-    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-drop-position="below"]');
+    await dragKorpusTo('[data-korpus-id="1"]', '[data-korpus-id="3"] [data-korpus-drop$="|after"]');
     await expect.poll(korpusOrder).toEqual(['2', '5', '3', '1']);
     await expect(page.locator('[data-korpus-id="1"]')).toContainText('Korpus #1');
 

@@ -329,6 +329,7 @@ type Msg
     | DropKorpusOn String String String
     | DropKorpusAfter String String String
     | EndKorpusDrag
+    | KorpusDropReceived Decode.Value
     | NoOp
     | UlikiDecoded (Result String (List UlikWeselny))
     | OpenNewUlikModal

@@ -53,6 +53,41 @@ const app = Elm.Main.init({
 });
 window.app = app;
 
+// Touch browsers implicitly capture pointers on the pressed element. Resolve
+// the actual drop target from the pointer coordinates instead of the event target.
+let activeKorpusDrag = null;
+document.addEventListener('pointerdown', (event) => {
+    const handle = event.target.closest?.('[data-korpus-drag-handle]');
+    if (handle) activeKorpusDrag = { id: handle.dataset.korpusDragHandle, pointerId: event.pointerId };
+});
+document.addEventListener('pointerup', (event) => {
+    if (!activeKorpusDrag || activeKorpusDrag.pointerId !== event.pointerId) return;
+    activeKorpusDrag = null;
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const zone = hit?.closest('[data-korpus-drop]');
+    const card = hit?.closest('[data-korpus-card]');
+    if (!zone && !card) {
+        app.ports.korpusDropReceived.send({});
+        return;
+    }
+    let apiaryId;
+    let hiveId;
+    let korpusId;
+    let after;
+    if (zone) {
+        [apiaryId, hiveId, korpusId] = zone.dataset.korpusDrop.split('|');
+        after = zone.dataset.korpusDrop.endsWith('|after');
+    } else {
+        [apiaryId, hiveId, korpusId] = card.dataset.korpusCard.split('|');
+        after = event.clientY > card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2;
+    }
+    app.ports.korpusDropReceived.send({ apiaryId, hiveId, korpusId, after });
+});
+document.addEventListener('pointercancel', () => {
+    if (activeKorpusDrag) app.ports.korpusDropReceived.send({});
+    activeKorpusDrag = null;
+});
+
 function sendQueenRearingState(data) {
     if (app.ports.queenRearingReceived) {
         const rearingBatches = (data.rearingBatches || []).map(batch => ({ ...batch, deadlineEpoch: computeBatchDeadline(batch) }));
@@ -746,6 +781,7 @@ app.ports.jsLoadUliki.subscribe(async ({ apiaryId, deepLinkId }) => {
                 const data = docSnap.data();
                 uliki.push({
                     id: docSnap.id,
+                    apiaryId: data.apiaryId || targetApiaryId,
                     name: data.name || "",
                     hiveType: data.hiveType || "Mini plus",
                     hasQueen: !!data.hasQueen,

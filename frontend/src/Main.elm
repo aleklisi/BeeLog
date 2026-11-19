@@ -206,6 +206,7 @@ port todayReceived : (String -> msg) -> Sub msg
 port currentEpochReceived : (Int -> msg) -> Sub msg
 port userSettingsReceived : (Value -> msg) -> Sub msg
 port queenRearingReceived : (Value -> msg) -> Sub msg
+port korpusDropReceived : (Value -> msg) -> Sub msg
 
 -- MESSAGES
 
@@ -1110,6 +1111,21 @@ update msg model =
         EndKorpusDrag ->
             ( { model | draggedKorpusId = Nothing }, Cmd.none )
 
+        KorpusDropReceived payload ->
+            case Decode.decodeValue
+                (Decode.map4 (\apiaryId hiveId korpusId after -> { apiaryId = apiaryId, hiveId = hiveId, korpusId = korpusId, after = after })
+                    (Decode.field "apiaryId" Decode.string)
+                    (Decode.field "hiveId" Decode.string)
+                    (Decode.field "korpusId" Decode.string)
+                    (Decode.field "after" Decode.bool)
+                )
+                payload of
+                Ok drop ->
+                    update (if drop.after then DropKorpusAfter drop.apiaryId drop.hiveId drop.korpusId else DropKorpusOn drop.apiaryId drop.hiveId drop.korpusId) model
+
+                Err _ ->
+                    ( { model | draggedKorpusId = Nothing }, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -1563,6 +1579,7 @@ subscriptions _ =
         , currentEpochReceived CurrentEpochReceived
         , userSettingsReceived (\val -> UserSettingsReceived (Result.mapError Decode.errorToString (Decode.decodeValue decodeUserSettings val)))
         , queenRearingReceived (\val -> QueenRearingDataReceived (Result.mapError Decode.errorToString (Decode.decodeValue QR.dataDecoder val)))
+        , korpusDropReceived KorpusDropReceived
         ]
 
 -- VIEW
