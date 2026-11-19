@@ -40,5 +40,8 @@ BeeLog to nowoczesna, progresywna aplikacja internetowa (PWA) przeznaczona do ko
 
 ## 🧪 Uruchomienie testów
 ```bash
-npm test
+make elm_test       # testy Elm
+make e2e_test       # testy Playwright
+make test_openspec  # walidacja OpenSpec
+make all_test       # pełny zestaw testów
 ```

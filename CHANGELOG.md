@@ -1,8 +1,12 @@
+# Changelog
+
+## [2026-11-19] Porządki dokumentacji i testy reguł Firestore
+
+- Zaktualizowano instrukcje uruchamiania testów, usunięto nieaktualną dokumentację widoków i dodano osobny cel testów reguł Firestore.
+
 ## [2026-11-19] Polskie tłumaczenie hodowli matek
 
 - Przetłumaczono formularze, statusy, terminy i akcje w widoku hodowli matek.
-
-# Changelog
 
 ## [2026-11-19] Poprawione testy E2E hodowli matek
 
