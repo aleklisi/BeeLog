@@ -7,13 +7,11 @@ import Json.Decode as Decode
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
 import Types.Helpers exposing (..)
+import I18n exposing (Translations)
 
-apiariesView : User -> Model -> Html Msg
-apiariesView user model =
+apiariesView : Translations -> User -> Model -> Html Msg
+apiariesView t user model =
     let
-        inputBg = if model.darkMode then "#2a2a2a" else "white"
-        inputColor = if model.darkMode then "#e0e0e0" else "#333"
-        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
         filteredApiaries =
             List.filter
                 (\a ->
@@ -32,32 +30,18 @@ apiariesView user model =
     in
     div []
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "15px" ]
-            [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text "Twoje Pasieczyska" ]
-            , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "+ Dodaj Pasieczysko" ]
+            [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text (if model.apiaryFilter == "trutowisko" then t.matingApiariesHeading else if model.apiaryFilter == "towarowe" then t.commercialApiariesHeading else t.apiaries) ]
+            , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.addApiary ]
             ]
-        , div [ style "display" "flex", style "gap" "10px", style "align-items" "center", style "margin-bottom" "20px" ]
-            [ span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text "Filtruj typ:" ]
-            , select [ onInput SetApiaryFilter, style "padding" "6px 10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ]
-                ([ option [ value "all", selected (model.apiaryFilter == "all") ] [ text "Wszystkie pasieczyska" ]
-                 ]
-                 ++ (if model.enablePasieczyskaTowarowe then
-                        [ option [ value "towarowe", selected (model.apiaryFilter == "towarowe") ] [ text "Towarowe" ] ]
-                    else
-                        []
-                    )
-                 ++ (if model.enableTrutowiska then
-                        [ option [ value "trutowisko", selected (model.apiaryFilter == "trutowisko") ] [ text "Trutowiska" ] ]
-                    else
-                        []
-                    )
-                )
-            ]
+        , if List.isEmpty filteredApiaries then
+            p [ attribute "data-testid" "apiary-empty-state" ] [ text (if model.apiaryFilter == "trutowisko" then t.noMatingApiaries else if model.apiaryFilter == "towarowe" then t.noCommercialApiaries else t.noApiaries) ]
+          else text ""
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (apiaryCardView user model) filteredApiaries)
+            (List.map (apiaryCardView t user model) filteredApiaries)
         ]
 
-apiaryCardView : User -> Model -> Apiary -> Html Msg
-apiaryCardView user model apiary =
+apiaryCardView : Translations -> User -> Model -> Apiary -> Html Msg
+apiaryCardView t user model apiary =
     let
         isAdmin = apiary.adminId == user.uid
         cardBg = if model.darkMode then "#1e1e1e" else "white"
@@ -65,7 +49,7 @@ apiaryCardView user model apiary =
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         borderColor = if model.darkMode then "#333" else "#eee"
         isTrutowisko = apiary.apiaryType == "trutowisko"
-        typeLabel = if isTrutowisko then "Trutowisko" else "Pasieczysko Towarowe"
+        typeLabel = if isTrutowisko then t.matingApiaries else t.commercialApiaries
         typeBadgeBg = if isTrutowisko then "#8e44ad" else "#2980b9"
         navTarget = if isTrutowisko then
                         UlikListView { apiaryId = apiary.id, apiaryName = apiary.name }
@@ -109,23 +93,23 @@ apiaryCardView user model apiary =
                 [ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ]
                 , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                 ]
-            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0 0 8px 0" ] [ text (if isAdmin then "Właściciel" else "Udostępnione") ]
+            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0 0 8px 0" ] [ text (if isAdmin then t.owner else t.shared) ]
             , if isTrutowisko then
                 div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
-                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text ("Uliki weselne (Razem: " ++ String.fromInt totalUlikiCount ++ ")") ]
+                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.matingHivesTotal ++ String.fromInt totalUlikiCount ++ ")") ]
                     , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
-                        [ span [ title "Bezmatek" ] [ text ("(B) Bezmatek: " ++ String.fromInt bezmatekCount) ]
-                        , span [ title "Matecznik" ] [ text ("(M) Matecznik: " ++ String.fromInt matecznikCount) ]
-                        , span [ title "Pusty ulik" ] [ text ("(P) Pusty: " ++ String.fromInt pustyUlikCount) ]
-                        , span [ title "Matka nieunasienniona" ] [ text ("(N) Nieunasienniona: " ++ String.fromInt nieunasiennionaCount) ]
-                        , span [ title "Matka unasienniona" ] [ text ("(UNC) Unasienniona: " ++ String.fromInt unasiennionaCount) ]
+                        [ span [ title t.stateQueenless ] [ text ("(B) Bezmatek: " ++ String.fromInt bezmatekCount) ]
+                        , span [ title t.stateCell ] [ text ("(M) Matecznik: " ++ String.fromInt matecznikCount) ]
+                        , span [ title t.stateEmptyMatingHive ] [ text ("(P) Pusty: " ++ String.fromInt pustyUlikCount) ]
+                        , span [ title t.stateUnmated ] [ text ("(N) Nieunasienniona: " ++ String.fromInt nieunasiennionaCount) ]
+                        , span [ title t.stateMated ] [ text ("(UNC) Unasienniona: " ++ String.fromInt unasiennionaCount) ]
                         ]
                     ]
               else
                 div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
-                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text ("Ule towarowe (Razem: " ++ String.fromInt totalHivesCount ++ ")") ]
+                    [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.commercialHivesTotal ++ String.fromInt totalHivesCount ++ ")") ]
                     , if List.isEmpty allHivesTypeCounts then
-                        div [ style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ] [ text "Brak uli" ]
+                        div [ style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ] [ text t.noHivesShort ]
                       else
                         div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
                             (List.map
@@ -138,14 +122,14 @@ apiaryCardView user model apiary =
             ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
             [ div [ style "display" "flex", style "gap" "4px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryUp apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w lewo" ] [ text "⬅️" ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryDown apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Przesuń w prawo" ] [ text "➡️" ]
+                [ button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryUp apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.moveLeft ] [ text "⬅️" ]
+                , button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryDown apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.moveRight ] [ text "➡️" ]
                 ]
             , if isAdmin then
                 div [ style "display" "flex", style "gap" "10px" ]
-                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Edytuj" ] [ text "✏️" ]
-                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Usuń" ] [ text "🗑️" ]
-                    , button [ onClick (NavigateTo (SharingView { apiaryId = apiary.id, apiaryName = apiary.name })), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title "Udostępnij" ] [ text "👥" ]
+                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
+                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
+                    , button [ onClick (NavigateTo (SharingView { apiaryId = apiary.id, apiaryName = apiary.name })), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.share ] [ text "👥" ]
                     ]
               else
                 text ""

@@ -1,11 +1,27 @@
 module Types.Core exposing (..)
 
 import Json.Decode as Decode
+import Dict exposing (Dict)
+import Types.QueenRearing as QR
 
 type alias User =
     { uid : String
     , email : String
     }
+
+type Language
+    = PL
+    | EN
+
+languageFromString : String -> Language
+languageFromString value =
+    if String.toLower value == "en" then EN else PL
+
+languageToString : Language -> String
+languageToString language =
+    case language of
+        PL -> "pl"
+        EN -> "en"
 
 type alias Queen =
     { hasOpalit : Bool
@@ -112,6 +128,12 @@ type alias UserSettings =
     , maxUlikHistoryLimit : Int
     , enableTrutowiska : Bool
     , enablePasieczyskaTowarowe : Bool
+    , enableQueenRearing : Bool
+    , defaultGraftCount : Int
+    , starterDurationDays : Int
+    , isolationDay : Int
+    , emergenceDay : Int
+    , language : Language
     }
 
 type AuthState
@@ -121,6 +143,9 @@ type AuthState
 type ViewState
     = LoginView
     | ApiariesView
+    | MatingApiariesView
+    | CommercialApiariesView
+    | QueenRearingView
     | HiveListView { apiaryId : String, apiaryName : String }
     | HiveDetailView { apiaryId : String, hiveId : String, hiveName : String }
     | UlikListView { apiaryId : String, apiaryName : String }
@@ -137,6 +162,12 @@ type PendingDeepLink
     = PendingHive { apiaryId : String, hiveId : String }
     | PendingUlik { apiaryId : String, ulikId : String }
 
+type SettingsSection
+    = SectionOgolne
+    | SectionPasieczyskaTowarowe
+    | SectionTrutowiska
+    | SectionQueenRearing
+
 type alias Model =
     { authState : AuthState
     , viewState : ViewState
@@ -148,6 +179,7 @@ type alias Model =
     , errorMessage : Maybe String
     , successMessage : Maybe String
     , darkMode : Bool
+    , language : Language
     , pendingDeepLink : Maybe PendingDeepLink
     , showNewApiaryModal : Bool
     , newApiaryName : String
@@ -184,6 +216,7 @@ type alias Model =
     , showMoveUlikModal : Maybe { sourceApiaryId : String, ulikId : String, ulikName : String }
     , moveUlikTargetApiaryId : String
     , currentDate : String
+    , currentEpoch : Int
     , apiaryFilter : String
     , ulikFilter : String
     , frameTypes : List String
@@ -196,6 +229,17 @@ type alias Model =
     , maxUlikHistoryLimit : Int
     , enableTrutowiska : Bool
     , enablePasieczyskaTowarowe : Bool
+    , enableQueenRearing : Bool
+    , defaultGraftCount : Int
+    , starterDurationDays : Int
+    , isolationDay : Int
+    , emergenceDay : Int
+    , menuExpanded : Bool
+    , previousPrimaryView : Maybe ViewState
+    , queenRearingData : QR.QueenRearingData
+    , queenRearingForm : Dict String String
+    , editingQueenResource : Maybe { kind : String, id : String }
+    , expandedSettingsSections : List SettingsSection
     , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
     , modalBreedLine : String
     , modalHatchDate : String
@@ -208,10 +252,26 @@ type Msg
     = ClickLoginGoogle
     | ClickLogout
     | ToggleDarkMode
+    | ChangeLanguage Language
     | ToggleEnableTrutowiska
     | ToggleEnablePasieczyskaTowarowe
+    | ToggleEnableQueenRearing
+    | ToggleMainMenu
+    | QueenRearingDataReceived (Result String QR.QueenRearingData)
+    | QueenRearingInput String String
+    | SaveQueenResource String
+    | EditQueenResource String String
+    | RetireBreederQueen String
+    | DeleteQueenResource String String
+    | CreatePlannedRearingBatch
+    | StartRearingBatch String
+    | TransitionRearingBatch String String
+    | DeleteRearingBatch String
+    | ToggleSettingsSection SettingsSection
+    | UpdateQueenSetting String String
     | AuthStateUpdated { uid : String, email : String }
     | CurrentDateReceived String
+    | CurrentEpochReceived Int
     | UserSettingsReceived (Result String UserSettings)
     | LoadApiariesData String
     | ApiariesDecoded (Result String (List Apiary))

@@ -181,10 +181,20 @@ decodeUserSettings : Decode.Decoder UserSettings
 decodeUserSettings =
     Decode.succeed UserSettings
         |> andMap (Decode.field "frameTypes" (Decode.list Decode.string))
-        |> andMap (Decode.field "ulikTypes" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "Mini plus", "Odkład wielkopolski", "Apidea" ])))
-        |> andMap (Decode.field "breedLines" (Decode.list Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ])))
-        |> andMap (Decode.field "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault False)))
-        |> andMap (Decode.field "hatchingToMatingDays" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 12)))
-        |> andMap (Decode.field "maxUlikHistoryLimit" (Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 40)))
-        |> andMap (Decode.field "enableTrutowiska" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault True)))
-        |> andMap (Decode.field "enablePasieczyskaTowarowe" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ] |> Decode.maybe |> Decode.map (Maybe.withDefault True)))
+        |> andMap (optionalSetting "ulikTypes" (Decode.list Decode.string) [ "Mini plus", "Odkład wielkopolski", "Apidea" ])
+        |> andMap (optionalSetting "breedLines" (Decode.list Decode.string) [ "car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka" ])
+        |> andMap (optionalSetting "darkMode" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) False)
+        |> andMap (optionalSetting "hatchingToMatingDays" Decode.int 12)
+        |> andMap (optionalSetting "maxUlikHistoryLimit" Decode.int 40)
+        |> andMap (optionalSetting "enableTrutowiska" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) True)
+        |> andMap (optionalSetting "enablePasieczyskaTowarowe" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) True)
+        |> andMap (optionalSetting "enableQueenRearing" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) False)
+        |> andMap (optionalSetting "defaultGraftCount" Decode.int 24)
+        |> andMap (optionalSetting "starterDurationDays" Decode.int 2)
+        |> andMap (optionalSetting "isolationDay" Decode.int 10)
+        |> andMap (optionalSetting "emergenceDay" Decode.int 11)
+        |> andMap (optionalSetting "language" (Decode.string |> Decode.map languageFromString) PL)
+
+optionalSetting : String -> Decode.Decoder a -> a -> Decode.Decoder a
+optionalSetting name decoder fallback =
+    Decode.oneOf [ Decode.field name decoder, Decode.succeed fallback ]

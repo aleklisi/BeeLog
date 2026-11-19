@@ -1,6 +1,7 @@
 port module Main exposing (main)
 
 import Browser
+import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -9,10 +10,14 @@ import Json.Encode as Encode
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
 import Types.Helpers exposing (..)
+import Types.QueenRearing as QR
+import I18n exposing (Translations, translationsFor)
+import QueenRearing.Domain as QueenDomain
 import Views.ApiaryList exposing (apiariesView)
 import Views.HiveDetail exposing (hiveDetailView)
 import Views.PasieczyskoTowarowe exposing (hiveListView)
 import Views.Settings exposing (settingsView)
+import Views.QueenRearing exposing (queenRearingView)
 import Views.Trutowisko exposing (ulikListView)
 import Views.UlikDetail exposing (ulikDetailView)
 
@@ -29,6 +34,7 @@ main =
 
 type alias Flags =
     { darkMode : Bool
+    , language : String
     , initialHash : String
     }
 
@@ -72,8 +78,10 @@ init flags =
       , errorMessage = Nothing
       , successMessage = Nothing
       , darkMode = flags.darkMode
+      , language = languageFromString flags.language
       , pendingDeepLink = pending
       , currentDate = ""
+      , currentEpoch = 0
       , apiaryFilter = "all"
       , ulikFilter = "all"
       , frameTypes = [ "Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant" ]
@@ -86,6 +94,17 @@ init flags =
       , maxUlikHistoryLimit = 40
       , enableTrutowiska = True
       , enablePasieczyskaTowarowe = True
+      , enableQueenRearing = False
+      , defaultGraftCount = 24
+      , starterDurationDays = 2
+      , isolationDay = 10
+      , emergenceDay = 11
+      , menuExpanded = False
+      , previousPrimaryView = Nothing
+      , queenRearingData = QR.QueenRearingData [] [] [] []
+      , queenRearingForm = Dict.fromList [ ( "kind", "breederQueens" ), ( "availability", "PUSTY" ), ( "graftCount", "24" ), ( "graftedAt", "" ), ( "timeZone", "Europe/Warsaw" ), ( "count", "" ), ( "starterId", "" ), ( "finisherId", "" ), ( "incubatorBar", "" ) ]
+      , editingQueenResource = Nothing
+      , expandedSettingsSections = []
       , showNewApiaryModal = False
       , newApiaryName = ""
       , newApiaryType = "towarowe"
@@ -163,7 +182,15 @@ port jsSaveApiaryOrders : List Apiary -> Cmd msg
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
 port jsLoadUserSettings : { uid : String, email : String } -> Cmd msg
-port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int, enableTrutowiska : Bool, enablePasieczyskaTowarowe : Bool } -> Cmd msg
+port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, language : String, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int, enableTrutowiska : Bool, enablePasieczyskaTowarowe : Bool, enableQueenRearing : Bool, defaultGraftCount : Int, starterDurationDays : Int, isolationDay : Int, emergenceDay : Int } -> Cmd msg
+port jsLoadQueenRearing : String -> Cmd msg
+port jsCreateQueenResource : { uid : String, kind : String, fields : Value } -> Cmd msg
+port jsUpdateQueenResource : { uid : String, kind : String, id : String, fields : Value } -> Cmd msg
+port jsDeleteQueenResource : { uid : String, kind : String, id : String } -> Cmd msg
+port jsCreatePlannedRearingBatch : { uid : String, year : String, fields : Value } -> Cmd msg
+port jsStartRearingBatch : { uid : String, batchId : String, starterId : String, graftedAt : String, timeZone : String, starterDurationDays : Int, isolationDay : Int, emergenceDay : Int, schedule : Value } -> Cmd msg
+port jsTransitionRearingBatch : { uid : String, batchId : String, action : String, colonyId : String, count : Int, incubatorBar : String } -> Cmd msg
+port jsDeleteRearingBatch : { uid : String, batchId : String } -> Cmd msg
 
 -- PORTS (IN)
 
@@ -176,7 +203,9 @@ port speechRecognized : (String -> msg) -> Sub msg
 port operationError : (String -> msg) -> Sub msg
 port successMessageReceived : (String -> msg) -> Sub msg
 port todayReceived : (String -> msg) -> Sub msg
+port currentEpochReceived : (Int -> msg) -> Sub msg
 port userSettingsReceived : (Value -> msg) -> Sub msg
+port queenRearingReceived : (Value -> msg) -> Sub msg
 
 -- MESSAGES
 
@@ -191,11 +220,52 @@ saveSettings user model =
         , ulikTypes = model.ulikTypes
         , breedLines = model.breedLines
         , darkMode = model.darkMode
+        , language = languageToString model.language
         , hatchingToMatingDays = model.hatchingToMatingDays
         , maxUlikHistoryLimit = model.maxUlikHistoryLimit
         , enableTrutowiska = model.enableTrutowiska
         , enablePasieczyskaTowarowe = model.enablePasieczyskaTowarowe
+        , enableQueenRearing = model.enableQueenRearing
+        , defaultGraftCount = model.defaultGraftCount
+        , starterDurationDays = model.starterDurationDays
+        , isolationDay = model.isolationDay
+        , emergenceDay = model.emergenceDay
         }
+
+
+queenFormValue : String -> Model -> String
+queenFormValue key model =
+    Dict.get key model.queenRearingForm |> Maybe.withDefault ""
+
+
+queenResourceFields : String -> Bool -> Model -> Value
+queenResourceFields kind isEditing model =
+    let
+        field key = Encode.string (queenFormValue key model)
+        identifying = [ ( "hiveNumber", field "hiveNumber" ) ]
+    in
+    if kind == "breederQueens" then
+        Encode.object
+            (identifying
+                ++ [ ( "breed", field "breed" )
+                   , ( "line", field "line" )
+                   , ( "markingColor", field "markingColor" )
+                   , ( "markingCode", field "markingCode" )
+                   ]
+                ++ (if isEditing then [] else [ ( "active", Encode.bool True ) ])
+            )
+
+    else if isEditing then
+        Encode.object identifying
+
+    else
+        Encode.object
+            (identifying
+                ++ [ ( "availability", Encode.string "PUSTY" )
+                   , ( "completedSeries", Encode.int 0 )
+                   , ( "activeBatchId", Encode.null )
+                   ]
+            )
 
 -- UPDATE
 
@@ -223,11 +293,23 @@ update msg model =
             in
             ( newModel, cmd )
 
+        ChangeLanguage language ->
+            let
+                newModel = { model | language = language }
+                cmd = case model.authState of
+                    LoggedIn user -> saveSettings user newModel
+                    _ -> Cmd.none
+            in
+            ( newModel, cmd )
+
         ToggleEnableTrutowiska ->
             let
                 newEnable = not model.enableTrutowiska
                 newFilter = if not newEnable && model.apiaryFilter == "trutowisko" then "all" else model.apiaryFilter
-                newModel = { model | enableTrutowiska = newEnable, apiaryFilter = newFilter }
+                disablingCurrent = not newEnable && (model.viewState == MatingApiariesView || model.previousPrimaryView == Just MatingApiariesView)
+                nextView = if disablingCurrent then (if model.enablePasieczyskaTowarowe then CommercialApiariesView else SettingsView) else model.viewState
+                fallbackFilter = if disablingCurrent && model.enablePasieczyskaTowarowe then "towarowe" else newFilter
+                newModel = { model | enableTrutowiska = newEnable, apiaryFilter = fallbackFilter, viewState = nextView, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
@@ -241,7 +323,10 @@ update msg model =
             let
                 newEnable = not model.enablePasieczyskaTowarowe
                 newFilter = if not newEnable && model.apiaryFilter == "towarowe" then (if model.enableTrutowiska then "trutowisko" else "all") else model.apiaryFilter
-                newModel = { model | enablePasieczyskaTowarowe = newEnable, apiaryFilter = newFilter }
+                disablingCurrent = not newEnable && (model.viewState == CommercialApiariesView || model.previousPrimaryView == Just CommercialApiariesView)
+                nextView = if disablingCurrent then (if model.enableTrutowiska then MatingApiariesView else SettingsView) else model.viewState
+                fallbackFilter = if disablingCurrent && model.enableTrutowiska then "trutowisko" else newFilter
+                newModel = { model | enablePasieczyskaTowarowe = newEnable, apiaryFilter = fallbackFilter, viewState = nextView, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
                 cmd =
                     case model.authState of
                         LoggedIn user ->
@@ -251,6 +336,64 @@ update msg model =
             in
             ( newModel, cmd )
 
+        ToggleEnableQueenRearing ->
+            let
+                enabled = not model.enableQueenRearing
+                disablingCurrent = not enabled && (model.viewState == QueenRearingView || model.previousPrimaryView == Just QueenRearingView)
+                fallback = if disablingCurrent then (if model.enablePasieczyskaTowarowe then CommercialApiariesView else if model.enableTrutowiska then MatingApiariesView else SettingsView) else model.viewState
+                fallbackFilter = if disablingCurrent then (if model.enablePasieczyskaTowarowe then "towarowe" else if model.enableTrutowiska then "trutowisko" else model.apiaryFilter) else model.apiaryFilter
+                newModel = { model | enableQueenRearing = enabled, viewState = fallback, apiaryFilter = fallbackFilter, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
+                cmd =
+                    case model.authState of
+                        LoggedIn user -> saveSettings user newModel
+                        _ -> Cmd.none
+            in
+            ( newModel, cmd )
+
+        ToggleMainMenu ->
+            ( { model | menuExpanded = not model.menuExpanded }, Cmd.none )
+
+        ToggleSettingsSection section ->
+            let
+                newExpanded =
+                    if List.member section model.expandedSettingsSections then
+                        List.filter (\s -> s /= section) model.expandedSettingsSections
+                    else
+                        section :: model.expandedSettingsSections
+            in
+            ( { model | expandedSettingsSections = newExpanded }, Cmd.none )
+
+        UpdateQueenSetting setting raw ->
+            case String.toInt raw of
+                Nothing ->
+                    ( model, Cmd.none )
+                Just parsed ->
+                    let
+                        candidate =
+                            case setting of
+                                "graft" ->
+                                    { model | defaultGraftCount = Basics.max 1 parsed }
+
+                                "starter" ->
+                                    { model | starterDurationDays = clamp 1 10 parsed }
+
+                                "isolation" ->
+                                    { model | isolationDay = parsed }
+
+                                _ ->
+                                    { model | emergenceDay = parsed }
+                        valid = candidate.isolationDay > candidate.starterDurationDays && candidate.emergenceDay >= candidate.isolationDay
+                        newModel = if valid then candidate else { candidate | errorMessage = Just "Isolation must follow starter transfer and emergence must not precede isolation." }
+                        cmd =
+                            if valid then
+                                case model.authState of
+                                    LoggedIn user -> saveSettings user newModel
+                                    _ -> Cmd.none
+                            else
+                                Cmd.none
+                    in
+                    ( newModel, cmd )
+
         AuthStateUpdated { uid, email } ->
             if uid == "" then
                 ( { model | authState = LoggedOut, viewState = LoginView }, Cmd.none )
@@ -259,7 +402,7 @@ update msg model =
                     user = { uid = uid, email = email }
                 in
                 ( { model | authState = LoggedIn user, viewState = ApiariesView }
-                , Cmd.batch [ jsLoadApiaries uid, jsLoadUserSettings { uid = uid, email = email } ]
+                , Cmd.batch [ jsLoadApiaries uid, jsLoadUserSettings { uid = uid, email = email }, jsLoadQueenRearing uid ]
                 )
 
         LoadApiariesData uid ->
@@ -268,8 +411,153 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit, enableTrutowiska = settings.enableTrutowiska, enablePasieczyskaTowarowe = settings.enablePasieczyskaTowarowe }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, language = settings.language, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit, enableTrutowiska = settings.enableTrutowiska, enablePasieczyskaTowarowe = settings.enablePasieczyskaTowarowe, enableQueenRearing = settings.enableQueenRearing, defaultGraftCount = settings.defaultGraftCount, starterDurationDays = settings.starterDurationDays, isolationDay = settings.isolationDay, emergenceDay = settings.emergenceDay, queenRearingForm = Dict.insert "graftCount" (String.fromInt settings.defaultGraftCount) model.queenRearingForm }, Cmd.none )
                 Err _ ->
+                    ( model, Cmd.none )
+
+        QueenRearingDataReceived result ->
+            case result of
+                Ok data ->
+                    ( { model | queenRearingData = data }, Cmd.none )
+
+                Err error ->
+                    ( { model | errorMessage = Just ("Queen-rearing data could not be read: " ++ error) }, Cmd.none )
+
+        QueenRearingInput key value ->
+            ( { model | queenRearingForm = Dict.insert key value model.queenRearingForm }, Cmd.none )
+
+        SaveQueenResource kind ->
+            case model.authState of
+                LoggedIn user ->
+                    let
+                        fields = queenResourceFields kind (model.editingQueenResource /= Nothing) model
+                        command =
+                            case model.editingQueenResource of
+                                Just editing ->
+                                    jsUpdateQueenResource { uid = user.uid, kind = editing.kind, id = editing.id, fields = fields }
+
+                                Nothing ->
+                                    jsCreateQueenResource { uid = user.uid, kind = kind, fields = fields }
+                    in
+                    ( { model | editingQueenResource = Nothing }, command )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditQueenResource kind id ->
+            let
+                pairs =
+                    if kind == "breederQueens" then
+                        model.queenRearingData.breederQueens
+                            |> List.filter (\item -> item.id == id)
+                            |> List.head
+                            |> Maybe.map (\item -> [ ( "breed", item.breed ), ( "line", item.line ), ( "markingColor", item.markingColor ), ( "markingCode", item.markingCode ), ( "hiveNumber", item.hiveNumber ) ])
+                            |> Maybe.withDefault []
+
+                    else
+                        let
+                            colonies = if kind == "starterColonies" then model.queenRearingData.starterColonies else model.queenRearingData.finisherColonies
+                        in
+                        colonies
+                            |> List.filter (\item -> item.id == id)
+                            |> List.head
+                            |> Maybe.map (\item -> [ ( "hiveNumber", item.hiveNumber ) ])
+                            |> Maybe.withDefault []
+            in
+            ( { model | editingQueenResource = Just { kind = kind, id = id }, queenRearingForm = List.foldl (\( key, value ) form -> Dict.insert key value form) model.queenRearingForm pairs }, Cmd.none )
+
+        RetireBreederQueen id ->
+            case model.authState of
+                LoggedIn user ->
+                    ( model
+                    , jsUpdateQueenResource { uid = user.uid, kind = "breederQueens", id = id, fields = Encode.object [ ( "active", Encode.bool False ) ] }
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        DeleteQueenResource kind id ->
+            case model.authState of
+                LoggedIn user ->
+                    ( model, jsDeleteQueenResource { uid = user.uid, kind = kind, id = id } )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        CreatePlannedRearingBatch ->
+            case ( model.authState, String.toInt (queenFormValue "graftCount" model), String.toInt (String.left 4 model.currentDate) ) of
+                ( LoggedIn user, Just graftCount, Just year ) ->
+                    if graftCount <= 0 || queenFormValue "breederQueenId" model == "" then
+                        ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
+
+                    else
+                    let
+                        fields = Encode.object
+                            [ ( "breederQueenId", Encode.string (queenFormValue "breederQueenId" model) )
+                            , ( "graftCount", Encode.int graftCount )
+                            , ( "createdAt", Encode.string model.currentDate )
+                            ]
+                    in
+                    ( model, jsCreatePlannedRearingBatch { uid = user.uid, year = String.fromInt year, fields = fields } )
+
+                _ ->
+                    ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
+
+        StartRearingBatch batchId ->
+            case model.authState of
+                LoggedIn user ->
+                    let
+                        defaults = { graftCount = model.defaultGraftCount, starterDurationDays = model.starterDurationDays, isolationDay = model.isolationDay, emergenceDay = model.emergenceDay }
+                    in
+                    case QueenDomain.calculateSchedule defaults (queenFormValue "graftedAt" model) of
+                        Just schedule ->
+                            ( model
+                            , jsStartRearingBatch
+                                { uid = user.uid
+                                , batchId = batchId
+                                , starterId = queenFormValue "starterId" model
+                                , graftedAt = queenFormValue "graftedAt" model
+                                , timeZone = queenFormValue "timeZone" model
+                                , starterDurationDays = model.starterDurationDays
+                                , isolationDay = model.isolationDay
+                                , emergenceDay = model.emergenceDay
+                                , schedule = Encode.object
+                                    [ ( "starterTransferAt", Encode.string schedule.starterTransferAt )
+                                    , ( "isolationAt", Encode.string schedule.isolationAt )
+                                    , ( "emergenceAt", Encode.string schedule.emergenceAt )
+                                    ]
+                                }
+                            )
+
+                        Nothing ->
+                            ( { model | errorMessage = Just "The queen-rearing schedule defaults are invalid." }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        TransitionRearingBatch batchId action ->
+            case ( model.authState, String.toInt (queenFormValue "count" model) ) of
+                ( LoggedIn user, Just count ) ->
+                    ( model
+                    , jsTransitionRearingBatch
+                        { uid = user.uid
+                        , batchId = batchId
+                        , action = action
+                        , colonyId = if action == "toFinisher" then queenFormValue "finisherId" model else ""
+                        , count = count
+                        , incubatorBar = queenFormValue "incubatorBar" model
+                        }
+                    )
+
+                _ ->
+                    ( { model | errorMessage = Just "Enter a whole-number count for this transition." }, Cmd.none )
+
+        DeleteRearingBatch batchId ->
+            case model.authState of
+                LoggedIn user ->
+                    ( model, jsDeleteRearingBatch { uid = user.uid, batchId = batchId } )
+
+                _ ->
                     ( model, Cmd.none )
 
         ApiariesDecoded result ->
@@ -281,6 +569,11 @@ update msg model =
 
         NavigateTo state ->
             let
+                nextFilter =
+                    case state of
+                        MatingApiariesView -> "trutowisko"
+                        CommercialApiariesView -> "towarowe"
+                        _ -> model.apiaryFilter
                 cmds =
                     case state of
                         HiveListView { apiaryId } ->
@@ -294,10 +587,10 @@ update msg model =
                         _ ->
                             Cmd.none
             in
-            ( { model | viewState = state, ulikFilter = "all" }, cmds )
+            ( { model | viewState = state, apiaryFilter = nextFilter, newApiaryType = nextFilter, ulikFilter = "all", menuExpanded = False, previousPrimaryView = if state == SettingsView then Just model.viewState else Nothing }, cmds )
 
         OpenNewApiaryModal ->
-            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = if model.enablePasieczyskaTowarowe then "towarowe" else "trutowisko" }, Cmd.none )
+            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = if model.viewState == MatingApiariesView then "trutowisko" else if model.viewState == CommercialApiariesView then "towarowe" else if model.enablePasieczyskaTowarowe then "towarowe" else "trutowisko" }, Cmd.none )
 
         SetApiaryFilter filter ->
             ( { model | apiaryFilter = filter }, Cmd.none )
@@ -621,6 +914,9 @@ update msg model =
 
         CurrentDateReceived dateStr ->
             ( { model | currentDate = dateStr }, Cmd.none )
+
+        CurrentEpochReceived epoch ->
+            ( { model | currentEpoch = epoch }, Cmd.none )
 
         UpdateHiveField apiaryId hiveId field value ->
             let
@@ -1264,7 +1560,9 @@ subscriptions _ =
         , operationError HandleError
         , successMessageReceived SuccessMessageReceived
         , todayReceived CurrentDateReceived
+        , currentEpochReceived CurrentEpochReceived
         , userSettingsReceived (\val -> UserSettingsReceived (Result.mapError Decode.errorToString (Decode.decodeValue decodeUserSettings val)))
+        , queenRearingReceived (\val -> QueenRearingDataReceived (Result.mapError Decode.errorToString (Decode.decodeValue QR.dataDecoder val)))
         ]
 
 -- VIEW
@@ -1272,95 +1570,133 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     let
+        t = translationsFor model.language
         bgColor = if model.darkMode then "#121212" else "#f7f9fa"
         textColor = if model.darkMode then "#e0e0e0" else "#333333"
     in
     div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto", style "background-color" bgColor, style "color" textColor, style "min-height" "100vh", style "position" "relative" ]
-        [ headerView model
-        , notificationsView model
+        [ headerView t model
+        , notificationsView t model
         , case model.authState of
             LoggedOut ->
-                loginView model
+                loginView t model
 
             LoggedIn user ->
                 case model.viewState of
                     LoginView ->
-                        apiariesView user model
+                        apiariesView t user model
 
                     ApiariesView ->
-                        apiariesView user model
+                        apiariesView t user model
+
+                    MatingApiariesView ->
+                        apiariesView t user model
+
+                    CommercialApiariesView ->
+                        apiariesView t user model
+
+                    QueenRearingView ->
+                        queenRearingView t user model
 
                     HiveListView info ->
-                        hiveListView user info model
+                        hiveListView t user info model
 
                     HiveDetailView info ->
-                        hiveDetailView user info model
+                        hiveDetailView t user info model
 
                     UlikListView info ->
-                        ulikListView user info model
+                        ulikListView t user info model
 
                     UlikDetailView info ->
-                        ulikDetailView user info model
+                        ulikDetailView t user info model
 
                     SharingView info ->
-                        sharingView user info model
+                        sharingView t user info model
 
                     SettingsView ->
-                        settingsView user model
-        , modalsView model
+                        settingsView t user model
+        , modalsView t model
         ]
 
-headerView : Model -> Html Msg
-headerView model =
+headerView : Translations -> Model -> Html Msg
+headerView t model =
+    let
+        menuItem label action =
+            button
+                [ onClick action
+                , style "display" "block"
+                , style "width" "100%"
+                , style "padding" "10px 12px"
+                , style "text-align" "left"
+                , style "background" "none"
+                , style "border" "none"
+                , style "cursor" "pointer"
+                ]
+                [ text label ]
+
+        topRow attrs children =
+            div ([ style "display" "flex", style "align-items" "center", style "gap" "12px" ] ++ attrs) children
+    in
     div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "border-bottom" "1px solid #ddd", style "padding-bottom" "10px", style "margin-bottom" "20px" ]
-        [ h1 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "#2c3e50") ] [ text "BeeLog 🐝" ]
-        , case model.authState of
+        [ case model.authState of
             LoggedIn user ->
-                div [ style "display" "flex", style "align-items" "center", style "gap" "10px" ]
-                    [ button [ onClick (NavigateTo SettingsView), style "padding" "6px 12px", style "background-color" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "⚙️ Ustawienia" ]
+                topRow []
+                    [ div [ style "position" "relative" ]
+                        [ button [ onClick ToggleMainMenu, attribute "aria-label" t.menu, attribute "aria-expanded" (if model.menuExpanded then "true" else "false"), attribute "aria-controls" "main-navigation", attribute "data-testid" "main-menu-toggle", style "padding" "8px 12px", style "font-size" "22px", style "cursor" "pointer" ] [ text (t.localize "☰") ]
+                        , if model.menuExpanded then
+                            nav [ id "main-navigation", attribute "aria-label" t.mainNavigation, style "position" "absolute", style "left" "0", style "top" "44px", style "z-index" "5", style "min-width" "220px", style "padding" "8px", style "background" (if model.darkMode then "#2d2d2d" else "white"), style "box-shadow" "0 2px 8px #0004", style "border-radius" "6px" ]
+                                ([ if model.enableQueenRearing then menuItem t.queenRearing (NavigateTo QueenRearingView) else text (t.localize "")
+                                 , if model.enableTrutowiska then menuItem t.matingApiaries (NavigateTo MatingApiariesView) else text (t.localize "")
+                                 , if model.enablePasieczyskaTowarowe then menuItem t.commercialApiaries (NavigateTo CommercialApiariesView) else text (t.localize "")
+                                 , menuItem t.settings (NavigateTo SettingsView)
+                                 , menuItem t.logout ClickLogout
+                                 ])
+                          else
+                            text (t.localize "")
+                        ]
                     , span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text user.email ]
-                    , button [ onClick ClickLogout, style "padding" "6px 12px", style "background-color" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Wyloguj się" ]
                     ]
+
             LoggedOut ->
-                text ""
+                h1 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "#2c3e50") ] [ text (t.localize "BeeLog 🐝") ]
         ]
 
-notificationsView : Model -> Html Msg
-notificationsView model =
+notificationsView : Translations -> Model -> Html Msg
+notificationsView t model =
     div []
         [ case model.errorMessage of
             Just err ->
                 div [ style "background-color" "#fadbd8", style "color" "#900c3f", style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "15px", style "display" "flex", style "justify-content" "space-between" ]
-                    [ span [] [ text err ]
-                    , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text "✕" ]
+                    [ span [] [ text (t.localize err) ]
+                    , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text (t.localize "✕") ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.successMessage of
             Just succ ->
                 div [ style "background-color" "#d4efdf", style "color" "#145a32", style "padding" "10px", style "border-radius" "4px", style "margin-bottom" "15px", style "display" "flex", style "justify-content" "space-between" ]
-                    [ span [] [ text succ ]
-                    , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text "✕" ]
+                    [ span [] [ text (t.localize succ) ]
+                    , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text (t.localize "✕") ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         ]
 
-loginView : Model -> Html Msg
-loginView model =
+loginView : Translations -> Model -> Html Msg
+loginView t model =
     let
         cardBg = if model.darkMode then "#1e1e1e" else "white"
         textColor = if model.darkMode then "#e0e0e0" else "#333333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
     in
     div [ style "text-align" "center", style "padding" "40px", style "background" cardBg, style "color" textColor, style "border-radius" "8px", style "box-shadow" "0 2px 4px rgba(0,0,0,0.1)" ]
-        [ h2 [ style "color" headingColor ] [ text "Witaj w BeeLog" ]
-        , p [ style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin-bottom" "30px" ] [ text "Zarządzaj pasieką, ulami i notatkami głosowymi w terenie." ]
-        , button [ onClick ClickLoginGoogle, style "padding" "12px 24px", style "background-color" "#4285F4", style "color" "white", style "border" "none", style "border-radius" "4px", style "font-size" "16px", style "cursor" "pointer" ] [ text "Zaloguj przez Google" ]
+        [ h2 [ style "color" headingColor ] [ text t.loginTitle ]
+        , p [ style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin-bottom" "30px" ] [ text t.loginDescription ]
+        , button [ onClick ClickLoginGoogle, style "padding" "12px 24px", style "background-color" "#4285F4", style "color" "white", style "border" "none", style "border-radius" "4px", style "font-size" "16px", style "cursor" "pointer" ] [ text t.loginButton ]
         ]
 
-sharingView : User -> { apiaryId : String, apiaryName : String } -> Model -> Html Msg
-sharingView user info model =
+sharingView : Translations -> User -> { apiaryId : String, apiaryName : String } -> Model -> Html Msg
+sharingView t user info model =
     let
         maybeApiary = List.head (List.filter (\a -> a.id == info.apiaryId) model.apiaries)
         cardBg = if model.darkMode then "#1e1e1e" else "white"
@@ -1375,49 +1711,49 @@ sharingView user info model =
         Just apiary ->
             div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
-                    [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "← Powrót" ]
-                    , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Udostępnianie pasieki: " ++ info.apiaryName) ]
+                    [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "← Powrót") ]
+                    , h2 [ style "margin" "0", style "color" headingColor ] [ text (t.localize "Udostępnianie pasieki: " ++ info.apiaryName) ]
                     ]
                 , div [ style "margin-bottom" "20px", style "padding" "15px", style "background" metaBg, style "border-radius" "6px" ]
-                    [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text "Identyfikator Pasiecznika (Właściciela)" ]
+                    [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text (t.localize "Identyfikator Pasiecznika (Właściciela)") ]
                     , div [ style "display" "flex", style "gap" "10px", style "align-items" "center" ]
                         [ input [ type_ "text", value user.uid, readonly True, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                        , button [ onClick (CopyUserId user.uid), style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "📋 Kopiuj ID" ]
+                        , button [ onClick (CopyUserId user.uid), style "padding" "8px 12px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "📋 Kopiuj ID") ]
                         ]
                     ]
                 , div [ style "margin-bottom" "20px" ]
-                    [ h3 [ style "color" headingColor ] [ text "Przyznaj dostęp nowemu użytkownikowi" ]
+                    [ h3 [ style "color" headingColor ] [ text (t.localize "Przyznaj dostęp nowemu użytkownikowi") ]
                     , div [ style "display" "flex", style "gap" "10px" ]
-                        [ input [ type_ "email", placeholder "Adres e-mail użytkownika", value model.shareEmailInput, onInput UpdateShareEmail, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                        [ input [ type_ "email", placeholder (t.localize "Adres e-mail użytkownika"), value model.shareEmailInput, onInput UpdateShareEmail, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , select [ value model.shareRoleInput, onInput UpdateShareRole, style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                            [ option [ value "edit" ] [ text "Edytor" ]
-                            , option [ value "view" ] [ text "Tylko podgląd" ]
+                            [ option [ value "edit" ] [ text (t.localize "Edytor") ]
+                            , option [ value "view" ] [ text (t.localize "Tylko podgląd") ]
                             ]
-                        , button [ onClick (SubmitShareApiary info.apiaryId model.shareEmailInput model.shareRoleInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Przyznaj dostęp" ]
+                        , button [ onClick (SubmitShareApiary info.apiaryId model.shareEmailInput model.shareRoleInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przyznaj dostęp") ]
                         ]
                     ]
-                , h3 [ style "color" headingColor ] [ text "Aktualni członkowie i uprawnienia" ]
+                , h3 [ style "color" headingColor ] [ text (t.localize "Aktualni członkowie i uprawnienia") ]
                 , ul [ style "list-style" "none", style "padding" "0" ]
-                    (List.map (memberItemView model info.apiaryId) apiary.members)
+                    (List.map (memberItemView t model info.apiaryId) apiary.members)
                 ]
         _ ->
-            div [] [ text "Ładowanie pasieki..." ]
+            div [] [ text (t.localize "Ładowanie pasieki...") ]
 
-memberItemView : Model -> String -> ( String, String ) -> Html Msg
-memberItemView model apiaryId ( email, role ) =
+memberItemView : Translations -> Model -> String -> ( String, String ) -> Html Msg
+memberItemView t model apiaryId ( email, role ) =
     let
         borderColor = if model.darkMode then "#333" else "#eee"
     in
     li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "10px", style "border-bottom" ("1px solid " ++ borderColor) ]
         [ span [] [ text (email ++ " (" ++ role ++ ")") ]
         , if role /= "owner" then
-            button [ onClick (SubmitRemoveMember apiaryId email), style "background" "#e74c3c", style "color" "white", style "border" "none", style "padding" "4px 8px", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Cofnij dostęp" ]
+            button [ onClick (SubmitRemoveMember apiaryId email), style "background" "#e74c3c", style "color" "white", style "border" "none", style "padding" "4px 8px", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Cofnij dostęp") ]
           else
-            span [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text "Właściciel (stały)" ]
+            span [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text (t.localize "Właściciel (stały)") ]
         ]
 
-modalsView : Model -> Html Msg
-modalsView model =
+modalsView : Translations -> Model -> Html Msg
+modalsView t model =
     let
         cardBg = if model.darkMode then "#1e1e1e" else "white"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
@@ -1425,209 +1761,210 @@ modalsView model =
         inputBg = if model.darkMode then "#2a2a2a" else "white"
         inputColor = if model.darkMode then "#e0e0e0" else "#333"
         inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
+        typeScoped = model.viewState == MatingApiariesView || model.viewState == CommercialApiariesView
     in
     div []
         [ if model.showNewApiaryModal then
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                 [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                    [ h3 [ style "color" headingColor ] [ text "Nowe Pasieczysko" ]
-                    , label [] [ text "Nazwa pasieczyska:" ]
-                    , input [ type_ "text", placeholder "Nazwa pasieczyska", value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , label [] [ text "Typ pasieczyska:" ]
-                    , select [ value (if model.enablePasieczyskaTowarowe && (model.newApiaryType == "towarowe" || not model.enableTrutowiska) then "towarowe" else "trutowisko"), onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
+                    [ h3 [ style "color" headingColor ] [ text (t.localize "Nowe Pasieczysko") ]
+                    , label [] [ text (t.localize "Nazwa pasieczyska:") ]
+                    , input [ type_ "text", placeholder (t.localize "Nazwa pasieczyska"), value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , if typeScoped then text (t.localize "") else label [] [ text (t.localize "Typ pasieczyska:") ]
+                    , if typeScoped then text (t.localize "") else select [ value (if model.enablePasieczyskaTowarowe && (model.newApiaryType == "towarowe" || not model.enableTrutowiska) then "towarowe" else "trutowisko"), onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                         ((if model.enablePasieczyskaTowarowe then
-                            [ option [ value "towarowe" ] [ text "Pasieczysko towarowe" ] ]
+                            [ option [ value "towarowe" ] [ text (t.localize "Pasieczysko towarowe") ] ]
                           else
                             []
                          )
                          ++ (if model.enableTrutowiska then
-                                [ option [ value "trutowisko" ] [ text "Trutowisko (uliki weselne)" ] ]
+                                [ option [ value "trutowisko" ] [ text (t.localize "Trutowisko (uliki weselne)") ] ]
                             else
                                 []
                             )
                         )
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                        , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                        [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                         ]
                     ]
                 ]
           else
-            text ""
+            text (t.localize "")
         , case model.showEditApiaryModal of
             Just apiary ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Edytuj Nazwę Pasieczyska" ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Edytuj Nazwę Pasieczyska") ]
                         , input [ type_ "text", value model.editApiaryNameInput, onInput UpdateEditApiaryNameInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick SubmitUpdateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            [ button [ onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick SubmitUpdateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.showDeleteApiaryModal of
             Just apiary ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Usuń Pasieczysko" ]
-                        , p [] [ text ("Czy na pewno chcesz usunąć pasieczysko \"" ++ apiary.name ++ "\" wraz ze wszystkimi ulami i notatkami?") ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń Pasieczysko") ]
+                        , p [] [ text (t.localize "Czy na pewno chcesz usunąć pasieczysko \"" ++ apiary.name ++ t.localize "\" wraz ze wszystkimi ulami i notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitDeleteApiary apiary.id), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            [ button [ onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitDeleteApiary apiary.id), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , if model.showNewHiveModal then
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center", style "z-index" "1000" ]
                 [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "450px", style "max-height" "90vh", style "overflow-y" "auto", style "color" textColor ]
-                    [ h3 [ style "color" headingColor ] [ text "Nowy Ul" ]
-                    , label [] [ text "Nazwa / Numer ula:" ]
-                    , input [ type_ "text", placeholder "np. Ul #04", value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , label [] [ text "Typ ula:" ]
+                    [ h3 [ style "color" headingColor ] [ text (t.localize "Nowy Ul") ]
+                    , label [] [ text (t.localize "Nazwa / Numer ula:") ]
+                    , input [ type_ "text", placeholder (t.localize "np. Ul #04"), value model.newHiveName, onInput UpdateNewHiveName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , label [] [ text (t.localize "Typ ula:") ]
                     , select [ value model.newHiveType, onInput UpdateNewHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                        [ option [ value "korpusowy", selected (model.newHiveType == "korpusowy") ] [ text "Ul korpusowy" ]
-                        , option [ value "lezak", selected (model.newHiveType == "lezak") ] [ text "Ul leżak" ]
-                        , option [ value "kombinowany", selected (model.newHiveType == "kombinowany") ] [ text "Ul kombinowany" ]
+                        [ option [ value "korpusowy", selected (model.newHiveType == "korpusowy") ] [ text (t.localize "Ul korpusowy") ]
+                        , option [ value "lezak", selected (model.newHiveType == "lezak") ] [ text (t.localize "Ul leżak") ]
+                        , option [ value "kombinowany", selected (model.newHiveType == "kombinowany") ] [ text (t.localize "Ul kombinowany") ]
                         ]
                     , if model.newHiveType == "korpusowy" then
                         div []
-                            [ label [] [ text "Typ ramki:" ]
+                            [ label [] [ text (t.localize "Typ ramki:") ]
                             , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveFrameType == ft) ] [ text ft ]) model.frameTypes)
                             ]
                       else if model.newHiveType == "lezak" then
                         div []
-                            [ label [] [ text "Typ ramki gniazdowej:" ]
+                            [ label [] [ text (t.localize "Typ ramki gniazdowej:") ]
                             , select [ value model.newHiveBroodFrameType, onInput UpdateNewHiveBroodFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveBroodFrameType == ft) ] [ text ft ]) model.frameTypes)
-                            , label [] [ text "Maksymalna liczba ramek w gnieździe:" ]
+                            , label [] [ text (t.localize "Maksymalna liczba ramek w gnieździe:") ]
                             , input [ type_ "number", value (String.fromInt model.newHiveMaxBroodFrames), onInput (\val -> UpdateNewHiveMaxBroodFrames (Maybe.withDefault 24 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                            , label [] [ text "Początkowa liczba ramek w gnieździe:" ]
+                            , label [] [ text (t.localize "Początkowa liczba ramek w gnieździe:") ]
                             , input [ type_ "number", value (String.fromInt model.newHiveBroodFrameCount), onInput (\val -> UpdateNewHiveBroodFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             , label [ style "margin-bottom" "10px", style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "font-weight" "bold" ]
                                 [ input [ type_ "checkbox", checked model.newHiveHasSuper, onCheck UpdateNewHiveHasSuper, id "newHiveHasSuperCheck" ] []
-                                , span [] [ text "Czy posiada nadstawkę?" ]
+                                , span [] [ text (t.localize "Czy posiada nadstawkę?") ]
                                 ]
                             , if model.newHiveHasSuper then
                                 div [ style "padding-left" "10px", style "border-left" "3px solid #3498db", style "margin-bottom" "15px" ]
-                                    [ label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
+                                    [ label [] [ text (t.localize "Typ ramki nadstawkowej (nadstawki):") ]
                                     , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                         (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
-                                    , label [] [ text "Maksymalna liczba ramek w nadstawce:" ]
+                                    , label [] [ text (t.localize "Maksymalna liczba ramek w nadstawce:") ]
                                     , input [ type_ "number", value (String.fromInt model.newHiveMaxSuperFrames), onInput (\val -> UpdateNewHiveMaxSuperFrames (Maybe.withDefault 18 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                                    , label [] [ text "Początkowa liczba ramek w nadstawce:" ]
+                                    , label [] [ text (t.localize "Początkowa liczba ramek w nadstawce:") ]
                                     , input [ type_ "number", value (String.fromInt model.newHiveSuperFrameCount), onInput (\val -> UpdateNewHiveSuperFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                     ]
                               else
-                                text ""
+                                text (t.localize "")
                             ]
                       else
                         div []
-                            [ label [] [ text "Typ ramki gniazdowej:" ]
+                            [ label [] [ text (t.localize "Typ ramki gniazdowej:") ]
                             , select [ value model.newHiveBroodFrameType, onInput UpdateNewHiveBroodFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveBroodFrameType == ft) ] [ text ft ]) model.frameTypes)
-                            , label [] [ text "Liczba ramek gniazdowych:" ]
+                            , label [] [ text (t.localize "Liczba ramek gniazdowych:") ]
                             , input [ type_ "number", value (String.fromInt model.newHiveBroodFrameCount), onInput (\val -> UpdateNewHiveBroodFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                            , label [] [ text "Typ ramki nadstawkowej (nadstawki):" ]
+                            , label [] [ text (t.localize "Typ ramki nadstawkowej (nadstawki):") ]
                             , select [ value model.newHiveSuperFrameType, onInput UpdateNewHiveSuperFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveSuperFrameType == ft) ] [ text ft ]) model.frameTypes)
-                            , label [] [ text "Początkowa liczba nadstawek:" ]
+                            , label [] [ text (t.localize "Początkowa liczba nadstawek:") ]
                             , input [ type_ "number", attribute "min" "0", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Basics.max 0 (Maybe.withDefault 0 (String.toInt val)))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                        [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             HiveListView info ->
-                                button [ onClick (SubmitCreateHive info.apiaryId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                                button [ onClick (SubmitCreateHive info.apiaryId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             _ ->
-                                text ""
+                                text (t.localize "")
                         ]
                     ]
                 ]
           else
-            text ""
+            text (t.localize "")
         , if model.showNewUlikModal then
             div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                 [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                    [ h3 [ style "color" headingColor ] [ text "Nowy Ulik Weselny" ]
-                    , label [] [ text "Nazwa / Numer uliku:" ]
-                    , input [ type_ "text", placeholder "np. Ulik #01", value model.newUlikName, onInput UpdateNewUlikName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , label [] [ text "Typ ula:" ]
+                    [ h3 [ style "color" headingColor ] [ text (t.localize "Nowy Ulik Weselny") ]
+                    , label [] [ text (t.localize "Nazwa / Numer uliku:") ]
+                    , input [ type_ "text", placeholder (t.localize "np. Ulik #01"), value model.newUlikName, onInput UpdateNewUlikName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                    , label [] [ text (t.localize "Typ ula:") ]
                     , select [ value model.newUlikHiveType, onInput UpdateNewUlikHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                         (List.map (\ut -> option [ value ut, selected (model.newUlikHiveType == ut) ] [ text ut ]) model.ulikTypes)
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                        [ button [ onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             UlikListView info ->
-                                button [ onClick (SubmitCreateUlik info.apiaryId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                                button [ onClick (SubmitCreateUlik info.apiaryId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             _ ->
-                                text ""
+                                text (t.localize "")
                         ]
                     ]
                 ]
           else
-            text ""
+            text (t.localize "")
         , case model.showRenameHiveModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Zmień nazwę ula" ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę ula") ]
                         , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            [ button [ onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.showDeleteHiveModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Usuń ul" ]
-                        , p [] [ text ("Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ "\" wraz ze wszystkimi notatkami?") ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ul") ]
+                        , p [] [ text (t.localize "Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            [ button [ onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ attribute "data-testid" "confirm-delete-hive", onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.showRenameUlikModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Zmień nazwę uliku" ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę uliku") ]
                         , input [ type_ "text", value model.renameUlikInput, onInput UpdateRenameUlikInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            [ button [ onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.showDeleteUlikModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text "Usuń ulik weselny" ]
-                        , p [] [ text ("Czy na pewno chcesz usunąć ulik \"" ++ info.ulikName ++ "\" wraz ze wszystkimi notatkami?") ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ulik weselny") ]
+                        , p [] [ text (t.localize "Czy na pewno chcesz usunąć ulik \"" ++ info.ulikName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Potwierdź usunięcie" ]
+                            [ button [ onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.showMoveUlikModal of
             Just info ->
                 let
@@ -1645,24 +1982,24 @@ modalsView model =
                 in
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center", style "z-index" "1000" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "max-width" "90%", style "color" textColor ]
-                        [ h3 [ style "color" headingColor ] [ text ("Przenieś ulik: " ++ info.ulikName) ]
-                        , p [] [ text "Wybierz docelowe trutowisko:" ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Przenieś ulik: " ++ info.ulikName) ]
+                        , p [] [ text (t.localize "Wybierz docelowe trutowisko:") ]
                         , if List.isEmpty otherTrutowiska then
-                            p [ style "color" "#e74c3c" ] [ text "Brak innych trutowisk do wyboru." ]
+                            p [ style "color" "#e74c3c" ] [ text (t.localize "Brak innych trutowisk do wyboru.") ]
                           else
                             select [ onInput SelectMoveUlikTargetApiary, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\a -> option [ value a.id, selected (targetId == a.id) ] [ text a.name ]) otherTrutowiska)
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
+                            [ button [ onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                             , if not (List.isEmpty otherTrutowiska) then
-                                button [ onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Przenieś" ]
+                                button [ onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przenieś") ]
                               else
-                                text ""
+                                text (t.localize "")
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         , case model.activeUlikModal of
             Just info ->
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
@@ -1676,47 +2013,47 @@ modalsView model =
                             ]
                         , if info.modalType == ModalPoddajMatecznik || info.modalType == ModalPoddajMatkeNieunasiennioną then
                             div []
-                                [ label [] [ text "Rasa i linia matki:" ]
+                                [ label [] [ text (t.localize "Rasa i linia matki:") ]
                                 , select [ onInput UpdateModalBreedLine, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                     (List.map (\bl -> option [ value bl, selected (model.modalBreedLine == bl) ] [ text bl ]) model.breedLines)
-                                , label [] [ text "Spodziewany termin wygryzienia:" ]
+                                , label [] [ text (t.localize "Spodziewany termin wygryzienia:") ]
                                 , input [ type_ "date", value model.modalHatchDate, onInput UpdateModalHatchDate, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                 ]
                           else
-                            text ""
+                            text (t.localize "")
                         , if info.modalType == ModalPoddajMatkeNieunasiennioną then
                             div []
-                                [ label [] [ text "Czy opalitkowana?" ]
+                                [ label [] [ text (t.localize "Czy opalitkowana?") ]
                                 , select [ onInput UpdateModalIsOpalitkovana, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                                    [ option [ value "Nie", selected (model.modalIsOpalitkovana == "Nie") ] [ text "Nie" ]
-                                    , option [ value "Tak", selected (model.modalIsOpalitkovana == "Tak") ] [ text "Tak" ]
+                                    [ option [ value "Nie", selected (model.modalIsOpalitkovana == "Nie") ] [ text (t.localize "Nie") ]
+                                    , option [ value "Tak", selected (model.modalIsOpalitkovana == "Tak") ] [ text (t.localize "Tak") ]
                                     ]
                                 ]
                           else
-                            text ""
+                            text (t.localize "")
                         , if info.modalType == ModalZaopalitkuj || (info.modalType == ModalPoddajMatkeNieunasiennioną && model.modalIsOpalitkovana == "Tak") then
                             div []
-                                [ label [] [ text "Kolor Opalitka:" ]
+                                [ label [] [ text (t.localize "Kolor Opalitka:") ]
                                 , select [ onInput UpdateModalOpalitColor, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                                    [ option [ value "Biały", selected (model.modalOpalitColor == "Biały") ] [ text "Biały" ]
-                                    , option [ value "Żółty", selected (model.modalOpalitColor == "Żółty") ] [ text "Żółty" ]
-                                    , option [ value "Czerwony", selected (model.modalOpalitColor == "Czerwony") ] [ text "Czerwony" ]
-                                    , option [ value "Zielony", selected (model.modalOpalitColor == "Zielony") ] [ text "Zielony" ]
-                                    , option [ value "Niebieski", selected (model.modalOpalitColor == "Niebieski") ] [ text "Niebieski" ]
+                                    [ option [ value "Biały", selected (model.modalOpalitColor == "Biały") ] [ text (t.localize "Biały") ]
+                                    , option [ value "Żółty", selected (model.modalOpalitColor == "Żółty") ] [ text (t.localize "Żółty") ]
+                                    , option [ value "Czerwony", selected (model.modalOpalitColor == "Czerwony") ] [ text (t.localize "Czerwony") ]
+                                    , option [ value "Zielony", selected (model.modalOpalitColor == "Zielony") ] [ text (t.localize "Zielony") ]
+                                    , option [ value "Niebieski", selected (model.modalOpalitColor == "Niebieski") ] [ text (t.localize "Niebieski") ]
                                     ]
-                                , label [] [ text "Numer Opalitka:" ]
-                                , input [ type_ "text", placeholder "np. 42", value model.modalOpalitNumber, onInput UpdateModalOpalitNumber, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
+                                , label [] [ text (t.localize "Numer Opalitka:") ]
+                                , input [ type_ "text", placeholder (t.localize "np. 42"), value model.modalOpalitNumber, onInput UpdateModalOpalitNumber, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                 ]
                           else
-                            text ""
+                            text (t.localize "")
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Anuluj" ]
-                            , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text "Zapisz" ]
+                            [ button [ onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
             Nothing ->
-                text ""
+                text (t.localize "")
         ]
 
 moveUp : String -> List { r | id : String } -> List { r | id : String }

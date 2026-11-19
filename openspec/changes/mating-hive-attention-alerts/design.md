@@ -17,7 +17,9 @@ The mating-apiary list is rendered by `Views.Trutowisko.ulikListView`; each row 
 
 ## Decisions
 
-- Use a small pure helper in `Views.Trutowisko` that returns an optional Polish reason. `bezmatek` always returns a reason; `z_matecznikiem` compares `expectedHatchDate` with `model.currentDate`; `matka_wygryziona` compares `expectedMatingDate` with `model.currentDate`. Other states do not alert.
+- Use a small pure helper in `Views.Trutowisko` that returns a **list** of Polish reasons (`attentionReasons`). `bezmatek` always returns a reason; `z_matecznikiem` compares `expectedHatchDate` with `model.currentDate`; `matka_wygryziona` compares `expectedMatingDate` with `model.currentDate`. Both `z_matecznikiem` and `matka_wygryziona` also check whether more than 30 days have passed since `expectedHatchDate` (the 30-day insemination deadline); if so, an additional reason is appended. Other states do not alert.
+- When more than one reason is present, all reasons are joined with " / " and shown together in the `title` and `aria-label` of the single exclamation mark button. The button is only rendered when the list is non-empty.
+- Keep the backwards-compatible `attentionReason` (returning `Maybe String`) as a thin wrapper over `attentionReasons` for existing call sites and legacy tests.
 - Treat a date as overdue only when it is strictly earlier than today's date. Compare parsed calendar dates, not timestamps, so a due date remains valid through that day. If either date is missing or cannot be parsed, do not infer an overdue alert.
 - Use a semantic, focusable element with `title` and an accessible label for the red `!`. Place it in a flex header on the right side of each card so it does not overlap the hive name. Prevent its interaction from triggering card navigation if the element needs pointer handling.
 

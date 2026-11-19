@@ -120,7 +120,38 @@ suite =
                     Expect.equal "2026-11-11" (addDaysToDateString 10 "2026-11-01")
             ]
         , describe "User Settings Decoder"
-            [ test "decodes user settings with hatchingToMatingDays" <|
+            [ test "legacy settings default queen rearing off and schedule values" <|
+                \() ->
+                    let
+                        json = "{\"frameTypes\": [\"Dadant\"]}"
+                    in
+                    case Decode.decodeString decodeUserSettings json of
+                        Ok settings ->
+                            Expect.all
+                                [ \s -> Expect.equal False s.enableQueenRearing
+                                , \s -> Expect.equal 24 s.defaultGraftCount
+                                , \s -> Expect.equal 2 s.starterDurationDays
+                                , \s -> Expect.equal 10 s.isolationDay
+                                , \s -> Expect.equal 11 s.emergenceDay
+                                , \s -> Expect.equal True s.enableTrutowiska
+                                , \s -> Expect.equal True s.enablePasieczyskaTowarowe
+                                ]
+                                settings
+                        Err err ->
+                            Expect.fail (Decode.errorToString err)
+            , test "queen rearing setting decodes independently" <|
+                \() ->
+                    case Decode.decodeString decodeUserSettings "{\"frameTypes\": [], \"enableQueenRearing\": true, \"enableTrutowiska\": false}" of
+                        Ok settings ->
+                            Expect.all
+                                [ \s -> Expect.equal True s.enableQueenRearing
+                                , \s -> Expect.equal False s.enableTrutowiska
+                                , \s -> Expect.equal True s.enablePasieczyskaTowarowe
+                                ]
+                                settings
+                        Err err ->
+                            Expect.fail (Decode.errorToString err)
+            , test "decodes user settings with hatchingToMatingDays" <|
                 \() ->
                     let
                         json = "{\"frameTypes\": [\"Dadant\"], \"ulikTypes\": [\"Apidea\"], \"breedLines\": [\"car. Galicja\"], \"darkMode\": true, \"hatchingToMatingDays\": 15}"

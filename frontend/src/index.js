@@ -1,14 +1,15 @@
 import { Elm } from './Main.elm';
-import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot } from '../../src/firebase.js';
+import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function getE2EState() {
-    let state = { apiaries: [], hives: {}, notes: {} };
+    let state = { apiaries: [], hives: {}, notes: {}, queenRearing: { breederQueens: [], starterColonies: [], finisherColonies: [], rearingBatches: [], sequences: {} } };
     if (window.__E2E__) {
         const saved = localStorage.getItem('__E2E_STATE__');
         if (saved) {
             try {
                 state = JSON.parse(saved);
+                state.queenRearing = { breederQueens: [], starterColonies: [], finisherColonies: [], rearingBatches: [], sequences: {}, ...(state.queenRearing || {}) };
                 if (state.apiaries) {
                     state.apiaries = normalizeApiariesForE2E(state.apiaries);
                 }
@@ -44,16 +45,69 @@ function saveE2EState(state) {
 }
 
 const savedDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
+const savedLanguage = localStorage.getItem('beelog_language') === 'en' ? 'en' : 'pl';
 const initialHash = window.location.hash || "";
 const app = Elm.Main.init({
     node: document.getElementById('app'),
-    flags: { darkMode: savedDarkMode, initialHash: initialHash }
+    flags: { darkMode: savedDarkMode, language: savedLanguage, initialHash: initialHash }
 });
 window.app = app;
+
+function sendQueenRearingState(data) {
+    if (app.ports.queenRearingReceived) {
+        const rearingBatches = (data.rearingBatches || []).map(batch => ({ ...batch, deadlineEpoch: computeBatchDeadline(batch) }));
+        app.ports.queenRearingReceived.send({ ...data, rearingBatches });
+    }
+}
+
+function localDateTimeToDate(localDateTime, timeZone) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(localDateTime || '');
+    if (!match) throw new Error('Enter a valid local graft date and time.');
+    const [, year, month, day, hour, minute] = match.map(Number);
+    const wanted = Date.UTC(year, month - 1, day, hour, minute);
+    let result = wanted;
+    for (let i = 0; i < 4; i += 1) {
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(result));
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        const represented = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), Number(values.hour), Number(values.minute));
+        const adjustment = wanted - represented;
+        result += adjustment;
+        if (adjustment === 0) break;
+    }
+    return new Date(result);
+}
+
+function dateToLocalDateTime(date, timeZone) {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timeZone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+}
+
+function normalizeRearingBatch(batch) {
+    const zone = batch.timeZone || 'UTC';
+    const normalized = { ...batch };
+    for (const key of ['graftedAt', 'starterTransferAt', 'isolationAt', 'emergenceAt']) {
+        if (normalized[key] && typeof normalized[key].toDate === 'function') normalized[key] = dateToLocalDateTime(normalized[key].toDate(), zone);
+    }
+    return normalized;
+}
+
+function computeBatchDeadline(batch) {
+    const field = batch.status === 'W_STARTERZE' ? 'starterTransferAt' : batch.status === 'W_FINISHERZE' ? 'isolationAt' : batch.status === 'W_CIEPLARCE' ? 'emergenceAt' : null;
+    if (!field || !batch[field]) return null;
+    const date = typeof batch[field].toDate === 'function'
+        ? batch[field].toDate()
+        : localDateTimeToDate(batch[field], batch.timeZone || 'UTC');
+    return Number.isFinite(date.getTime()) ? date.getTime() : null;
+}
 
 const todayStr = new Date().toISOString().split('T')[0];
 if (app.ports.todayReceived) {
     app.ports.todayReceived.send(todayStr);
+}
+if (app.ports.currentEpochReceived) {
+    app.ports.currentEpochReceived.send(Date.now());
+    window.setInterval(() => app.ports.currentEpochReceived.send(Date.now()), 60000);
 }
 
 // Auth state observer
@@ -91,6 +145,7 @@ app.ports.jsLogout.subscribe(async () => {
 
 app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
     let currentDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
+    let currentLanguage = localStorage.getItem('beelog_language') === 'en' ? 'en' : 'pl';
     const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
     const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
@@ -98,6 +153,11 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
     const defaultMaxUlikHistoryLimit = 40;
     const defaultEnableTrutowiska = true;
     const defaultEnablePasieczyskaTowarowe = true;
+    const defaultEnableQueenRearing = false;
+    const defaultGraftCount = 24;
+    const defaultStarterDurationDays = 2;
+    const defaultIsolationDay = 10;
+    const defaultEmergenceDay = 11;
     if (window.__E2E__) {
         const state = getE2EState();
         const settings = state.userSettings || {
@@ -105,12 +165,17 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             ulikTypes: defaultUlikTypes,
             breedLines: defaultBreedLines,
             darkMode: currentDarkMode,
+            language: currentLanguage,
             hatchingToMatingDays: defaultHatchingToMatingDays,
             maxUlikHistoryLimit: defaultMaxUlikHistoryLimit,
             enableTrutowiska: defaultEnableTrutowiska,
             enablePasieczyskaTowarowe: defaultEnablePasieczyskaTowarowe
+            , enableQueenRearing: defaultEnableQueenRearing
+            , defaultGraftCount, starterDurationDays: defaultStarterDurationDays
+            , isolationDay: defaultIsolationDay, emergenceDay: defaultEmergenceDay
         };
         localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
+        localStorage.setItem('beelog_language', settings.language === 'en' ? 'en' : 'pl');
         app.ports.userSettingsReceived.send(settings);
         return;
     }
@@ -124,6 +189,12 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
         let maxUlikHistoryLimitVal = defaultMaxUlikHistoryLimit;
         let enableTrutowiskaVal = defaultEnableTrutowiska;
         let enablePasieczyskaTowaroweVal = defaultEnablePasieczyskaTowarowe;
+        let enableQueenRearingVal = defaultEnableQueenRearing;
+        let defaultGraftCountVal = defaultGraftCount;
+        let starterDurationDaysVal = defaultStarterDurationDays;
+        let isolationDayVal = defaultIsolationDay;
+        let emergenceDayVal = defaultEmergenceDay;
+        let languageVal = currentLanguage;
         const emailToSave = email || (auth.currentUser ? auth.currentUser.email : "");
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -134,6 +205,20 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             if (data.maxUlikHistoryLimit !== undefined) maxUlikHistoryLimitVal = data.maxUlikHistoryLimit;
             if (data.enableTrutowiska !== undefined) enableTrutowiskaVal = data.enableTrutowiska;
             if (data.enablePasieczyskaTowarowe !== undefined) enablePasieczyskaTowaroweVal = data.enablePasieczyskaTowarowe;
+            if (data.enableQueenRearing !== undefined) enableQueenRearingVal = data.enableQueenRearing;
+            if (data.defaultGraftCount !== undefined) defaultGraftCountVal = data.defaultGraftCount;
+            if (data.starterDurationDays !== undefined) starterDurationDaysVal = data.starterDurationDays;
+            if (data.isolationDay !== undefined) isolationDayVal = data.isolationDay;
+            if (data.emergenceDay !== undefined) emergenceDayVal = data.emergenceDay;
+            if (data.language === 'en' || data.language === 'pl') languageVal = data.language;
+            const missingQueenDefaults = {};
+            if (data.enableQueenRearing === undefined) missingQueenDefaults.enableQueenRearing = defaultEnableQueenRearing;
+            if (data.defaultGraftCount === undefined) missingQueenDefaults.defaultGraftCount = defaultGraftCount;
+            if (data.starterDurationDays === undefined) missingQueenDefaults.starterDurationDays = defaultStarterDurationDays;
+            if (data.isolationDay === undefined) missingQueenDefaults.isolationDay = defaultIsolationDay;
+            if (data.emergenceDay === undefined) missingQueenDefaults.emergenceDay = defaultEmergenceDay;
+            if (Object.keys(missingQueenDefaults).length) await setDoc(docRef, missingQueenDefaults, { merge: true });
+            if (data.language === undefined) await setDoc(docRef, { language: languageVal }, { merge: true });
             if (data.darkMode !== undefined) {
                 currentDarkMode = data.darkMode;
             } else {
@@ -143,19 +228,21 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
                 await setDoc(docRef, { email: emailToSave }, { merge: true });
             }
         } else {
-            await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal });
+            await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, language: languageVal, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal, enableQueenRearing: defaultEnableQueenRearing, defaultGraftCount, starterDurationDays: defaultStarterDurationDays, isolationDay: defaultIsolationDay, emergenceDay: defaultEmergenceDay });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
-        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal });
+        localStorage.setItem('beelog_language', languageVal);
+        app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, language: languageVal, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal, enableQueenRearing: enableQueenRearingVal, defaultGraftCount: defaultGraftCountVal, starterDurationDays: starterDurationDaysVal, isolationDay: isolationDayVal, emergenceDay: emergenceDayVal });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, hatchingToMatingDays, maxUlikHistoryLimit, enableTrutowiska, enablePasieczyskaTowarowe }) => {
+app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, language, hatchingToMatingDays, maxUlikHistoryLimit, enableTrutowiska, enablePasieczyskaTowarowe, enableQueenRearing, defaultGraftCount, starterDurationDays, isolationDay, emergenceDay }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
     }
+    if (language !== undefined) localStorage.setItem('beelog_language', language === 'en' ? 'en' : 'pl');
     const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];
     const defaultUlikTypes = ["Mini plus", "Odkład wielkopolski", "Apidea"];
     const defaultBreedLines = ["car. Galicja", "cau. M", "cau. KP", "cau. Woźnica", "car. Słowenka"];
@@ -170,10 +257,16 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
             ulikTypes: ulikTypes !== undefined ? ulikTypes : (state.userSettings ? state.userSettings.ulikTypes : defaultUlikTypes),
             breedLines: breedLines !== undefined ? breedLines : (state.userSettings ? state.userSettings.breedLines : defaultBreedLines),
             darkMode: darkMode !== undefined ? darkMode : (state.userSettings ? state.userSettings.darkMode : false),
+            language: language !== undefined ? language : (state.userSettings ? (state.userSettings.language || 'pl') : 'pl'),
             hatchingToMatingDays: hatchingToMatingDays !== undefined ? hatchingToMatingDays : (state.userSettings ? state.userSettings.hatchingToMatingDays : defaultHatchingToMatingDays),
             maxUlikHistoryLimit: maxUlikHistoryLimit !== undefined ? maxUlikHistoryLimit : (state.userSettings ? state.userSettings.maxUlikHistoryLimit : defaultMaxUlikHistoryLimit),
             enableTrutowiska: enableTrutowiska !== undefined ? enableTrutowiska : (state.userSettings ? state.userSettings.enableTrutowiska : defaultEnableTrutowiska),
             enablePasieczyskaTowarowe: enablePasieczyskaTowarowe !== undefined ? enablePasieczyskaTowarowe : (state.userSettings ? state.userSettings.enablePasieczyskaTowarowe : defaultEnablePasieczyskaTowarowe)
+            , enableQueenRearing: enableQueenRearing !== undefined ? enableQueenRearing : (state.userSettings ? state.userSettings.enableQueenRearing : false)
+            , defaultGraftCount: defaultGraftCount ?? (state.userSettings?.defaultGraftCount ?? 24)
+            , starterDurationDays: starterDurationDays ?? (state.userSettings?.starterDurationDays ?? 2)
+            , isolationDay: isolationDay ?? (state.userSettings?.isolationDay ?? 10)
+            , emergenceDay: emergenceDay ?? (state.userSettings?.emergenceDay ?? 11)
         };
         saveE2EState(state);
         return;
@@ -187,11 +280,283 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
         if (ulikTypes !== undefined) dataToSave.ulikTypes = ulikTypes;
         if (breedLines !== undefined) dataToSave.breedLines = breedLines;
         if (darkMode !== undefined) dataToSave.darkMode = darkMode;
+        if (language !== undefined) dataToSave.language = language === 'en' ? 'en' : 'pl';
         if (hatchingToMatingDays !== undefined) dataToSave.hatchingToMatingDays = hatchingToMatingDays;
         if (maxUlikHistoryLimit !== undefined) dataToSave.maxUlikHistoryLimit = maxUlikHistoryLimit;
         if (enableTrutowiska !== undefined) dataToSave.enableTrutowiska = enableTrutowiska;
         if (enablePasieczyskaTowarowe !== undefined) dataToSave.enablePasieczyskaTowarowe = enablePasieczyskaTowarowe;
+        if (enableQueenRearing !== undefined) dataToSave.enableQueenRearing = enableQueenRearing;
+        if (defaultGraftCount !== undefined) dataToSave.defaultGraftCount = defaultGraftCount;
+        if (starterDurationDays !== undefined) dataToSave.starterDurationDays = starterDurationDays;
+        if (isolationDay !== undefined) dataToSave.isolationDay = isolationDay;
+        if (emergenceDay !== undefined) dataToSave.emergenceDay = emergenceDay;
         await setDoc(docRef, dataToSave, { merge: true });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+const queenCollections = ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches'];
+const newLocalId = () => `qr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+app.ports.jsLoadQueenRearing?.subscribe(async (uid) => {
+    if (window.__E2E__) {
+        const state = getE2EState();
+        sendQueenRearingState(state.queenRearing);
+        return;
+    }
+    try {
+        const data = {};
+        await Promise.all(queenCollections.map(async (name) => {
+            const snapshot = await getDocs(collection(db, 'users', uid, name));
+            data[name] = snapshot.docs.map(item => {
+                const record = { id: item.id, ...item.data() };
+                return name === 'rearingBatches' ? normalizeRearingBatch(record) : record;
+            });
+        }));
+        sendQueenRearingState(data);
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsCreateQueenResource?.subscribe(async ({ uid, kind, fields }) => {
+    if (!queenCollections.slice(0, 3).includes(kind)) return;
+    const id = newLocalId();
+    const record = { ...fields, id };
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            state.queenRearing[kind] = [...(state.queenRearing[kind] || []), record];
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await setDoc(doc(db, 'users', uid, kind, id), record);
+        app.ports.successMessageReceived.send('Queen-rearing resource saved.');
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsUpdateQueenResource?.subscribe(async ({ uid, kind, id, fields }) => {
+    if (!queenCollections.slice(0, 3).includes(kind)) return;
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            state.queenRearing[kind] = (state.queenRearing[kind] || []).map(item => item.id === id ? { ...item, ...fields } : item);
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await updateDoc(doc(db, 'users', uid, kind, id), fields);
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteQueenResource?.subscribe(async ({ uid, kind, id }) => {
+    if (!queenCollections.slice(0, 3).includes(kind)) return;
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            const resource = (state.queenRearing[kind] || []).find(item => item.id === id);
+            if (resource?.activeBatchId) throw new Error('This colony is reserved by an active batch.');
+            if (kind === 'breederQueens' && state.queenRearing.rearingBatches.some(batch => batch.breederQueenId === id)) throw new Error('A breeder queen referenced by a batch cannot be deleted. Retire it instead.');
+            state.queenRearing[kind] = (state.queenRearing[kind] || []).filter(item => item.id !== id);
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await runTransaction(db, async (transaction) => {
+            const resourceRef = doc(db, 'users', uid, kind, id);
+            const resourceQuery = kind === 'breederQueens' ? query(collection(db, 'users', uid, 'rearingBatches'), where('breederQueenId', '==', id)) : null;
+            const [resource, batches] = await Promise.all([transaction.get(resourceRef), resourceQuery ? transaction.get(resourceQuery) : Promise.resolve(null)]);
+            if (!resource.exists()) return;
+            if (resource.data().activeBatchId) throw new Error('This colony is reserved by an active batch.');
+            if (batches && !batches.empty) throw new Error('A breeder queen referenced by a batch cannot be deleted. Retire it instead.');
+            transaction.delete(resourceRef);
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsCreatePlannedRearingBatch?.subscribe(async ({ uid, year, fields }) => {
+    const batchId = newLocalId();
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            const queen = state.queenRearing.breederQueens.find(item => item.id === fields.breederQueenId && item.active !== false);
+            if (!queen) throw new Error('Select an active breeder queen.');
+            const nextNumber = (state.queenRearing.sequences[year] || 0) + 1;
+            state.queenRearing.sequences[year] = nextNumber;
+            state.queenRearing.rearingBatches.push({ ...fields, id: batchId, number: `${year}/${String(nextNumber).padStart(2, '0')}`, status: 'ZAPLANOWANA' });
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await runTransaction(db, async (transaction) => {
+            const sequenceRef = doc(db, 'users', uid, 'rearingSequences', String(year));
+            const breederRef = doc(db, 'users', uid, 'breederQueens', fields.breederQueenId);
+            const [sequence, breeder] = await Promise.all([transaction.get(sequenceRef), transaction.get(breederRef)]);
+            if (!breeder.exists() || breeder.data().active === false) throw new Error('Select an active breeder queen.');
+            const nextNumber = (sequence.exists() ? sequence.data().lastNumber || 0 : 0) + 1;
+            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            transaction.set(sequenceRef, { lastNumber: nextNumber, year });
+            transaction.set(batchRef, { ...fields, id: batchId, number: `${year}/${String(nextNumber).padStart(2, '0')}`, status: 'ZAPLANOWANA' });
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsStartRearingBatch?.subscribe(async ({ uid, batchId, starterId, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, schedule }) => {
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            const batch = state.queenRearing.rearingBatches.find(item => item.id === batchId);
+            const starter = state.queenRearing.starterColonies.find(item => item.id === starterId);
+            if (!batch || batch.status !== 'ZAPLANOWANA' || !starter || starter.availability !== 'PUSTY' || starter.activeBatchId) throw new Error('Batch or starter is unavailable.');
+            Object.assign(batch, { status: 'W_STARTERZE', starterColonyId: starterId, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, ...schedule });
+            Object.assign(starter, { availability: 'ZAJETY', activeBatchId: batchId });
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        const graftDate = localDateTimeToDate(graftedAt, timeZone);
+        const timestamps = Object.fromEntries(Object.entries(schedule).map(([key, value]) => [key, Timestamp.fromDate(localDateTimeToDate(value, timeZone))]));
+        await runTransaction(db, async (transaction) => {
+            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            const starterRef = doc(db, 'users', uid, 'starterColonies', starterId);
+            const [batch, starter] = await Promise.all([transaction.get(batchRef), transaction.get(starterRef)]);
+            if (!batch.exists() || batch.data().status !== 'ZAPLANOWANA') throw new Error('Only a planned batch can be started.');
+            if (!starter.exists() || starter.data().availability !== 'PUSTY' || starter.data().activeBatchId) throw new Error('The selected starter is already reserved.');
+            transaction.update(batchRef, { status: 'W_STARTERZE', starterColonyId: starterId, graftedAt: Timestamp.fromDate(graftDate), timeZone, starterDurationDays, isolationDay, emergenceDay, ...timestamps });
+            transaction.update(starterRef, { availability: 'ZAJETY', activeBatchId: batchId });
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsTransitionRearingBatch?.subscribe(async ({ uid, batchId, action, colonyId, count, incubatorBar }) => {
+    const stages = { starter: 'starterColonies', finisher: 'finisherColonies' };
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            const batch = state.queenRearing.rearingBatches.find(item => item.id === batchId);
+            if (!batch) throw new Error('Batch not found.');
+            const release = (kind, increment) => {
+                if (!batch[`${kind}ColonyId`]) return;
+                const colony = state.queenRearing[stages[kind]].find(item => item.id === batch[`${kind}ColonyId`]);
+                if (colony) Object.assign(colony, { availability: 'PUSTY', activeBatchId: null, completedSeries: (colony.completedSeries || 0) + (increment ? 1 : 0) });
+            };
+            if (action === 'toFinisher') {
+                if (batch.status !== 'W_STARTERZE' || !Number.isInteger(count) || count < 1 || count > batch.graftCount) throw new Error('Accepted cell count must be between 1 and the graft count.');
+                const finisher = state.queenRearing.finisherColonies.find(item => item.id === colonyId);
+                if (!finisher || finisher.availability === 'ZAJETY') throw new Error('The selected finisher is already reserved.');
+                release('starter', true);
+                Object.assign(finisher, { availability: 'ZAJETY', activeBatchId: batchId });
+                Object.assign(batch, { status: 'W_FINISHERZE', acceptedCount: count, finisherColonyId: colonyId });
+            } else if (action === 'zeroComplete') {
+                if (batch.status !== 'W_STARTERZE' || count !== 0) throw new Error('Only a zero-acceptance starter batch can complete this way.');
+                release('starter', true);
+                Object.assign(batch, { status: 'ZAKONCZONA', acceptedCount: 0 });
+            } else if (action === 'toIncubator') {
+                if (batch.status !== 'W_FINISHERZE' || !batch.acceptedCount || !incubatorBar?.trim()) throw new Error('Enter an incubator bar number for an accepted batch.');
+                release('finisher', true);
+                Object.assign(batch, { status: 'W_CIEPLARCE', incubatorBar, finisherColonyId: null });
+            } else if (action === 'completeDirect' || action === 'completeIncubator') {
+                const maxCount = batch.acceptedCount;
+                if (!['W_FINISHERZE', 'W_CIEPLARCE'].includes(batch.status) || !Number.isInteger(count) || count < 0 || count > maxCount) throw new Error('Emergence count is outside the accepted count.');
+                if (action === 'completeDirect') release('finisher', true);
+                Object.assign(batch, { status: 'ZAKONCZONA', emergedCount: count, incubatorBar: action === 'completeDirect' ? null : batch.incubatorBar });
+            } else {
+                throw new Error('Unsupported batch transition.');
+            }
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await runTransaction(db, async (transaction) => {
+            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            const batchSnap = await transaction.get(batchRef);
+            if (!batchSnap.exists()) throw new Error('Batch not found.');
+            const batch = batchSnap.data();
+            const resourceIds = [batch.starterColonyId, batch.finisherColonyId, action === 'toFinisher' ? colonyId : null].filter(Boolean);
+            const resourceRefs = resourceIds.map(id => doc(db, 'users', uid, id === colonyId && action === 'toFinisher' ? 'finisherColonies' : (batch.finisherColonyId === id ? 'finisherColonies' : 'starterColonies'), id));
+            const resources = await Promise.all(resourceRefs.map(ref => transaction.get(ref)));
+            const byId = new Map(resources.map((item, index) => [resourceIds[index], { ref: resourceRefs[index], snap: item }]));
+            const release = (kind, increment) => {
+                const id = batch[`${kind}ColonyId`];
+                if (!id) return;
+                const resource = byId.get(id);
+                if (!resource || !resource.snap.exists() || resource.snap.data().activeBatchId !== batchId) throw new Error('Batch resource reservation is inconsistent.');
+                transaction.update(resource.ref, { availability: 'PUSTY', activeBatchId: null, completedSeries: (resource.snap.data().completedSeries || 0) + (increment ? 1 : 0) });
+            };
+            if (action === 'toFinisher') {
+                if (batch.status !== 'W_STARTERZE' || !Number.isInteger(count) || count < 1 || count > batch.graftCount) throw new Error('Accepted cell count must be between 1 and the graft count.');
+                const finisher = byId.get(colonyId);
+                if (!finisher || !finisher.snap.exists() || finisher.snap.data().availability === 'ZAJETY' || finisher.snap.data().activeBatchId) throw new Error('The selected finisher is already reserved.');
+                release('starter', true);
+                transaction.update(finisher.ref, { availability: 'ZAJETY', activeBatchId: batchId });
+                transaction.update(batchRef, { status: 'W_FINISHERZE', acceptedCount: count, finisherColonyId: colonyId });
+            } else if (action === 'zeroComplete') {
+                if (batch.status !== 'W_STARTERZE' || count !== 0) throw new Error('Only a zero-acceptance starter batch can complete this way.');
+                release('starter', true);
+                transaction.update(batchRef, { status: 'ZAKONCZONA', acceptedCount: 0 });
+            } else if (action === 'toIncubator') {
+                if (batch.status !== 'W_FINISHERZE' || !batch.acceptedCount || !incubatorBar?.trim()) throw new Error('Enter an incubator bar number for an accepted batch.');
+                release('finisher', true);
+                transaction.update(batchRef, { status: 'W_CIEPLARCE', incubatorBar, finisherColonyId: null });
+            } else if (action === 'completeDirect' || action === 'completeIncubator') {
+                const maxCount = batch.acceptedCount;
+                if (!['W_FINISHERZE', 'W_CIEPLARCE'].includes(batch.status) || !Number.isInteger(count) || count < 0 || count > maxCount) throw new Error('Emergence count is outside the accepted count.');
+                if (action === 'completeDirect') release('finisher', true);
+                transaction.update(batchRef, { status: 'ZAKONCZONA', emergedCount: count, incubatorBar: action === 'completeDirect' ? null : batch.incubatorBar });
+            } else {
+                throw new Error('Unsupported batch transition.');
+            }
+        });
+    } catch (error) {
+        app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteRearingBatch?.subscribe(async ({ uid, batchId }) => {
+    try {
+        if (window.__E2E__) {
+            const state = getE2EState();
+            const batch = state.queenRearing.rearingBatches.find(item => item.id === batchId);
+            if (batch?.starterColonyId) {
+                const starter = state.queenRearing.starterColonies.find(item => item.id === batch.starterColonyId);
+                if (starter?.activeBatchId === batchId) Object.assign(starter, { availability: 'PUSTY', activeBatchId: null });
+            }
+            if (batch?.finisherColonyId) {
+                const finisher = state.queenRearing.finisherColonies.find(item => item.id === batch.finisherColonyId);
+                if (finisher?.activeBatchId === batchId) Object.assign(finisher, { availability: 'PUSTY', activeBatchId: null });
+            }
+            state.queenRearing.rearingBatches = state.queenRearing.rearingBatches.filter(item => item.id !== batchId);
+            saveE2EState(state);
+            sendQueenRearingState(state.queenRearing);
+            return;
+        }
+        await runTransaction(db, async (transaction) => {
+            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            const batchSnap = await transaction.get(batchRef);
+            if (!batchSnap.exists()) return;
+            const batch = batchSnap.data();
+            const assigned = [];
+            if (batch.starterColonyId) assigned.push(['starterColonies', batch.starterColonyId]);
+            if (batch.finisherColonyId) assigned.push(['finisherColonies', batch.finisherColonyId]);
+            const refs = assigned.map(([kind, id]) => doc(db, 'users', uid, kind, id));
+            const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
+            snaps.forEach((snap, index) => {
+                if (snap.exists() && snap.data().activeBatchId === batchId) transaction.update(refs[index], { availability: 'PUSTY', activeBatchId: null });
+            });
+            transaction.delete(batchRef);
+        });
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

@@ -7,12 +7,13 @@ import Json.Decode as Decode
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
 import Types.Helpers exposing (..)
+import I18n exposing (Translations)
 
-ulikTimelineView : Model -> UlikWeselny -> Html Msg
-ulikTimelineView model ulik =
+ulikTimelineView : Translations -> Model -> UlikWeselny -> Html Msg
+ulikTimelineView t model ulik =
     if ulik.expectedHatchDate == "" then
         div [ style "font-size" "12px", style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic", style "margin-top" "5px" ]
-            [ text "Oś czasu: brak daty wygryzienia" ]
+            [ text (t.localize "Oś czasu: brak daty wygryzienia") ]
     else
         let
             maybeHatch = parseDate ulik.expectedHatchDate
@@ -48,12 +49,12 @@ ulikTimelineView model ulik =
                 in
                 div [ style "margin-top" "10px", style "font-size" "12px" ]
                     [ div [ style "font-weight" "bold", style "margin-bottom" "3px", style "color" (if model.darkMode then "#ccc" else "#555") ]
-                        [ text "Oś czasu cyklu matki:" ]
+                        [ text (t.localize "Oś czasu cyklu matki:") ]
                     , div [ style "position" "relative", style "height" "14px", style "background" (if model.darkMode then "#333" else "#e0e0e0"), style "border-radius" "7px", style "overflow" "hidden", style "margin-bottom" "5px" ]
-                        [ div [ style "position" "absolute", style "top" "0", style "left" "0", style "width" (String.fromFloat hPct ++ "%"), style "height" "100%", style "background" "#f7dc6f", title "Do wygryzienia (jasno żółty)" ] []
-                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat hPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (mPct - hPct)) ++ "%"), style "height" "100%", style "background" "#d4ac0d", title "Wygryzienie do unasiennienia (ciemno żółty)" ] []
-                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat mPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (d30Pct - mPct)) ++ "%"), style "height" "100%", style "background" "#27ae60", title "Okres po unasiennieniu" ] []
-                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat d30Pct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (100 - d30Pct)) ++ "%"), style "height" "100%", style "background" "#e74c3c", title "Po 30 dniach od wygryzienia (czerwony - deadline)" ] []
+                        [ div [ style "position" "absolute", style "top" "0", style "left" "0", style "width" (String.fromFloat hPct ++ "%"), style "height" "100%", style "background" "#f7dc6f", title (t.localize "Do wygryzienia (jasno żółty)") ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat hPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (mPct - hPct)) ++ "%"), style "height" "100%", style "background" "#d4ac0d", title (t.localize "Wygryzienie do unasiennienia (ciemno żółty)") ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat mPct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (d30Pct - mPct)) ++ "%"), style "height" "100%", style "background" "#27ae60", title (t.localize "Okres po unasiennieniu") ] []
+                        , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat d30Pct ++ "%"), style "width" (String.fromFloat (Basics.max 0 (100 - d30Pct)) ++ "%"), style "height" "100%", style "background" "#e74c3c", title (t.localize "Po 30 dniach od wygryzienia (czerwony - deadline)") ] []
                         , div [ style "position" "absolute", style "top" "0", style "left" (String.fromFloat nowPct ++ "%"), style "width" "3px", style "height" "100%", style "background" "#3498db", style "z-index" "2", title ("Teraz: " ++ model.currentDate) ] []
                         ]
                     , div [ style "display" "flex", style "justify-content" "space-between", style "font-size" "10px", style "color" (if model.darkMode then "#aaa" else "#666") ]
@@ -64,10 +65,10 @@ ulikTimelineView model ulik =
                         ]
                     ]
             _ ->
-                text ""
+                text (t.localize "")
 
-ulikDetailView : User -> { apiaryId : String, ulikId : String, ulikName : String } -> Model -> Html Msg
-ulikDetailView user info model =
+ulikDetailView : Translations -> User -> { apiaryId : String, ulikId : String, ulikName : String } -> Model -> Html Msg
+ulikDetailView t user info model =
     let
         maybeUlik = List.head (List.filter (\u -> u.id == info.ulikId) model.uliki)
         actualApiaryId = case maybeUlik of
@@ -88,26 +89,26 @@ ulikDetailView user info model =
         Just ulik ->
             div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
-                    [ button [ onClick (NavigateTo (UlikListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text "← Powrót" ]
+                    [ button [ onClick (NavigateTo (UlikListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
                     , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Ulik Weselny: " ++ ulik.name) ]
-                    , button [ onClick (OpenMoveUlikModal actualApiaryId ulik), style "padding" "10px 16px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text "🚚 Zmień pasieczysko" ]
+                    , button [ attribute "data-testid" "move-ulik-apiary", onClick (OpenMoveUlikModal actualApiaryId ulik), style "padding" "10px 16px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "🚚 Zmień pasieczysko") ]
                     ]
                 , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
                     [ div []
-                        [ h3 [ style "color" headingColor ] [ text "Dane Uliku Weselnego" ]
-                        , label [] [ text "Nazwa / Numer uliku:" ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Dane Uliku Weselnego") ]
+                        , label [] [ text (t.localize "Nazwa / Numer uliku:") ]
                         , input [ type_ "text", value ulik.name, onInput (\val -> UpdateUlikField actualApiaryId ulik.id "name" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                        , label [] [ text "Typ ula:" ]
+                        , label [] [ text (t.localize "Typ ula:") ]
                         , select [ onInput (\val -> UpdateUlikField actualApiaryId ulik.id "hiveType" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
                             (List.map (\ut -> option [ value ut, selected (ulik.hiveType == ut) ] [ text ut ]) model.ulikTypes)
-                        , label [] [ text "Link do NFC:" ]
+                        , label [] [ text (t.localize "Link do NFC:") ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px", style "flex-wrap" "wrap" ]
-                            [ input [ type_ "text", value ulik.nfcLink, placeholder "Brak linku", readonly True, style "flex" "1", style "min-width" "200px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                            , button [ onClick (CopyText ulik.nfcLink), style "padding" "10px 16px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text "📋 Kopiuj link do NFC" ]
+                            [ input [ type_ "text", value ulik.nfcLink, placeholder (t.localize "Brak linku"), readonly True, style "flex" "1", style "min-width" "200px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
+                            , button [ onClick (CopyText ulik.nfcLink), style "padding" "10px 16px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "📋 Kopiuj link do NFC") ]
                             ]
-                        , label [] [ text "Spodziewany termin wygryzienia:" ]
+                        , label [] [ text (t.localize "Spodziewany termin wygryzienia:") ]
                         , input [ type_ "date", value ulik.expectedHatchDate, onInput (\val -> UpdateUlikField actualApiaryId ulik.id "expectedHatchDate" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                        , label [] [ text "Spodziewany termin unasiennienia (+10 dni):" ]
+                        , label [] [ text (t.localize "Spodziewany termin unasiennienia (+10 dni):") ]
                         , div [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "margin-bottom" "10px", style "flex-wrap" "wrap" ]
                             [ input [ type_ "date", value ulik.expectedMatingDate, readonly True, style "flex" "1", style "min-width" "200px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
                             , if getUlikState ulik == MatkaWygryziona && ulik.expectedHatchDate /= "" && model.currentDate /= "" then
@@ -123,64 +124,64 @@ ulikDetailView user info model =
                                             diff = tDays - hDays
                                         in
                                         if diff < 10 then
-                                            span [ title "Oczekiwanie na unasiennienie (przed terminem)", style "font-size" "18px" ] [ text "❓" ]
+                                            span [ title (t.localize "Oczekiwanie na unasiennienie (przed terminem)"), style "font-size" "18px" ] [ text (t.localize "❓") ]
                                         else if diff >= 10 && diff <= 21 then
-                                            span [ style "background" "#27ae60", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title "W terminie (10-21 dni od wygryzienia)" ] [ text "✓ W terminie" ]
+                                            span [ style "background" "#27ae60", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title (t.localize "W terminie (10-21 dni od wygryzienia)") ] [ text (t.localize "✓ W terminie") ]
                                         else
-                                            span [ style "background" "#e74c3c", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title "Przekroczono termin (>21 dni)" ] [ text "✗ Przekroczony" ]
+                                            span [ style "background" "#e74c3c", style "color" "white", style "padding" "4px 8px", style "border-radius" "4px", style "font-size" "12px", style "font-weight" "bold", title (t.localize "Przekroczono termin (>21 dni)") ] [ text (t.localize "✗ Przekroczony") ]
                                     _ ->
-                                        text ""
+                                        text (t.localize "")
                               else
-                                text ""
+                                text (t.localize "")
                             ]
-                        , ulikTimelineView model ulik
+                        , ulikTimelineView t model ulik
                         ]
                     , div []
-                        [ h3 [ style "color" headingColor ] [ text "Stan i Matka Pszczela" ]
-                        , p [ style "font-weight" "bold" ] [ text ("Aktualny stan: " ++ ulikStateLabel (getUlikState ulik)) ]
+                        [ h3 [ style "color" headingColor ] [ text (t.localize "Stan i Matka Pszczela") ]
+                        , p [ style "font-weight" "bold" ] [ text (t.localize "Aktualny stan: " ++ t.localize (ulikStateLabel (getUlikState ulik))) ]
                         , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "8px", style "margin-bottom" "15px" ]
                             (case getUlikState ulik of
                                 Bezmatek ->
-                                    [ button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatecznik), style "padding" "8px 14px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "➕ Poddano matecznik (M)" ]
-                                    , button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatkeNieunasiennioną), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "➕ Poddano matkę nieunasiennioną (N)" ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🧹 Opróżnij ulik (P)" ]
+                                    [ button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatecznik), style "padding" "8px 14px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Poddano matecznik (M)") ]
+                                    , button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatkeNieunasiennioną), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Poddano matkę nieunasiennioną (N)") ]
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 ZMatecznikiem ->
-                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaWygryziona), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🦋 Matka się wygryzła (N)" ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "❌ Matecznik się nie wygryzł (B)" ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🧹 Opróżnij ulik (P)" ]
+                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaWygryziona), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🦋 Matka się wygryzła (N)") ]
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "❌ Matecznik się nie wygryzł (B)") ]
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 MatkaWygryziona ->
-                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaCzerwi), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "👑 Matka się unasienniła (UNC)" ]
+                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaCzerwi), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "👑 Matka się unasienniła (UNC)") ]
                                     , if not ulik.queen.hasOpalit then
-                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🏷️ Zaopalitkuj" ]
+                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
                                       else
-                                        text ""
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "⚠️ Matka strutowiała / zniknęła (B)" ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🧹 Opróżnij ulik (P)" ]
+                                        text (t.localize "")
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "⚠️ Matka strutowiała / zniknęła (B)") ]
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 MatkaCzerwi ->
-                                    [ span [ style "color" "#27ae60", style "font-style" "italic", style "display" "block", style "margin-bottom" "10px" ] [ text "Matka unasienniona / czerwi (pełny sukces uliku weselnego)" ]
+                                    [ span [ style "color" "#27ae60", style "font-style" "italic", style "display" "block", style "margin-bottom" "10px" ] [ text (t.localize "Matka unasienniona / czerwi (pełny sukces uliku weselnego)") ]
                                     , if not ulik.queen.hasOpalit then
-                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🏷️ Zaopalitkuj" ]
+                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
                                       else
-                                        text ""
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "zabieram matkę (B)" ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "🧹 Opróżnij ulik (P)" ]
+                                        text (t.localize "")
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "zabieram matkę (B)") ]
+                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 PustyUlik ->
-                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "➕ Przejdź do Bezmatek (B)" ]
-                                    , button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatkeNieunasiennioną), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text "➕ Poddano matkę nieunasiennioną (N)" ]
+                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Przejdź do Bezmatek (B)") ]
+                                    , button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatkeNieunasiennioną), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Poddano matkę nieunasiennioną (N)") ]
                                     ]
                             )
-                        , label [] [ text "Czy jest tam matka:" ]
+                        , label [] [ text (t.localize "Czy jest tam matka:") ]
                         , select [ onInput (\val -> UpdateUlikField actualApiaryId ulik.id "hasQueen" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
-                            [ option [ value "true", selected ulik.hasQueen ] [ text "Tak" ]
-                            , option [ value "false", selected (not ulik.hasQueen) ] [ text "Nie" ]
+                            [ option [ value "true", selected ulik.hasQueen ] [ text (t.localize "Tak") ]
+                            , option [ value "false", selected (not ulik.hasQueen) ] [ text (t.localize "Nie") ]
                             ]
                         , if ulik.hasQueen then
                             div []
-                                [ label [] [ text "Rasa i linia matki:" ]
+                                [ label [] [ text (t.localize "Rasa i linia matki:") ]
                                 , let
                                     allBreedLines =
                                         if List.member ulik.queen.breedLine model.breedLines || ulik.queen.breedLine == "" then
@@ -190,46 +191,46 @@ ulikDetailView user info model =
                                   in
                                   select [ onInput (\val -> UpdateUlikField actualApiaryId ulik.id "queen.breedLine" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
                                     (List.map (\bl -> option [ value bl, selected (ulik.queen.breedLine == bl) ] [ text bl ]) allBreedLines)
-                                , label [] [ text "Obecność Opalitka:" ]
+                                , label [] [ text (t.localize "Obecność Opalitka:") ]
                                 , select [ onInput (\val -> UpdateUlikField actualApiaryId ulik.id "queen.hasOpalit" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
-                                    [ option [ value "true", selected ulik.queen.hasOpalit ] [ text "Tak (Opalitka)" ]
-                                    , option [ value "false", selected (not ulik.queen.hasOpalit) ] [ text "Nie" ]
+                                    [ option [ value "true", selected ulik.queen.hasOpalit ] [ text (t.localize "Tak (Opalitka)") ]
+                                    , option [ value "false", selected (not ulik.queen.hasOpalit) ] [ text (t.localize "Nie") ]
                                     ]
                                 , if ulik.queen.hasOpalit then
                                     div []
-                                        [ label [] [ text "Kolor Opalitka:" ]
+                                        [ label [] [ text (t.localize "Kolor Opalitka:") ]
                                         , select [ onInput (\val -> UpdateUlikField actualApiaryId ulik.id "queen.color" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ]
-                                            [ option [ value "Biały", selected (ulik.queen.color == "Biały") ] [ text "Biały" ]
-                                            , option [ value "Żółty", selected (ulik.queen.color == "Żółty") ] [ text "Żółty" ]
-                                            , option [ value "Czerwony", selected (ulik.queen.color == "Czerwony") ] [ text "Czerwony" ]
-                                            , option [ value "Zielony", selected (ulik.queen.color == "Zielony") ] [ text "Zielony" ]
-                                            , option [ value "Niebieski", selected (ulik.queen.color == "Niebieski") ] [ text "Niebieski" ]
+                                            [ option [ value "Biały", selected (ulik.queen.color == "Biały") ] [ text (t.localize "Biały") ]
+                                            , option [ value "Żółty", selected (ulik.queen.color == "Żółty") ] [ text (t.localize "Żółty") ]
+                                            , option [ value "Czerwony", selected (ulik.queen.color == "Czerwony") ] [ text (t.localize "Czerwony") ]
+                                            , option [ value "Zielony", selected (ulik.queen.color == "Zielony") ] [ text (t.localize "Zielony") ]
+                                            , option [ value "Niebieski", selected (ulik.queen.color == "Niebieski") ] [ text (t.localize "Niebieski") ]
                                             ]
-                                        , label [] [ text "Numer Opalitka:" ]
+                                        , label [] [ text (t.localize "Numer Opalitka:") ]
                                         , input [ type_ "text", value ulik.queen.number, onInput (\val -> UpdateUlikField actualApiaryId ulik.id "queen.number" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
                                         ]
                                   else
-                                    text ""
+                                    text (t.localize "")
                                 ]
                           else
-                            text ""
+                            text (t.localize "")
                         ]
                     ]
                 , div [ style "margin-top" "20px", style "border-top" ("1px solid " ++ (if model.darkMode then "#333" else "#eee")), style "padding-top" "15px" ]
-                    [ h3 [ style "color" headingColor, style "margin-bottom" "10px" ] [ text "Historia zmian uliku" ]
+                    [ h3 [ style "color" headingColor, style "margin-bottom" "10px" ] [ text (t.localize "Historia zmian uliku") ]
                     , if List.isEmpty ulik.history then
                         div [ style "font-size" "13px", style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ]
-                            [ text "Brak wpisów w historii" ]
+                            [ text (t.localize "Brak wpisów w historii") ]
                       else
                         div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px" ]
-                            (List.map (historyEntryView model) ulik.history)
+                            (List.map (historyEntryView t model) ulik.history)
                     ]
                 ]
         _ ->
-            div [] [ text "Ładowanie uliku..." ]
+            div [] [ text (if t.matingHives == "Mating hives" then "Loading mating hive..." else "Ładowanie uliku...") ]
 
-historyEntryView : Model -> UlikHistoryEntry -> Html Msg
-historyEntryView model entry =
+historyEntryView : Translations -> Model -> UlikHistoryEntry -> Html Msg
+historyEntryView t model entry =
     let
         cardBg = if model.darkMode then "#242424" else "#f8f9f9"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
@@ -244,11 +245,11 @@ historyEntryView model entry =
     in
     div [ style "background" cardBg, style "padding" "10px 12px", style "border-radius" "6px", style "border-left" "4px solid #3498db", style "color" textColor, style "font-size" "13px" ]
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "4px" ]
-            [ span [ style "font-weight" "bold" ] [ text (prevLabel ++ " - " ++ entry.description ++ " -> " ++ newLabel) ]
+            [ span [ style "font-weight" "bold" ] [ text (t.localize prevLabel ++ " - " ++ entry.description ++ " -> " ++ t.localize newLabel) ]
             , span [ style "font-size" "11px", style "color" mutedColor ] [ text entry.timestamp ]
             ]
         , if matkaText /= "" then
             div [ style "font-size" "12px", style "color" mutedColor ] [ text matkaText ]
           else
-            text ""
+            text (t.localize "")
         ]
