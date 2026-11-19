@@ -19,6 +19,27 @@ settingsView t user model =
         inputColor = if model.darkMode then "#e0e0e0" else "#333"
         inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
         sectionBorderColor = if model.darkMode then "#444" else "#ddd"
+        numericInputClass =
+            "box-border min-h-10 w-32 rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 "
+                ++ (if model.darkMode then
+                        "border-slate-600 bg-slate-800 text-slate-100"
+                    else
+                        "border-slate-300 bg-white text-slate-900"
+                   )
+
+        moduleToggleRowClass =
+            "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 font-semibold cursor-pointer "
+                ++ (if model.darkMode then
+                        "bg-slate-800 text-slate-100"
+                    else
+                        "bg-slate-50 text-slate-800"
+                   )
+
+        moduleToggleWithHelpClass = moduleToggleRowClass ++ " justify-between"
+
+        moduleToggleLabelClass = "flex min-w-0 items-center gap-3 cursor-pointer"
+
+        moduleToggleClass = "size-5 shrink-0 cursor-pointer accent-blue-600"
 
         infoIcon explanation =
             span
@@ -135,10 +156,12 @@ settingsView t user model =
                 , if isExpanded SectionPasieczyskaTowarowe then
                     div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", attribute "data-testid" "settings-section-pasieczyska" ]
                         [ div []
-                            [ settingHeader t.enableCommercial t.commercialHelp
-                            , label [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "cursor" "pointer", style "font-weight" "bold", style "color" headingColor, style "margin-top" "10px" ]
-                        [ input [ type_ "checkbox", checked model.enablePasieczyskaTowarowe, onCheck (\_ -> ToggleEnablePasieczyskaTowarowe), attribute "data-testid" "commercial-apiaries-toggle", style "width" "18px", style "height" "18px", style "cursor" "pointer" ] []
-                                , text t.enabled
+                            [ div [ class moduleToggleWithHelpClass ]
+                                [ label [ class moduleToggleLabelClass ]
+                                    [ input [ type_ "checkbox", checked model.enablePasieczyskaTowarowe, onCheck (\_ -> ToggleEnablePasieczyskaTowarowe), attribute "data-testid" "commercial-apiaries-toggle", class moduleToggleClass ] []
+                                    , text t.enableCommercial
+                                    ]
+                                , infoIcon t.commercialHelp
                                 ]
                             ]
                         , div []
@@ -169,10 +192,12 @@ settingsView t user model =
                 , if isExpanded SectionTrutowiska then
                     div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", attribute "data-testid" "settings-section-trutowiska" ]
                         [ div []
-                            [ settingHeader t.enableMating t.matingHelp
-                            , label [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "cursor" "pointer", style "font-weight" "bold", style "color" headingColor, style "margin-top" "10px" ]
-                        [ input [ type_ "checkbox", checked model.enableTrutowiska, onCheck (\_ -> ToggleEnableTrutowiska), attribute "data-testid" "mating-apiaries-toggle", style "width" "18px", style "height" "18px", style "cursor" "pointer" ] []
-                                , text t.enabled
+                            [ div [ class moduleToggleWithHelpClass ]
+                                [ label [ class moduleToggleLabelClass ]
+                                    [ input [ type_ "checkbox", checked model.enableTrutowiska, onCheck (\_ -> ToggleEnableTrutowiska), attribute "data-testid" "mating-apiaries-toggle", class moduleToggleClass ] []
+                                    , text t.enableMating
+                                    ]
+                                , infoIcon t.matingHelp
                                 ]
                             ]
                         , div []
@@ -212,13 +237,13 @@ settingsView t user model =
                         , div []
                             [ settingHeader t.hatchingMatingDays t.hatchingMatingHelp
                             , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
-                                [ input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "30", value (String.fromInt model.hatchingToMatingDays), onInput UpdateHatchingToMatingDaysInput, style "width" "120px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                                [ input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "30", value (String.fromInt model.hatchingToMatingDays), onInput UpdateHatchingToMatingDaysInput, class numericInputClass ] []
                                 ]
                             ]
                         , div []
                             [ settingHeader t.maxHistory t.maxHistoryHelp
                             , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
-                                [ input [ type_ "number", Html.Attributes.min "10", Html.Attributes.max "60", value (String.fromInt model.maxUlikHistoryLimit), onInput UpdateMaxUlikHistoryLimitInput, style "width" "120px", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
+                                [ input [ type_ "number", Html.Attributes.min "10", Html.Attributes.max "60", value (String.fromInt model.maxUlikHistoryLimit), onInput UpdateMaxUlikHistoryLimitInput, class numericInputClass ] []
                                 ]
                             ]
                         ]
@@ -231,16 +256,16 @@ settingsView t user model =
                 [ sectionHeader SectionQueenRearing "🐝" t.queenRearing "settings-section-toggle-queen-rearing"
                 , if isExpanded SectionQueenRearing then
                     div [ style "display" "flex", style "flex-direction" "column", style "gap" "14px", attribute "data-testid" "settings-section-queen-rearing" ]
-                        [ label [ style "display" "flex", style "align-items" "center", style "gap" "10px" ]
-                            [ input [ type_ "checkbox", checked model.enableQueenRearing, onCheck (\_ -> ToggleEnableQueenRearing), attribute "data-testid" "queen-rearing-toggle" ] []
+                        [ label [ class moduleToggleRowClass ]
+                            [ input [ type_ "checkbox", checked model.enableQueenRearing, onCheck (\_ -> ToggleEnableQueenRearing), attribute "data-testid" "queen-rearing-toggle", class moduleToggleClass ] []
                             , text t.enableQueenRearing
                             ]
                         , p [] [ text t.queenRearingDefaults ]
                         , div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fit, minmax(180px, 1fr))", style "gap" "10px" ]
-                            [ label [] [ text t.graftCount, input [ type_ "number", Html.Attributes.min "1", value (String.fromInt model.defaultGraftCount), onInput (UpdateQueenSetting "graft") ] [] ]
-                            , label [] [ text t.starterDuration, input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "10", value (String.fromInt model.starterDurationDays), onInput (UpdateQueenSetting "starter") ] [] ]
-                            , label [] [ text t.isolationDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.isolationDay), onInput (UpdateQueenSetting "isolation") ] [] ]
-                            , label [] [ text t.emergenceDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.emergenceDay), onInput (UpdateQueenSetting "emergence") ] [] ]
+                            [ label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.graftCount, input [ type_ "number", Html.Attributes.min "1", value (String.fromInt model.defaultGraftCount), onInput (UpdateQueenSetting "graft"), class numericInputClass ] [] ]
+                            , label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.starterDuration, input [ type_ "number", Html.Attributes.min "1", Html.Attributes.max "10", value (String.fromInt model.starterDurationDays), onInput (UpdateQueenSetting "starter"), class numericInputClass ] [] ]
+                            , label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.isolationDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.isolationDay), onInput (UpdateQueenSetting "isolation"), class numericInputClass ] [] ]
+                            , label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.emergenceDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.emergenceDay), onInput (UpdateQueenSetting "emergence"), class numericInputClass ] [] ]
                             ]
                         ]
                   else

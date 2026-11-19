@@ -1,4 +1,5 @@
 import { Elm } from './Main.elm';
+import './styles.css';
 import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 

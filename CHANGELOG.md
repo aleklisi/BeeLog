@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-11-19] Synchronizacja i archiwizacja styli ustawień oraz Tailwind CSS
+
+- Zaktualizowano główną specyfikację settings-and-user o wymagania spójnego wyglądu kontrolek liczbowych i przełączników modułów.
+- Zarchiwizowano zmianę standardize-settings-controls-and-tailwind w OpenSpec.
+
+## [2026-11-19] Implementacja i archiwizacja alertów uwagi ulików weselnych
+
+- Zaimplementowano weryfikację alertów uwagi na liście ulików weselnych oraz rozszerzono testy E2E o termin 30 dni i wielokrotne powody.
+- Zsynchronizowano główną specyfikację mating-apiaries i zarchiwizowano zmianę mating-hive-attention-alerts w OpenSpec.
+
+## [2026-11-19] Propozycja ujednolicenia styli ustawień
+
+- Dodano zmianę OpenSpec dla integracji Tailwind CSS i spójnego wyglądu pól liczbowych oraz przełączników modułów.
+
 ## [2026-11-19] Synchronizacja i archiwizacja obsługi języków
 
 - Przeniesiono wymagania wyboru języka do głównej specyfikacji i zarchiwizowano zmianę OpenSpec.
@@ -117,3 +131,11 @@
 ## [2026-11-19] Powrót do aktualnego trutowiska uliku
 
 - Zachowano identyfikator trutowiska przy wczytywaniu uliku z Firestore, aby powrót z linku NFC prowadził do jego obecnego miejsca.
+
+## [2026-11-19] Ujednolicone kontrolki ustawień
+
+- Dodano integrację Tailwind z Vite oraz wspólne style pól liczbowych i przełączników modułów w ustawieniach.
+
+## [2026-11-19] Jednowierszowe przełączniki pasiek
+
+- Przeniesiono checkboxy pasieki towarowej i trutowiska do jednego wiersza z ich etykietami.

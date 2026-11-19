@@ -733,20 +733,22 @@ test.describe('BeeLog E2E Test Suite', () => {
   });
 
   test('7.1. Alerts wymagające uwagi na liście ulików weselnych', async ({ page }) => {
-    const { yesterday, tomorrow } = await page.evaluate(() => {
+    const { yesterday, tomorrow, past35Days } = await page.evaluate(() => {
       const dateOffset = offset => {
         const date = new Date();
         date.setUTCDate(date.getUTCDate() + offset);
         return date.toISOString().slice(0, 10);
       };
-      return { yesterday: dateOffset(-1), tomorrow: dateOffset(1) };
+      return { yesterday: dateOffset(-1), tomorrow: dateOffset(1), past35Days: dateOffset(-35) };
     });
-    await page.evaluate(({ yesterday, tomorrow }) => {
+    await page.evaluate(({ yesterday, tomorrow, past35Days }) => {
       const uliki = [
         { id: 'queenless', name: 'Bezmatek', hiveType: 'Mini plus', state: 'bezmatek', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 0, history: [] },
         { id: 'overdue-hatch', name: 'Po terminie wygryzienia', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: yesterday, expectedMatingDate: tomorrow, order: 1, history: [] },
         { id: 'overdue-mating', name: 'Po terminie unasiennienia', hiveType: 'Mini plus', state: 'matka_wygryziona', hasQueen: true, expectedHatchDate: yesterday, expectedMatingDate: yesterday, order: 2, history: [] },
-        { id: 'future', name: 'Termin w przyszłości', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: tomorrow, expectedMatingDate: tomorrow, order: 3, history: [] }
+        { id: 'overdue-30days', name: 'Po terminie 30 dni', hiveType: 'Mini plus', state: 'matka_wygryziona', hasQueen: true, expectedHatchDate: past35Days, expectedMatingDate: tomorrow, order: 3, history: [] },
+        { id: 'multiple-reasons', name: 'Wielokrotny alert', hiveType: 'Mini plus', state: 'matka_wygryziona', hasQueen: true, expectedHatchDate: past35Days, expectedMatingDate: yesterday, order: 4, history: [] },
+        { id: 'future', name: 'Termin w przyszłości', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: tomorrow, expectedMatingDate: tomorrow, order: 5, history: [] }
       ];
       localStorage.setItem('__E2E_STATE__', JSON.stringify({
         apiaries: [{
@@ -755,7 +757,7 @@ test.describe('BeeLog E2E Test Suite', () => {
           uliki, hives: []
         }], uliki: { 'attention-apiary': uliki }, hives: {}, notes: {}
       }));
-    }, { yesterday, tomorrow });
+    }, { yesterday, tomorrow, past35Days });
     await page.reload();
     await page.evaluate(() => {
       window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
@@ -764,10 +766,12 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.getByText('Trutowisko: Trutowisko Alertów')).toBeVisible();
 
     const alerts = page.locator('button[aria-label]:not([data-testid="main-menu-toggle"])');
-    await expect(alerts).toHaveCount(3);
-    await expect(page.getByRole('button', { name: 'Brak matki w ulu' })).toHaveAttribute('title', 'Brak matki w ulu');
-    await expect(page.getByRole('button', { name: 'Sprawdź, czy matka się wygryzła' })).toHaveAttribute('title', 'Sprawdź, czy matka się wygryzła');
-    await expect(page.getByRole('button', { name: 'Minął oczekiwany termin unasiennienia matki' })).toHaveAttribute('title', 'Minął oczekiwany termin unasiennienia matki');
+    await expect(alerts).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Brak matki w ulu', exact: true })).toHaveAttribute('title', 'Brak matki w ulu');
+    await expect(page.getByRole('button', { name: 'Sprawdź, czy matka się wygryzła', exact: true })).toHaveAttribute('title', 'Sprawdź, czy matka się wygryzła');
+    await expect(page.getByRole('button', { name: 'Minął oczekiwany termin unasiennienia matki', exact: true })).toHaveAttribute('title', 'Minął oczekiwany termin unasiennienia matki');
+    await expect(page.getByRole('button', { name: 'Minął deadline 30 dni od wygryzienia – matka nadal nieunasienniona', exact: true })).toHaveAttribute('title', 'Minął deadline 30 dni od wygryzienia – matka nadal nieunasienniona');
+    await expect(page.getByRole('button', { name: 'Minął oczekiwany termin unasiennienia matki / Minął deadline 30 dni od wygryzienia – matka nadal nieunasienniona', exact: true })).toHaveAttribute('title', 'Minął oczekiwany termin unasiennienia matki / Minął deadline 30 dni od wygryzienia – matka nadal nieunasienniona');
     await expect(page.getByText('Termin w przyszłości').locator('..').locator('button[aria-label]')).toHaveCount(0);
 
     const queenlessAlert = page.getByRole('button', { name: 'Brak matki w ulu' });
