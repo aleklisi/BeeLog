@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser } from "firebase/auth";
 import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from "firebase/firestore";
 
 // Your web app's Firebase configuration using Vite environment variables
@@ -24,6 +24,7 @@ export {
   app, 
   auth, 
   db, 
+  deleteUser,
   googleProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 

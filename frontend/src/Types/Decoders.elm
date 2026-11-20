@@ -160,7 +160,6 @@ decodeApiaries =
             |> andMap (Decode.field "name" Decode.string)
             |> andMap (Decode.field "apiaryType" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault "towarowe"))
             |> andMap (Decode.field "adminId" Decode.string)
-            |> andMap (Decode.field "members" (Decode.keyValuePairs Decode.string))
             |> andMap (Decode.field "order" Decode.int |> Decode.maybe |> Decode.map (Maybe.withDefault 0))
             |> andMap (Decode.field "uliki" decodeUliki |> Decode.maybe |> Decode.map (Maybe.withDefault []))
             |> andMap (Decode.field "hives" decodeHives |> Decode.maybe |> Decode.map (Maybe.withDefault []))

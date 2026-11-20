@@ -21,7 +21,7 @@ hiveListView t user info model =
             [ button [ onClick OpenNewHiveModal, style "padding" "12px 18px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "44px", style "font-size" "15px" ] [ text t.addHive ]
             ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (hiveCardView t info.apiaryId model) model.hives)
+            (List.map (hiveCardView t info.apiaryId model) (List.filter (\hive -> hive.apiaryId == info.apiaryId) model.hives))
         ]
 
 hiveCardView : Translations -> String -> Model -> Hive -> Html Msg
@@ -33,19 +33,25 @@ hiveCardView t apiaryId model hive =
         borderColor = if model.darkMode then "#333" else "#eee"
         metaBg = if model.darkMode then "#2d2d2d" else "#f1f2f6"
     in
-    div [ style "background" cardBg, style "padding" "16px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor
-        , onClick (NavigateTo (HiveDetailView { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name }))
+    div [ style "background" cardBg, style "padding" "16px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "grab", style "color" textColor
+        , draggable "true"
+        , on "dragstart" (Decode.succeed (StartOrderDrag CommercialHives apiaryId hive.id))
+        , preventDefaultOn "dragover" (Decode.succeed ( OrderDragOver CommercialHives apiaryId hive.id, True ))
+        , on "dragend" (Decode.succeed EndOrderDrag)
+        , attribute "data-testid" "commercial-hive-card"
+        , attribute "data-hive-id" hive.id
+        , attribute "data-order-collection" "commercial-hives"
+        , attribute "data-order-apiary-id" apiaryId
+        , attribute "data-order-id" hive.id
+        , onClick (NavigateCard (HiveDetailView { apiaryId = apiaryId, hiveId = hive.id, hiveName = hive.name }))
+        , on "mousedown" (Decode.succeed ResetCardClickSuppression)
         ]
         [ h3 [ style "margin-top" "0", style "color" headingColor ] [ text hive.name ]
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text (t.frameType ++ " " ++ hive.frameType) ]
         , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "6px", style "border-radius" "4px", style "color" textColor ]
             [ text (t.localize "Matka: " ++ (if hive.queen.hasOpalit then t.localize "Opalitek " ++ t.localize hive.queen.color ++ " #" ++ hive.queen.number else t.localize "Brak opalitka")) ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "12px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px", style "flex-wrap" "wrap" ]
-            [ div [ style "display" "flex", style "gap" "8px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveHiveUp hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveUp ] [ text (t.localize "⬆️") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveHiveDown hive.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveDown ] [ text (t.localize "⬇️") ]
-                ]
-            , div [ style "display" "flex", style "gap" "12px" ]
+            [ div [ style "display" "flex", style "gap" "12px" ]
                 [ button [ stopPropagationOn "click" (Decode.succeed (OpenRenameHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
                 , button [ attribute "data-testid" "delete-hive-trigger", stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
                 ]

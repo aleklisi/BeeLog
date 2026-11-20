@@ -1,6 +1,6 @@
 import { Elm } from './Main.elm';
 import './styles.css';
-import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
+import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function getE2EState() {
@@ -11,36 +11,14 @@ function getE2EState() {
             try {
                 state = JSON.parse(saved);
                 state.queenRearing = { breederQueens: [], starterColonies: [], finisherColonies: [], rearingBatches: [], sequences: {}, ...(state.queenRearing || {}) };
-                if (state.apiaries) {
-                    state.apiaries = normalizeApiariesForE2E(state.apiaries);
-                }
             } catch (e) {}
         }
     }
     return state;
 }
 
-function normalizeApiariesForE2E(apiaries) {
-    return apiaries.map(a => {
-        let membersObj = {};
-        if (Array.isArray(a.members)) {
-            a.members.forEach(item => {
-                if (Array.isArray(item) && item.length === 2) {
-                    membersObj[item[0]] = item[1];
-                }
-            });
-        } else if (a.members && typeof a.members === 'object') {
-            membersObj = a.members;
-        }
-        return { ...a, members: membersObj };
-    });
-}
-
 function saveE2EState(state) {
     if (window.__E2E__) {
-        if (state.apiaries) {
-            state.apiaries = normalizeApiariesForE2E(state.apiaries);
-        }
         localStorage.setItem('__E2E_STATE__', JSON.stringify(state));
     }
 }
@@ -53,6 +31,75 @@ const app = Elm.Main.init({
     flags: { darkMode: savedDarkMode, language: savedLanguage, initialHash: initialHash }
 });
 window.app = app;
+
+let activeOrderDrag = null;
+let activeOrderTarget = null;
+let activeOrderList = null;
+const orderCardFromTarget = target => target?.closest?.('[data-order-collection][data-order-id]');
+const orderDropTarget = (card, clientY) => {
+    const bounds = card.getBoundingClientRect();
+    const cards = [...card.parentElement.children].filter(child => child.matches?.('[data-order-collection][data-order-id]'));
+    return {
+        targetId: card.dataset.orderId,
+        after: cards[cards.length - 1] === card || clientY >= bounds.top + bounds.height / 2
+    };
+};
+document.addEventListener('dragstart', event => {
+    const card = orderCardFromTarget(event.target);
+    if (!card) return;
+    activeOrderDrag = {
+        collection: card.dataset.orderCollection,
+        apiaryId: card.dataset.orderApiaryId || '',
+        draggedId: card.dataset.orderId
+    };
+    activeOrderTarget = null;
+    activeOrderList = card.parentElement;
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', activeOrderDrag.draggedId);
+    }
+}, true);
+document.addEventListener('dragover', event => {
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    let card = orderCardFromTarget(hit) || orderCardFromTarget(event.target);
+    if (!card && activeOrderList) {
+        const bounds = activeOrderList.getBoundingClientRect();
+        const cards = [...activeOrderList.children].filter(child => child.matches?.('[data-order-collection][data-order-id]'));
+        if (cards.length && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom) {
+            card = cards[cards.length - 1];
+            activeOrderTarget = { targetId: card.dataset.orderId, after: true };
+            event.preventDefault();
+            return;
+        }
+    }
+    if (!card) return;
+    event.preventDefault();
+    activeOrderTarget = orderDropTarget(card, event.clientY);
+}, true);
+document.addEventListener('drop', event => {
+    let card = orderCardFromTarget(document.elementFromPoint(event.clientX, event.clientY)) || orderCardFromTarget(event.target);
+    if (!activeOrderDrag || !app.ports.orderDropReceived) return;
+    if (!card && activeOrderList) {
+        const bounds = activeOrderList.getBoundingClientRect();
+        const cards = [...activeOrderList.children].filter(child => child.matches?.('[data-order-collection][data-order-id]'));
+        if (cards.length && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom) {
+            card = cards[cards.length - 1];
+            activeOrderTarget = { targetId: card.dataset.orderId, after: true };
+        }
+    }
+    const target = card ? orderDropTarget(card, event.clientY) : activeOrderTarget;
+    if (!target) return;
+    event.preventDefault();
+    app.ports.orderDropReceived.send({
+        ...activeOrderDrag,
+        ...target
+    });
+}, true);
+document.addEventListener('dragend', () => {
+    activeOrderDrag = null;
+    activeOrderTarget = null;
+    activeOrderList = null;
+}, true);
 
 // Touch browsers implicitly capture pointers on the pressed element. Resolve
 // the actual drop target from the pointer coordinates instead of the event target.
@@ -176,6 +223,47 @@ app.ports.jsLogout.subscribe(async () => {
         await signOut(auth);
     } catch (error) {
         app.ports.operationError.send(error.message);
+    }
+});
+
+app.ports.jsDeleteAccount.subscribe(async (confirmation) => {
+    try {
+        if (confirmation !== 'Tak, usuwam konto!') {
+            throw Object.assign(new Error('Invalid confirmation phrase.'), { code: 'invalid-confirmation' });
+        }
+        const user = auth.currentUser;
+        if (!user) throw new Error('No authenticated user.');
+
+        const removeCollection = async (collectionRef) => {
+            const snapshot = await getDocs(collectionRef);
+            await Promise.all(snapshot.docs.map((item) => deleteDoc(item.ref)));
+        };
+
+        const uid = user.uid;
+        const apiaries = await getDocs(query(collection(db, 'pasieczyska'), where('adminId', '==', uid)));
+        for (const apiary of apiaries.docs) {
+            const hives = await getDocs(query(collection(db, 'hives'), where('apiaryId', '==', apiary.id)));
+            for (const hive of hives.docs) {
+                await removeCollection(collection(db, 'hives', hive.id, 'notes'));
+                await deleteDoc(hive.ref);
+            }
+            await deleteDoc(apiary.ref);
+        }
+
+        for (const name of ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches', 'rearingSequences']) {
+            await removeCollection(collection(db, 'users', uid, name));
+        }
+        await deleteDoc(doc(db, 'users', uid));
+        await deleteUser(user);
+        app.ports.accountDeletionResult.send({ success: true, error: '' });
+    } catch (error) {
+        const isEnglish = localStorage.getItem('beelog_language') === 'en';
+        const message = error.code === 'invalid-confirmation'
+            ? (isEnglish ? 'The confirmation phrase is incorrect.' : 'Wpisana fraza jest nieprawidłowa.')
+            : (error.code === 'auth/requires-recent-login'
+                ? (isEnglish ? 'Please sign in again, then retry account deletion.' : 'Zaloguj się ponownie, a następnie spróbuj usunąć konto jeszcze raz.')
+                : (isEnglish ? 'Account deletion failed. You can retry.' : 'Nie udało się usunąć konta. Możesz spróbować ponownie.'));
+        app.ports.accountDeletionResult.send({ success: false, error: message });
     }
 });
 
@@ -610,19 +698,11 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
         return;
     }
     try {
-        const q = query(collection(db, "pasieczyska"));
+        const q = query(collection(db, "pasieczyska"), where("adminId", "==", uid));
         onSnapshot(q, async (snapshot) => {
-            const apiaries = [];
-            for (const docSnap of snapshot.docs) {
+            const apiaries = await Promise.all(snapshot.docs.map(async (docSnap) => {
                 const data = docSnap.data();
                 const apiaryId = docSnap.id;
-                const collaboratorsSnap = await getDocs(collection(db, "pasieczyska", apiaryId, "collaborators"));
-                const members = {};
-                collaboratorsSnap.forEach(cDoc => {
-                    const cData = cDoc.data();
-                    members[cDoc.id] = cData.role || "editor";
-                });
-                if (data.adminId === uid || members[uid]) {
                     const apiaryType = data.apiaryType || "towarowe";
                     const baseUrl = window.location.href.split('#')[0];
                     let uliki = [];
@@ -672,18 +752,16 @@ app.ports.jsLoadApiaries.subscribe(async (uid) => {
                     } catch (err) {
                         console.error("Error loading hives/uliki for apiary", apiaryId, err);
                     }
-                    apiaries.push({
+                    return {
                         id: apiaryId,
                         name: data.name || "",
                         apiaryType: apiaryType,
                         adminId: data.adminId || "",
-                        members: members,
                         order: data.order !== undefined ? data.order : 0,
                         uliki: uliki,
                         hives: hives
-                    });
-                }
-            }
+                    };
+            }));
             apiaries.sort((a, b) => a.order - b.order);
             app.ports.apiariesReceived.send(apiaries);
         });
@@ -718,7 +796,6 @@ app.ports.jsCreateApiary.subscribe(async ({ name, apiaryType, uid }) => {
             name: name,
             apiaryType: apiaryType || "towarowe",
             adminId: uid,
-            members: { [uid]: 'owner' },
             order: state.apiaries.length
         });
         saveE2EState(state);
@@ -732,9 +809,6 @@ app.ports.jsCreateApiary.subscribe(async ({ name, apiaryType, uid }) => {
             apiaryType: apiaryType || "towarowe",
             adminId: uid,
             order: 0
-        });
-        await setDoc(doc(db, "pasieczyska", newRef.id, "collaborators", uid), {
-            role: "owner"
         });
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -1368,24 +1442,6 @@ app.ports.jsSaveNote.subscribe(async ({ apiaryId, hiveId, text, authorId, author
             authorEmail: authorEmail,
             timestamp: new Date()
         });
-    } catch (error) {
-        app.ports.operationError.send(error.message);
-    }
-});
-
-app.ports.jsShareApiary.subscribe(async ({ apiaryId, email, role }) => {
-    try {
-        await setDoc(doc(db, "pasieczyska", apiaryId, "collaborators", email), {
-            role: role
-        });
-    } catch (error) {
-        app.ports.operationError.send(error.message);
-    }
-});
-
-app.ports.jsRemoveMember.subscribe(async ({ apiaryId, memberKey }) => {
-    try {
-        await deleteDoc(doc(db, "pasieczyska", apiaryId, "collaborators", memberKey));
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

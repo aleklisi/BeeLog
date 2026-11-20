@@ -10,8 +10,8 @@ import Types.Helpers exposing (..)
 import Views.Trutowisko exposing (attentionSummaryText, attentionUlikNames)
 import I18n exposing (Translations)
 
-apiariesView : Translations -> User -> Model -> Html Msg
-apiariesView t user model =
+apiariesView : Translations -> Model -> Html Msg
+apiariesView t model =
     let
         filteredApiaries =
             List.filter
@@ -38,13 +38,12 @@ apiariesView t user model =
             p [ attribute "data-testid" "apiary-empty-state" ] [ text (if model.apiaryFilter == "trutowisko" then t.noMatingApiaries else if model.apiaryFilter == "towarowe" then t.noCommercialApiaries else t.noApiaries) ]
           else text ""
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (apiaryCardView t user model) filteredApiaries)
+            (List.map (apiaryCardView t model) filteredApiaries)
         ]
 
-apiaryCardView : Translations -> User -> Model -> Apiary -> Html Msg
-apiaryCardView t user model apiary =
+apiaryCardView : Translations -> Model -> Apiary -> Html Msg
+apiaryCardView t model apiary =
     let
-        isAdmin = apiary.adminId == user.uid
         cardBg = if model.darkMode then "#1e1e1e" else "white"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
@@ -95,8 +94,18 @@ apiaryCardView t user model apiary =
 
         allHivesTypeCounts = frameTypeCounts ++ extraCounts
     in
-    div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor ]
-        [ div [ onClick (NavigateTo navTarget) ]
+    div [ style "background" cardBg, style "padding" "15px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "grab", style "color" textColor
+        , draggable "true"
+        , on "dragstart" (Decode.succeed (StartOrderDrag Apiaries "" apiary.id))
+        , preventDefaultOn "dragover" (Decode.succeed ( OrderDragOver Apiaries "" apiary.id, True ))
+        , on "dragend" (Decode.succeed EndOrderDrag)
+        , attribute "data-testid" "apiary-card"
+        , attribute "data-apiary-id" apiary.id
+        , attribute "data-order-collection" "apiaries"
+        , attribute "data-order-apiary-id" ""
+        , attribute "data-order-id" apiary.id
+        ]
+        [ div [ onClick (NavigateCard navTarget), on "mousedown" (Decode.succeed ResetCardClickSuppression) ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px" ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
                     ([ h3 [ style "margin" "0", style "color" headingColor ] [ text apiary.name ] ]
@@ -128,7 +137,6 @@ apiaryCardView t user model apiary =
                     )
                 , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                 ]
-            , p [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d"), style "margin" "0 0 8px 0" ] [ text (if isAdmin then t.owner else t.shared) ]
             , if isTrutowisko then
                 div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
                     [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.matingHivesTotal ++ String.fromInt totalUlikiCount ++ ")") ]
@@ -156,17 +164,9 @@ apiaryCardView t user model apiary =
                     ]
             ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
-            [ div [ style "display" "flex", style "gap" "4px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryUp apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.moveLeft ] [ text "⬅️" ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveApiaryDown apiary.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.moveRight ] [ text "➡️" ]
+            [ div [ style "display" "flex", style "gap" "10px" ]
+                [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
+                , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
                 ]
-            , if isAdmin then
-                div [ style "display" "flex", style "gap" "10px" ]
-                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
-                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
-                    , button [ onClick (NavigateTo (SharingView { apiaryId = apiary.id, apiaryName = apiary.name })), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.share ] [ text "👥" ]
-                    ]
-              else
-                text ""
             ]
         ]

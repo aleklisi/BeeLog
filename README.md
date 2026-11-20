@@ -24,7 +24,6 @@ BeeLog to nowoczesna, progresywna aplikacja internetowa (PWA) przeznaczona do ko
 * **Przenoszenie kafelków (Reordering):** Intuicyjna zmiana kolejności pasieczysk oraz uli.
 * **Tagi NFC:** Przypisywanie i odczyt fizycznych tagów NFC zamontowanych na ulach za pomocą Web NFC API.
 * **Dyktowanie głosowe notatek:** Szybkie notowanie w terenie przy użyciu Web Speech API.
-* **Współdzielenie pasiek (IAM):** Zarządzanie uprawnieniami i udostępnianie pasiek innym użytkownikom.
 * **Tryb Ciemny (Dark Mode):** Wygodna praca w terenie w różnych warunkach oświetleniowych.
 
 ## 🚀 Uruchomienie lokalne

@@ -123,6 +123,7 @@ settingsView t user model =
                             , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin" "0 0 8px 0" ] [ text t.signedInEmail ]
                             , div [ style "font-size" "16px", style "font-weight" "bold", style "color" headingColor, style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px", attribute "data-testid" "user-email" ]
                                 [ text user.email ]
+                            , button [ onClick OpenAccountDeletion, style "margin-top" "12px", style "padding" "9px 14px", style "background" "#b91c1c", style "color" "white", style "border" "0", style "border-radius" "4px", attribute "data-testid" "delete-account" ] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
                             ]
                         , div []
                             [ settingHeader t.appearance ""
@@ -273,3 +274,25 @@ settingsView t user model =
                 ]
             ]
         ]
+        |> (\page ->
+            if model.showAccountDeletion then
+                div [] [ page, div [ style "position" "fixed", style "inset" "0", style "background" "rgba(0,0,0,.6)", style "display" "grid", style "place-items" "center", style "z-index" "1000" ]
+                    [ div [ style "background" cardBg, style "color" textColor, style "padding" "24px", style "border-radius" "8px", style "width" "min(420px,90vw)" ]
+                        [ h2 [] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
+                        , p [] [ text ((if t.isEnglish then "Type exactly " else "Wpisz dokładnie: ") ++ "Tak, usuwam konto!") ]
+                        , input [ type_ "text", value model.deletionPhrase, onInput UpdateDeletionPhrase, disabled model.deletionBusy, attribute "autocomplete" "off", attribute "data-testid" "delete-account-phrase", style "width" "100%", style "padding" "8px", style "box-sizing" "border-box" ] []
+                        , case model.deletionError of
+                            Just err ->
+                                p [ style "color" "#dc2626" ] [ text err ]
+
+                            Nothing ->
+                                text ""
+                        , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "8px", style "margin-top" "16px" ]
+                            [ button [ onClick CloseAccountDeletion, disabled model.deletionBusy ] [ text (if t.isEnglish then "Cancel" else "Anuluj") ]
+                            , button [ onClick SubmitAccountDeletion, disabled model.deletionBusy, attribute "data-testid" "confirm-delete-account" ] [ text (if model.deletionBusy then (if t.isEnglish then "Deleting…" else "Usuwanie…") else (if t.isEnglish then "Delete" else "Usuń")) ]
+                            ]
+                        ]
+                    ]
+                ]
+            else page
+        )

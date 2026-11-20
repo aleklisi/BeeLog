@@ -1,6 +1,6 @@
 import { deleteApp, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from 'firebase/auth';
-import { connectFirestoreEmulator, deleteDoc, doc, getDoc, getFirestore, runTransaction, setDoc } from 'firebase/firestore';
+import { addDoc, collection, connectFirestoreEmulator, doc, getDoc, getFirestore, runTransaction, setDoc } from 'firebase/firestore';
 
 const projectId = 'demo-beelog';
 const config = { apiKey: 'demo-api-key', authDomain: `${projectId}.firebaseapp.com`, projectId };
@@ -35,6 +35,36 @@ try {
     const ownerUid = ownerAuth.currentUser.uid;
     const otherUid = otherAuth.currentUser.uid;
     const collections = ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches', 'rearingSequences'];
+
+    const apiaryRef = doc(ownerDb, 'pasieczyska', 'owner-apiary');
+    await setDoc(apiaryRef, { name: 'Owner apiary', adminId: ownerUid });
+    assert((await getDoc(apiaryRef)).exists(), 'Apiary owner could not read their apiary');
+    await denied(
+        () => getDoc(doc(otherDb, 'pasieczyska', 'owner-apiary')),
+        'Another user read an apiary they do not own'
+    );
+    await denied(
+        () => setDoc(doc(otherDb, 'pasieczyska', 'forged-apiary'), { adminId: ownerUid }),
+        'Another user created an apiary for someone else'
+    );
+    await denied(
+        () => getDoc(doc(ownerDb, 'pasieczyska', 'owner-apiary', 'collaborators', otherUid)),
+        'Client read a collaborator record'
+    );
+
+    const hiveRef = doc(ownerDb, 'hives', 'owner-hive');
+    await setDoc(hiveRef, { apiaryId: 'owner-apiary', name: 'Owner hive' });
+    assert((await getDoc(hiveRef)).exists(), 'Apiary owner could not read their hive');
+    await denied(
+        () => getDoc(doc(otherDb, 'hives', 'owner-hive')),
+        'Another user read a hive belonging to someone else'
+    );
+    const noteRef = await addDoc(collection(ownerDb, 'hives', 'owner-hive', 'notes'), { text: 'Owner note' });
+    assert((await getDoc(noteRef)).exists(), 'Apiary owner could not read their hive note');
+    await denied(
+        () => getDoc(doc(otherDb, 'hives', 'owner-hive', 'notes', noteRef.id)),
+        'Another user read a note belonging to someone else'
+    );
 
     for (const name of collections) {
         const ownerRef = doc(ownerDb, 'users', ownerUid, name, 'authorized-record');
@@ -85,7 +115,7 @@ try {
         'Unauthenticated user read a queen-rearing document'
     );
     await signOut(otherAuth);
-    console.log('Firestore owner and cross-user rules passed for all queen-rearing collections.');
+    console.log('Firestore owner-only apiary, hive, note, and queen-rearing rules passed.');
 } finally {
     await deleteApp(ownerApp);
     await deleteApp(otherApp);

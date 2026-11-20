@@ -525,11 +525,23 @@ test.describe('BeeLog E2E Test Suite', () => {
       await expect(page.locator(`text=${name}`)).toBeVisible();
     }
 
-    // Zmień kolejność (przesuń Pasieka Y w lewo przyciskiem ⬅️)
-    await page.locator('h3', { hasText: 'Pasieka Y' }).evaluate(node => {
-      const card = node.closest('div[style*="background"]');
-      card.querySelector('button[title="Przesuń w lewo"]').click();
-    });
+    // Przeciągnij Pasiekę X za Pasiekę Z.
+    const apiaryOrder = () => page.locator('[data-testid="apiary-card"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-apiary-id')));
+    const apiaryXId = await page.locator('[data-testid="apiary-card"]', { hasText: 'Pasieka X' }).getAttribute('data-apiary-id');
+    const apiaryYId = await page.locator('[data-testid="apiary-card"]', { hasText: 'Pasieka Y' }).getAttribute('data-apiary-id');
+    const apiaryZ = page.locator('[data-testid="apiary-card"]', { hasText: 'Pasieka Z' });
+    const apiaryTarget = apiaryZ;
+    const sourceBox = await page.locator(`[data-testid="apiary-card"][data-apiary-id="${apiaryXId}"]`).boundingBox();
+    const targetBox = await apiaryTarget.boundingBox();
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height * 0.8, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(apiaryOrder).toEqual([
+      apiaryYId,
+      await apiaryZ.getAttribute('data-apiary-id'),
+      apiaryXId
+    ]);
 
     // Odśwież stronę
     await page.reload();
@@ -543,6 +555,11 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Pasieka X')).toBeVisible();
     await expect(page.locator('text=Pasieka Y')).toBeVisible();
     await expect(page.locator('text=Pasieka Z')).toBeVisible();
+    await expect.poll(apiaryOrder).toEqual([
+      apiaryYId,
+      await page.locator('[data-testid="apiary-card"]', { hasText: 'Pasieka Z' }).getAttribute('data-apiary-id'),
+      apiaryXId
+    ]);
   });
 
   test('6. W pasieczysku: Dodanie, edycja, usunięcie ula oraz test kolejności 3 uli', async ({ page }) => {
@@ -579,11 +596,17 @@ test.describe('BeeLog E2E Test Suite', () => {
       await expect(page.locator(`text=${hiveName}`)).toBeVisible();
     }
 
-    // Zmień kolejność uli (przesuń Ul 2 w górę)
-    await page.locator('h3', { hasText: 'Ul 2' }).evaluate(node => {
-      const card = node.closest('div[style*="background"]');
-      card.querySelector('button[title="Przesuń w górę"]').click();
-    });
+    // Przeciągnij Ul 2 przed Ul 1.
+    const hiveOrder = () => page.locator('[data-testid="commercial-hive-card"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-hive-id')));
+    const hive1Id = await page.locator('[data-testid="commercial-hive-card"]', { hasText: 'Ul 1' }).getAttribute('data-hive-id');
+    const hive1Card = page.locator(`[data-testid="commercial-hive-card"][data-hive-id="${hive1Id}"]`);
+    const hive1Box = await hive1Card.boundingBox();
+    await page.locator('[data-testid="commercial-hive-card"]', { hasText: 'Ul 2' }).dragTo(hive1Card, { targetPosition: { x: hive1Box.width / 2, y: hive1Box.height * 0.2 } });
+    await expect.poll(hiveOrder).toEqual([
+      await page.locator('[data-testid="commercial-hive-card"]', { hasText: 'Ul 2' }).getAttribute('data-hive-id'),
+      hive1Id,
+      await page.locator('[data-testid="commercial-hive-card"]', { hasText: 'Ul 3' }).getAttribute('data-hive-id')
+    ]);
 
     // Edytuj Ul 1 (kliknij w kafelek ula, aby wejść w kartę ula)
     await page.click('text=Ul 1');
@@ -753,7 +776,7 @@ test.describe('BeeLog E2E Test Suite', () => {
       localStorage.setItem('__E2E_STATE__', JSON.stringify({
         apiaries: [{
           id: 'attention-apiary', name: 'Trutowisko Alertów', apiaryType: 'trutowisko',
-          adminId: 'e2e-test-uid', members: {}, order: 0,
+          adminId: 'e2e-test-uid', order: 0,
           uliki, hives: []
         }], uliki: { 'attention-apiary': uliki }, hives: {}, notes: {}
       }));
@@ -813,22 +836,22 @@ test.describe('BeeLog E2E Test Suite', () => {
         apiaries: [
           {
             id: 'mating-single', name: 'Trutowisko Pojedyncze', apiaryType: 'trutowisko',
-            adminId: 'e2e-test-uid', members: {}, order: 0,
+            adminId: 'e2e-test-uid', order: 0,
             uliki: ulikiSingle, hives: []
           },
           {
             id: 'mating-multiple', name: 'Trutowisko Wielokrotne', apiaryType: 'trutowisko',
-            adminId: 'e2e-test-uid', members: {}, order: 1,
+            adminId: 'e2e-test-uid', order: 1,
             uliki: ulikiMultiple, hives: []
           },
           {
             id: 'mating-clean', name: 'Trutowisko Czyste', apiaryType: 'trutowisko',
-            adminId: 'e2e-test-uid', members: {}, order: 2,
+            adminId: 'e2e-test-uid', order: 2,
             uliki: ulikiClean, hives: []
           },
           {
             id: 'comm-1', name: 'Pasieka Towarowa Alert', apiaryType: 'towarowe',
-            adminId: 'e2e-test-uid', members: {}, order: 3,
+            adminId: 'e2e-test-uid', order: 3,
             uliki: [], hives: [{ id: 'hive-1', name: 'Ul 1', frameType: 'Dadant', bodyEditor: { bodies: [] }, notes: [] }]
           }
         ],
@@ -884,6 +907,110 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.getByRole('heading', { level: 3, name: 'Trutowisko Wielokrotne' }).click();
     await expect(page.getByText('Trutowisko: Trutowisko Wielokrotne')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Brak matki w ulu', exact: true })).toBeVisible();
+  });
+
+  test('7.3. Filtr tylko wymagające akcji na liście ulików weselnych', async ({ page }) => {
+    const { today, yesterday, tomorrow } = await page.evaluate(() => {
+      const dateOffset = offset => {
+        const date = new Date();
+        date.setUTCDate(date.getUTCDate() + offset);
+        return date.toISOString().slice(0, 10);
+      };
+      return { today: dateOffset(0), yesterday: dateOffset(-1), tomorrow: dateOffset(1) };
+    });
+
+    await page.evaluate(({ today, yesterday, tomorrow }) => {
+      const uliki = [
+        { id: 'u-queenless', name: 'Ulik Bezmatek', hiveType: 'Mini plus', state: 'bezmatek', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 0, history: [] },
+        { id: 'u-due-today-hatch', name: 'Ulik Wygryzienie Dziś', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: today, expectedMatingDate: tomorrow, order: 1, history: [] },
+        { id: 'u-due-today-mating', name: 'Ulik Unasiennienie Dziś', hiveType: 'Mini plus', state: 'matka_wygryziona', hasQueen: true, expectedHatchDate: yesterday, expectedMatingDate: today, order: 2, history: [] },
+        { id: 'u-overdue', name: 'Ulik Przeterminowany', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: yesterday, expectedMatingDate: tomorrow, order: 3, history: [] },
+        { id: 'u-future', name: 'Ulik W Przyszłości', hiveType: 'Mini plus', state: 'z_matecznikiem', hasQueen: true, expectedHatchDate: tomorrow, expectedMatingDate: tomorrow, order: 4, history: [] },
+        { id: 'u-clean', name: 'Ulik Pusty', hiveType: 'Mini plus', state: 'pusty_ulik', hasQueen: false, expectedHatchDate: '', expectedMatingDate: '', order: 5, history: [] }
+      ];
+      localStorage.setItem('__E2E_STATE__', JSON.stringify({
+        apiaries: [{
+          id: 'filter-action-apiary', name: 'Trutowisko Filtr Akcji', apiaryType: 'trutowisko',
+          adminId: 'e2e-test-uid', order: 0,
+          uliki, hives: []
+        }], uliki: { 'filter-action-apiary': uliki }, hives: {}, notes: {}
+      }));
+    }, { today, yesterday, tomorrow });
+
+    await page.reload();
+    await page.evaluate(() => {
+      window.app.ports.authStateChanged.send({ uid: 'e2e-test-uid', email: 'e2e@beelog.test' });
+    });
+    await page.getByText('Trutowisko Filtr Akcji').click();
+    await expect(page.getByText('Trutowisko: Trutowisko Filtr Akcji')).toBeVisible();
+
+    // 1. Domyślnie checkbox "Tylko wymagające akcji" jest odznaczony i widoczne są wszystkie uliki
+    const actionCheckbox = page.getByRole('checkbox', { name: 'Tylko wymagające akcji' });
+    await expect(actionCheckbox).toBeVisible();
+    await expect(actionCheckbox).not.toBeChecked();
+
+    await expect(page.getByText('Ulik Bezmatek')).toBeVisible();
+    await expect(page.getByText('Ulik Wygryzienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Unasiennienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Przeterminowany')).toBeVisible();
+    await expect(page.getByText('Ulik W Przyszłości')).toBeVisible();
+    await expect(page.getByText('Ulik Pusty')).toBeVisible();
+
+    // 2. Po zaznaczeniu widoczne są tylko uliki wymagające akcji (bezmatek, termin dzisiaj, przeterminowane)
+    await actionCheckbox.check();
+    await expect(actionCheckbox).toBeChecked();
+
+    await expect(page.getByText('Ulik Bezmatek')).toBeVisible();
+    await expect(page.getByText('Ulik Wygryzienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Unasiennienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Przeterminowany')).toBeVisible();
+
+    await expect(page.getByText('Ulik W Przyszłości')).not.toBeVisible();
+    await expect(page.getByText('Ulik Pusty')).not.toBeVisible();
+
+    // Zachowane są znaczniki uwagi (!) na ulikach wymagających akcji
+    const alerts = page.locator('button[aria-label]:not([data-testid="main-menu-toggle"])');
+    await expect(alerts).toHaveCount(4);
+
+    // 3. Połączenie filtru akcji z filtrem stanu ulików
+    const stateSelect = page.locator('select').first();
+    await stateSelect.selectOption('z_matecznikiem');
+
+    await expect(page.getByText('Ulik Wygryzienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Przeterminowany')).toBeVisible();
+    await expect(page.getByText('Ulik Bezmatek')).not.toBeVisible();
+    await expect(page.getByText('Ulik Unasiennienie Dziś')).not.toBeVisible();
+    await expect(page.getByText('Ulik W Przyszłości')).not.toBeVisible();
+    await expect(page.getByText('Ulik Pusty')).not.toBeVisible();
+
+    // 4. Pusty stan przy braku dopasowań
+    await stateSelect.selectOption('pusty_ulik');
+    await expect(page.getByText('Brak ulików wymagających akcji.')).toBeVisible();
+
+    // Lista pozostaje sterowalna i responsywna
+    await stateSelect.selectOption('all');
+    await expect(page.getByText('Brak ulików wymagających akcji.')).not.toBeVisible();
+    await expect(page.getByText('Ulik Bezmatek')).toBeVisible();
+
+    // 5. Odznaczenie checkboxa przywraca pełną listę
+    await actionCheckbox.uncheck();
+    await expect(actionCheckbox).not.toBeChecked();
+
+    await expect(page.getByText('Ulik Bezmatek')).toBeVisible();
+    await expect(page.getByText('Ulik Wygryzienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Unasiennienie Dziś')).toBeVisible();
+    await expect(page.getByText('Ulik Przeterminowany')).toBeVisible();
+    await expect(page.getByText('Ulik W Przyszłości')).toBeVisible();
+    await expect(page.getByText('Ulik Pusty')).toBeVisible();
+
+    // 6. Nawigacja do uliku i powrót (brak modyfikacji danych)
+    await page.getByText('Ulik Wygryzienie Dziś').click();
+    await expect(page.getByText('Ulik Weselny: Ulik Wygryzienie Dziś')).toBeVisible();
+    await page.getByRole('button', { name: '← Powrót' }).click();
+    await expect(page.getByText('Trutowisko: Trutowisko Filtr Akcji')).toBeVisible();
+
+    const storedData = await page.evaluate(() => JSON.parse(localStorage.getItem('__E2E_STATE__')));
+    expect(storedData.uliki['filter-action-apiary']).toHaveLength(6);
   });
 
   test('8. Type-specific apiary views', async ({ page }) => {
@@ -1515,6 +1642,95 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('[data-testid="settings-section-trutowiska"]')).not.toBeVisible();
     await expect(page.locator('[data-testid="settings-section-pasieczyska"]')).not.toBeVisible();
     await expect(page.locator('[data-testid="settings-section-ogolne"]')).toBeVisible();
+  });
+
+  test('drag and drop reorders apiaries, commercial hives, and filtered mating hives persistently', async ({ page }) => {
+    const hive = (id, name, apiaryId, order) => ({ id, name, apiaryId, order, hiveType: 'korpusowy', frameType: 'Wielkopolska' });
+    const ulik = (id, name, apiaryId, state, order) => ({ id, name, apiaryId, state, order, hiveType: 'Mini plus', hasQueen: state !== 'bezmatek', history: [] });
+    await page.evaluate(({ hives, uliki }) => {
+      localStorage.setItem('__E2E_STATE__', JSON.stringify({
+        apiaries: [
+          { id: 'mating-a', name: 'Mating A', apiaryType: 'trutowisko', adminId: 'order-user', order: 0 },
+          { id: 'mating-b', name: 'Mating B', apiaryType: 'trutowisko', adminId: 'order-user', order: 1 },
+          { id: 'commercial-a', name: 'Commercial A', apiaryType: 'towarowe', adminId: 'order-user', order: 2 },
+          { id: 'commercial-b', name: 'Commercial B', apiaryType: 'towarowe', adminId: 'order-user', order: 3 }
+        ],
+        hives: { 'commercial-a': hives, 'commercial-b': [ { id: 'hive-other', name: 'Other Apiary Hive', apiaryId: 'commercial-b', order: 0 } ] },
+        uliki,
+        notes: {},
+        queenRearing: { breederQueens: [], starterColonies: [], finisherColonies: [], rearingBatches: [], sequences: {} }
+      }));
+    }, {
+      hives: [hive('hive-a', 'Hive A', 'commercial-a', 0), hive('hive-b', 'Hive B', 'commercial-a', 1), hive('hive-c', 'Hive C', 'commercial-a', 2)],
+      uliki: { 'mating-a': [
+        ulik('ulik-a', 'Ulik A', 'mating-a', 'bezmatek', 0),
+        ulik('ulik-hidden', 'Ulik Hidden', 'mating-a', 'pusty_ulik', 1),
+        ulik('ulik-b', 'Ulik B', 'mating-a', 'bezmatek', 2)
+      ], 'mating-b': [ulik('ulik-other', 'Ulik Other Apiary', 'mating-b', 'bezmatek', 0)] }
+    });
+    await page.reload();
+    await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
+
+    const dragCardTo = async (source, target, after) => {
+      const box = await target.boundingBox();
+      await source.dragTo(target, {
+        targetPosition: { x: box.width / 2, y: box.height * (after ? 0.8 : 0.2) },
+        steps: 8
+      });
+    };
+    const idsIn = async (selector, attr) => page.locator(selector).evaluateAll((nodes, attribute) => nodes.map(node => node.getAttribute(attribute)), attr);
+
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Trutowiska' }).click();
+    const matingOrder = () => idsIn('[data-testid="apiary-card"]', 'data-apiary-id');
+    await expect.poll(matingOrder).toEqual(['mating-a', 'mating-b']);
+    await expect(page.locator('[data-testid="apiary-card"] button[title*="lewo"], [data-testid="apiary-card"] button[title*="prawo"]')).toHaveCount(0);
+    await dragCardTo(page.locator('[data-testid="apiary-card"][data-apiary-id="mating-a"]'), page.locator('[data-testid="apiary-card"][data-apiary-id="mating-b"]'), true);
+    await expect.poll(matingOrder).toEqual(['mating-b', 'mating-a']);
+    await page.reload();
+    await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Trutowiska' }).click();
+    await expect.poll(matingOrder).toEqual(['mating-b', 'mating-a']);
+
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Pasieczyska towarowe' }).click();
+    await page.getByText('Commercial A').click();
+    const hiveOrder = () => idsIn('[data-testid="commercial-hive-card"]', 'data-hive-id');
+    await expect.poll(hiveOrder).toEqual(['hive-a', 'hive-b', 'hive-c']);
+    await expect(page.locator('[data-testid="commercial-hive-card"] button[title*="górę"], [data-testid="commercial-hive-card"] button[title*="dół"]')).toHaveCount(0);
+    await dragCardTo(page.locator('[data-testid="commercial-hive-card"][data-hive-id="hive-a"]'), page.locator('[data-testid="commercial-hive-card"][data-hive-id="hive-b"]'), true);
+    await expect.poll(hiveOrder).toEqual(['hive-b', 'hive-a', 'hive-c']);
+    await dragCardTo(page.locator('[data-testid="commercial-hive-card"][data-hive-id="hive-a"]'), page.locator('[data-testid="commercial-hive-card"][data-hive-id="hive-c"]'), true);
+    await expect.poll(hiveOrder).toEqual(['hive-b', 'hive-c', 'hive-a']);
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('__E2E_STATE__')).hives['commercial-b'].map(item => item.id))).toEqual(['hive-other']);
+    await expect(page.getByRole('heading', { name: 'Pasieka: Commercial A' })).toBeVisible();
+    await page.reload();
+    await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Pasieczyska towarowe' }).click();
+    await page.getByText('Commercial A').click();
+    await expect.poll(hiveOrder).toEqual(['hive-b', 'hive-c', 'hive-a']);
+
+    await page.getByRole('button', { name: '← Powrót' }).click();
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Trutowiska' }).click();
+    await page.getByText('Mating A').click();
+    await page.locator('select').selectOption('bezmatek');
+    const visibleUlikOrder = () => idsIn('[data-testid="mating-hive-card"]', 'data-ulik-id');
+    await expect.poll(visibleUlikOrder).toEqual(['ulik-a', 'ulik-b']);
+    await expect(page.locator('[data-testid="mating-hive-card"] button[title="Przesuń w górę"], [data-testid="mating-hive-card"] button[title="Przesuń w dół"]')).toHaveCount(0);
+    await dragCardTo(page.locator('[data-testid="mating-hive-card"][data-ulik-id="ulik-a"]'), page.locator('[data-testid="mating-hive-card"][data-ulik-id="ulik-b"]'), true);
+    await expect.poll(visibleUlikOrder).toEqual(['ulik-b', 'ulik-a']);
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('__E2E_STATE__')).uliki['mating-b'].map(item => item.id))).toEqual(['ulik-other']);
+    await expect(page.getByRole('heading', { name: 'Trutowisko: Mating A' })).toBeVisible();
+    await page.reload();
+    await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: 'Trutowiska' }).click();
+    await page.getByText('Mating A').click();
+    await expect.poll(() => idsIn('[data-testid="mating-hive-card"]', 'data-ulik-id')).toEqual(['ulik-b', 'ulik-hidden', 'ulik-a']);
+    await expect(page.locator('[data-testid="mating-hive-card"][data-ulik-id="ulik-hidden"]')).toContainText('Ulik Hidden');
   });
 
 });

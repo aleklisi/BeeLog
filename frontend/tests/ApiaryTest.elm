@@ -73,10 +73,10 @@ suite =
                             Expect.fail ("Failed to decode lezak hive: " ++ Decode.errorToString err)
             ]
         , describe "Apiary Decoder"
-            [ test "decodes apiaries with members" <|
+            [ test "decodes apiaries without collaborator data" <|
                 \() ->
                     let
-                        json = "[{\"id\": \"a1\", \"name\": \"Pasieka\", \"adminId\": \"u1\", \"members\": {\"user@test.com\": \"edit\"}}]"
+                        json = "[{\"id\": \"a1\", \"name\": \"Pasieka\", \"adminId\": \"u1\"}]"
                     in
                     case Decode.decodeString decodeApiaries json of
                         Ok apiaries ->

@@ -21,13 +21,13 @@ attentionReasons state expectedHatchDate expectedMatingDate currentDate =
                 []
 
         emergenceReason =
-            if state == "z_matecznikiem" && isBeforeToday expectedHatchDate currentDate then
+            if state == "z_matecznikiem" && isDueOrBeforeToday expectedHatchDate currentDate then
                 [ "Sprawdź, czy matka się wygryzła" ]
             else
                 []
 
         matingReason =
-            if state == "matka_wygryziona" && isBeforeToday expectedMatingDate currentDate then
+            if state == "matka_wygryziona" && isDueOrBeforeToday expectedMatingDate currentDate then
                 [ "Minął oczekiwany termin unasiennienia matki" ]
             else
                 []
@@ -71,11 +71,11 @@ attentionSummaryText t names =
     t.localize "Uliki wymagające akcji: " ++ String.join ", " names
 
 
-isBeforeToday : String -> String -> Bool
-isBeforeToday expectedDate currentDate =
+isDueOrBeforeToday : String -> String -> Bool
+isDueOrBeforeToday expectedDate currentDate =
     case ( validDateDays expectedDate, validDateDays currentDate ) of
         ( Just expectedDays, Just todayDays ) ->
-            expectedDays < todayDays
+            expectedDays <= todayDays
 
         _ ->
             False
@@ -104,7 +104,7 @@ ulikListView t user info model =
         inputColor = if model.darkMode then "#e0e0e0" else "#333"
         inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
 
-        filteredUliki =
+        stateFilteredUliki =
             List.filter
                 (\u ->
                     if model.ulikFilter == "all" then
@@ -113,6 +113,12 @@ ulikListView t user info model =
                         u.state == model.ulikFilter
                 )
                 model.uliki
+
+        filteredUliki =
+            if model.ulikActionRequiredOnly then
+                List.filter (\u -> not (List.isEmpty (ulikAttentionReasons model.currentDate u))) stateFilteredUliki
+            else
+                stateFilteredUliki
     in
     div []
         [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
@@ -123,20 +129,49 @@ ulikListView t user info model =
             [ div [ style "display" "flex", style "gap" "10px" ]
                 [ button [ onClick OpenNewUlikModal, style "padding" "12px 18px", style "background-color" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "44px", style "font-size" "15px" ] [ text t.addMatingHive ]
                 ]
-            , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
-                [ span [ style "color" textColor, style "font-size" "14px" ] [ text t.filterState ]
-                , select [ onInput SetUlikFilter, style "padding" "8px 12px", style "font-size" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ]
-                    [ option [ value "all", selected (model.ulikFilter == "all") ] [ text t.allStates ]
-                    , option [ value "bezmatek", selected (model.ulikFilter == "bezmatek") ] [ text (t.localize "(B) Bezmatek") ]
-                    , option [ value "z_matecznikiem", selected (model.ulikFilter == "z_matecznikiem") ] [ text (t.localize "(M) Matecznik") ]
-                    , option [ value "matka_wygryziona", selected (model.ulikFilter == "matka_wygryziona") ] [ text (t.localize "(N) Matka nieunasienniona") ]
-                    , option [ value "matka_czerwi", selected (model.ulikFilter == "matka_czerwi") ] [ text (t.localize "(UNC) Matka unasienniona") ]
-                    , option [ value "pusty_ulik", selected (model.ulikFilter == "pusty_ulik") ] [ text (t.localize "(P) Pusty ulik") ]
+            , div [ style "display" "flex", style "align-items" "center", style "gap" "16px", style "flex-wrap" "wrap" ]
+                [ label [ for "filter-action-required", style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "color" textColor, style "font-size" "14px", style "user-select" "none" ]
+                    [ input
+                        [ type_ "checkbox"
+                        , id "filter-action-required"
+                        , checked model.ulikActionRequiredOnly
+                        , onCheck (\_ -> ToggleUlikActionRequiredOnly)
+                        , style "cursor" "pointer"
+                        , style "width" "18px"
+                        , style "height" "18px"
+                        ]
+                        []
+                    , text (t.localize "Tylko wymagające akcji")
+                    ]
+                , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                    [ span [ style "color" textColor, style "font-size" "14px" ] [ text t.filterState ]
+                    , select [ onInput SetUlikFilter, style "padding" "8px 12px", style "font-size" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ]
+                        [ option [ value "all", selected (model.ulikFilter == "all") ] [ text t.allStates ]
+                        , option [ value "bezmatek", selected (model.ulikFilter == "bezmatek") ] [ text (t.localize "(B) Bezmatek") ]
+                        , option [ value "z_matecznikiem", selected (model.ulikFilter == "z_matecznikiem") ] [ text (t.localize "(M) Matecznik") ]
+                        , option [ value "matka_wygryziona", selected (model.ulikFilter == "matka_wygryziona") ] [ text (t.localize "(N) Matka nieunasienniona") ]
+                        , option [ value "matka_czerwi", selected (model.ulikFilter == "matka_czerwi") ] [ text (t.localize "(UNC) Matka unasienniona") ]
+                        , option [ value "pusty_ulik", selected (model.ulikFilter == "pusty_ulik") ] [ text (t.localize "(P) Pusty ulik") ]
+                        ]
                     ]
                 ]
             ]
-        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
-            (List.map (ulikCardView t info.apiaryId model) filteredUliki)
+        , if List.isEmpty filteredUliki then
+            div [ style "padding" "32px 16px", style "text-align" "center", style "background" cardBg, style "border-radius" "8px", style "border" ("1px dashed " ++ borderColor), style "color" (if model.darkMode then "#aaa" else "#666") ]
+                [ p [ style "margin" "0", style "font-size" "15px" ]
+                    [ text
+                        (if model.ulikActionRequiredOnly then
+                            t.localize "Brak ulików wymagających akcji."
+                         else if model.ulikFilter /= "all" then
+                            t.localize "Brak ulików o wybranym stanie."
+                         else
+                            t.localize "Brak ulików w tym trutowisku."
+                        )
+                    ]
+                ]
+          else
+            div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
+                (List.map (ulikCardView t info.apiaryId model) filteredUliki)
         ]
 
 ulikTimelineView : Translations -> Model -> UlikWeselny -> Html Msg
@@ -253,8 +288,18 @@ ulikCardView t apiaryId model ulik =
         borderColor = if model.darkMode then "#333" else "#eee"
         metaBg = if model.darkMode then "#2d2d2d" else "#f1f2f6"
     in
-    div [ style "background" cardBg, style "padding" "16px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "pointer", style "color" textColor
-        , onClick (NavigateTo (UlikDetailView { apiaryId = apiaryId, ulikId = ulik.id, ulikName = ulik.name }))
+    div [ style "background" cardBg, style "padding" "16px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "cursor" "grab", style "color" textColor
+        , draggable "true"
+        , on "dragstart" (Decode.succeed (StartOrderDrag MatingHives apiaryId ulik.id))
+        , preventDefaultOn "dragover" (Decode.succeed ( OrderDragOver MatingHives apiaryId ulik.id, True ))
+        , on "dragend" (Decode.succeed EndOrderDrag)
+        , attribute "data-testid" "mating-hive-card"
+        , attribute "data-ulik-id" ulik.id
+        , attribute "data-order-collection" "mating-hives"
+        , attribute "data-order-apiary-id" apiaryId
+        , attribute "data-order-id" ulik.id
+        , onClick (NavigateCard (UlikDetailView { apiaryId = apiaryId, ulikId = ulik.id, ulikName = ulik.name }))
+        , on "mousedown" (Decode.succeed ResetCardClickSuppression)
         ]
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "gap" "8px" ]
             ([ h3 [ style "margin" "0", style "color" headingColor ] [ text ulik.name ] ]
@@ -288,11 +333,7 @@ ulikCardView t apiaryId model ulik =
             [ text (t.localize "Matka: " ++ (if ulik.hasQueen then (if ulik.queen.hasOpalit then t.localize "Opalit " ++ t.localize ulik.queen.color ++ " #" ++ ulik.queen.number else t.localize "Bez opalitka") ++ (if ulik.queen.breedLine /= "" then " (" ++ ulik.queen.breedLine ++ ")" else "") else t.localize "Brak matki")) ]
         , ulikTimelineView t model ulik
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "12px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px", style "flex-wrap" "wrap" ]
-            [ div [ style "display" "flex", style "gap" "8px" ]
-                [ button [ stopPropagationOn "click" (Decode.succeed (MoveUlikUp ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveUp ] [ text (t.localize "⬆️") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (MoveUlikDown ulik.id, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveDown ] [ text (t.localize "⬇️") ]
-                ]
-            , div [ style "display" "flex", style "gap" "12px" ]
+            [ div [ style "display" "flex", style "gap" "12px" ]
                 [ button [ attribute "data-testid" "move-ulik-apiary", stopPropagationOn "click" (Decode.succeed (OpenMoveUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveRight ] [ text (t.localize "🚚") ]
                 , button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
                 , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]

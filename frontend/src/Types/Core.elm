@@ -113,11 +113,15 @@ type alias Apiary =
     , name : String
     , apiaryType : String
     , adminId : String
-    , members : List ( String, String )
     , order : Int
     , uliki : List UlikWeselny
     , hives : List Hive
     }
+
+type OrderCollection
+    = Apiaries
+    | CommercialHives
+    | MatingHives
 
 type alias UserSettings =
     { frameTypes : List String
@@ -150,7 +154,6 @@ type ViewState
     | HiveDetailView { apiaryId : String, hiveId : String, hiveName : String }
     | UlikListView { apiaryId : String, apiaryName : String }
     | UlikDetailView { apiaryId : String, ulikId : String, ulikName : String }
-    | SharingView { apiaryId : String, apiaryName : String }
     | SettingsView
 
 type UlikModalType
@@ -174,6 +177,8 @@ type alias Model =
     , apiaries : List Apiary
     , hives : List Hive
     , draggedKorpusId : Maybe String
+    , draggedOrderItem : Maybe { collection : OrderCollection, apiaryId : String, id : String }
+    , suppressCardClick : Bool
     , uliki : List UlikWeselny
     , notes : List Note
     , errorMessage : Maybe String
@@ -205,8 +210,6 @@ type alias Model =
     , newNoteText : String
     , editingNoteId : Maybe String
     , editNoteText : String
-    , shareEmailInput : String
-    , shareRoleInput : String
     , showRenameHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
     , renameHiveInput : String
     , showDeleteHiveModal : Maybe { apiaryId : String, hiveId : String, hiveName : String }
@@ -219,6 +222,7 @@ type alias Model =
     , currentEpoch : Int
     , apiaryFilter : String
     , ulikFilter : String
+    , ulikActionRequiredOnly : Bool
     , frameTypes : List String
     , newFrameTypeInput : String
     , ulikTypes : List String
@@ -240,6 +244,10 @@ type alias Model =
     , queenRearingForm : Dict String String
     , editingQueenResource : Maybe { kind : String, id : String }
     , expandedSettingsSections : List SettingsSection
+    , showAccountDeletion : Bool
+    , deletionPhrase : String
+    , deletionError : Maybe String
+    , deletionBusy : Bool
     , activeUlikModal : Maybe { apiaryId : String, ulikId : String, modalType : UlikModalType }
     , modalBreedLine : String
     , modalHatchDate : String
@@ -268,6 +276,11 @@ type Msg
     | TransitionRearingBatch String String
     | DeleteRearingBatch String
     | ToggleSettingsSection SettingsSection
+    | OpenAccountDeletion
+    | CloseAccountDeletion
+    | UpdateDeletionPhrase String
+    | SubmitAccountDeletion
+    | AccountDeletionFinished (Result String String)
     | UpdateQueenSetting String String
     | AuthStateUpdated { uid : String, email : String }
     | CurrentDateReceived String
@@ -290,6 +303,7 @@ type Msg
     | SubmitDeleteApiary String
     | SetApiaryFilter String
     | SetUlikFilter String
+    | ToggleUlikActionRequiredOnly
     | UpdateNewFrameTypeInput String
     | AddFrameType String
     | RemoveFrameType String
@@ -330,6 +344,12 @@ type Msg
     | DropKorpusAfter String String String
     | EndKorpusDrag
     | KorpusDropReceived Decode.Value
+    | StartOrderDrag OrderCollection String String
+    | OrderDragOver OrderCollection String String
+    | EndOrderDrag
+    | OrderDropReceived Decode.Value
+    | NavigateCard ViewState
+    | ResetCardClickSuppression
     | NoOp
     | UlikiDecoded (Result String (List UlikWeselny))
     | OpenNewUlikModal
@@ -357,10 +377,6 @@ type Msg
     | UpdateEditNoteText String
     | SubmitUpdateNote String String String
     | SubmitDeleteNote String String String
-    | UpdateShareEmail String
-    | UpdateShareRole String
-    | SubmitShareApiary String String String
-    | SubmitRemoveMember String String
     | OpenRenameHiveModal String Hive
     | CloseRenameHiveModal
     | UpdateRenameHiveInput String
@@ -379,14 +395,7 @@ type Msg
     | CloseMoveUlikModal
     | SelectMoveUlikTargetApiary String
     | SubmitMoveUlik String String String
-    | MoveApiaryUp String
-    | MoveApiaryDown String
-    | MoveHiveUp String
-    | MoveHiveDown String
-    | MoveUlikUp String
-    | MoveUlikDown String
     | UpdatePollenTrap String String String
-    | CopyUserId String
     | CopyText String
     | SubmitHiveSnapshot String String User
     | HandleError String

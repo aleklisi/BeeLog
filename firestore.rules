@@ -1,19 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function ownsApiary(apiaryId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/pasieczyska/$(apiaryId)).data.adminId == request.auth.uid;
+    }
+
     match /pasieczyska/{pasieczyskoId} {
-      allow read, write: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.adminId == request.auth.uid;
+      allow read, delete: if request.auth != null
+        && resource.data.adminId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == request.auth.uid;
 
       match /collaborators/{userId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if false;
       }
     }
 
     match /hives/{hiveId} {
-      allow read, write: if request.auth != null;
+      allow create: if ownsApiary(request.resource.data.apiaryId);
+      allow read, delete: if ownsApiary(resource.data.apiaryId);
+      allow update: if ownsApiary(resource.data.apiaryId)
+        && ownsApiary(request.resource.data.apiaryId);
 
       match /{allSubcollections=**} {
-        allow read, write: if request.auth != null;
+        allow read, write: if ownsApiary(
+          get(/databases/$(database)/documents/hives/$(hiveId)).data.apiaryId
+        );
       }
     }
 

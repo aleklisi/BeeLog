@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-11-20] Stabilizacja testu przeciągania kart
+
+- Dodano pośrednie kroki ruchu myszy w przeciąganiu kart, aby stabilnie wywoływać zdarzenia dragover.
+
+## [2026-11-20] Synchronizacja i archiwizacja usuwania konta
+
+- Zsynchronizowano wymagania samodzielnego usuwania konta z główną specyfikacją i zarchiwizowano zmianę OpenSpec.
+
+## [2026-11-20] Poprawione upuszczanie kafelków na końcu listy
+
+- Zapamiętuj ostatnią kartę pod kursorem podczas przeciągania, aby umożliwić przeniesienie kafelka na ostatnią pozycję.
+
+## [2026-11-20] Poprawa frazy potwierdzającej usunięcie konta
+
+- Poprawiono literówkę „koto” na „konto” w dialogu, walidacji i specyfikacjach usuwania konta.
+
+## [2026-11-20] Samodzielne usuwanie konta bez Functions
+
+- Usunięto Firebase callable function i przełączono usuwanie konta na Firebase client SDK.
+
+## [2026-11-19] Synchronizacja i archiwizacja kontroli dostępu
+
+- Dodano główne specyfikacje kontroli dostępu Firestore i kolejności pasieczysk oraz zarchiwizowano zmianę `firestore-access-control`.
+
+## [2026-11-19] Usunięcie udostępniania pasiek
+
+- Usunięto współdzielenie i odczyty współpracowników; listę pasiek ograniczono do własności zalogowanego użytkownika i pobiera się szybciej równolegle.
+- Zmieniono reguły Firestore na dostęp właściciela oraz zaktualizowano OpenSpec, dokumentację i testy.
+
 ## [2026-11-19] Synchronizacja i archiwizacja podsumowania alertów trutowiska
 
 - Zsynchronizowano główną specyfikację mating-apiaries o wymagania alertów na karcie trutowiska i zarchiwizowano zmianę mating-apiary-attention-summary w OpenSpec.
@@ -165,3 +194,20 @@
 ## [2026-11-19] Jednowierszowe przełączniki pasiek
 
 - Przeniesiono checkboxy pasieki towarowej i trutowiska do jednego wiersza z ich etykietami.
+
+## [2026-11-19] Navigation and voice fixes
+
+- Synced current-apiary back navigation and commercial-hive voice dictation behavior into the main specs; added E2E coverage for relocation navigation and dictated note text.
+
+## [2026-11-19] Filtr ulików wymagających akcji
+
+- Dodano checkbox filtrujący uliki weselne według terminów przypadających dziś lub wcześniej oraz stanu bezmatek.
+- Dodano stan pustego wyniku i testy Elm oraz Playwright.
+
+## [2026-11-19] Self-service account deletion proposal
+
+- Added an OpenSpec proposal for confirmed account deletion, including Firebase Authentication and associated Firestore data.
+
+## [2026-11-20] Przeciąganie i upuszczanie kolejności
+
+- Dodano trwałe przeciąganie pasiek, uli i ulików weselnych z zachowaniem elementów ukrytych filtrem oraz testy Elm i E2E.

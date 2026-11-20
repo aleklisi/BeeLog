@@ -36,12 +36,19 @@ suite =
         , test "overdue expected mating requires attention" <|
             \_ ->
                 Expect.equal (Just "Minął oczekiwany termin unasiennienia matki") (attentionReason "matka_wygryziona" "" "2026-11-18" "2026-11-19")
-        , test "dates due today or in the future do not require attention" <|
+        , test "dates due today require attention" <|
             \_ ->
-                Expect.equal [ Nothing, Nothing, Nothing, Nothing ]
+                Expect.equal
+                    [ Just "Sprawdź, czy matka się wygryzła"
+                    , Just "Minął oczekiwany termin unasiennienia matki"
+                    ]
                     [ attentionReason "z_matecznikiem" "2026-11-19" "" "2026-11-19"
-                    , attentionReason "z_matecznikiem" "2026-11-20" "" "2026-11-19"
                     , attentionReason "matka_wygryziona" "" "2026-11-19" "2026-11-19"
+                    ]
+        , test "dates due strictly in the future do not require attention" <|
+            \_ ->
+                Expect.equal [ Nothing, Nothing ]
+                    [ attentionReason "z_matecznikiem" "2026-11-20" "" "2026-11-19"
                     , attentionReason "matka_wygryziona" "" "2026-11-20" "2026-11-19"
                     ]
         , test "missing or invalid dates suppress date-based attention" <|
@@ -107,11 +114,21 @@ suite =
                         uliki =
                             [ makeUlik "Ulik 1" "pusty" "" ""
                             , makeUlik "Ulik 2" "matka_czerwi" "2026-10-01" "2026-10-15"
-                            , makeUlik "Ulik 3" "z_matecznikiem" "2026-11-19" ""
+                            , makeUlik "Ulik 3" "z_matecznikiem" "2026-11-21" ""
                             , makeUlik "Ulik 4" "matka_wygryziona" "" "2026-11-20"
                             ]
                     in
                     Expect.equal [] (attentionUlikNames "2026-11-19" uliki)
+            , test "attentionUlikNames includes hives with dates due today" <|
+                \_ ->
+                    let
+                        uliki =
+                            [ makeUlik "Ulik Wygryzienie Dzisiaj" "z_matecznikiem" "2026-11-19" ""
+                            , makeUlik "Ulik Spokojny" "pusty" "" ""
+                            , makeUlik "Ulik Unasiennienie Dzisiaj" "matka_wygryziona" "" "2026-11-19"
+                            ]
+                    in
+                    Expect.equal [ "Ulik Wygryzienie Dzisiaj", "Ulik Unasiennienie Dzisiaj" ] (attentionUlikNames "2026-11-19" uliki)
             , test "attentionUlikNames returns single affected hive name" <|
                 \_ ->
                     let
