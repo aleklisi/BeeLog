@@ -6,6 +6,7 @@ test('commercial hive notes accept recognized speech text', async ({ page }) => 
     localStorage.setItem('beelog_language', 'pl');
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Tylko niezbędne' }).click();
   await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
   await page.reload();
   await page.evaluate(() => {

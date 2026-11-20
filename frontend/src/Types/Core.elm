@@ -170,6 +170,7 @@ type SettingsSection
     | SectionPasieczyskaTowarowe
     | SectionTrutowiska
     | SectionQueenRearing
+    | SectionPrywatnosc
 
 type alias Model =
     { authState : AuthState
@@ -185,6 +186,9 @@ type alias Model =
     , successMessage : Maybe String
     , darkMode : Bool
     , language : Language
+    , showPrivacyPolicy : Bool
+    , consentDecided : Bool
+    , consentAnalytics : Bool
     , pendingDeepLink : Maybe PendingDeepLink
     , showNewApiaryModal : Bool
     , newApiaryName : String
@@ -276,6 +280,10 @@ type Msg
     | TransitionRearingBatch String String
     | DeleteRearingBatch String
     | ToggleSettingsSection SettingsSection
+    | OpenPrivacyPolicy
+    | ClosePrivacyPolicy
+    | SetConsent { necessary : Bool, analytics : Bool }
+    | ToggleConsentAnalytics
     | OpenAccountDeletion
     | CloseAccountDeletion
     | UpdateDeletionPhrase String

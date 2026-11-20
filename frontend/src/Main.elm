@@ -44,6 +44,8 @@ type alias Flags =
     { darkMode : Bool
     , language : String
     , initialHash : String
+    , consentDecided : Bool
+    , consentAnalytics : Bool
     }
 
 init : Flags -> ( Model, Cmd Msg )
@@ -89,6 +91,9 @@ init flags =
       , successMessage = Nothing
       , darkMode = flags.darkMode
       , language = languageFromString flags.language
+      , showPrivacyPolicy = False
+      , consentDecided = flags.consentDecided
+      , consentAnalytics = flags.consentAnalytics
       , pendingDeepLink = pending
       , currentDate = ""
       , currentEpoch = 0
@@ -214,6 +219,7 @@ syncApiaryContents model =
 port jsLoginGoogle : () -> Cmd msg
 port jsLogout : () -> Cmd msg
 port jsDeleteAccount : String -> Cmd msg
+port jsSaveConsent : { necessary : Bool, analytics : Bool } -> Cmd msg
 port accountDeletionResult : (Value -> msg) -> Sub msg
 port jsLoadApiaries : String -> Cmd msg
 port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cmd msg
@@ -424,6 +430,25 @@ update msg model =
                         section :: model.expandedSettingsSections
             in
             ( { model | expandedSettingsSections = newExpanded }, Cmd.none )
+
+        OpenPrivacyPolicy ->
+            ( { model | showPrivacyPolicy = True }, Cmd.none )
+
+        ClosePrivacyPolicy ->
+            ( { model | showPrivacyPolicy = False }, Cmd.none )
+
+        SetConsent consent ->
+            ( { model | consentDecided = True, consentAnalytics = consent.analytics }
+            , jsSaveConsent { necessary = consent.necessary, analytics = consent.analytics }
+            )
+
+        ToggleConsentAnalytics ->
+            let
+                newAnalytics = not model.consentAnalytics
+            in
+            ( { model | consentAnalytics = newAnalytics }
+            , jsSaveConsent { necessary = True, analytics = newAnalytics }
+            )
 
         OpenAccountDeletion ->
             ( { model | showAccountDeletion = True, deletionPhrase = "", deletionError = Nothing }, Cmd.none )
@@ -1672,6 +1697,8 @@ view model =
                     SettingsView ->
                         settingsView t user model
         , modalsView t model
+        , privacyPolicyView t model
+        , consentBannerView t model
         ]
 
 headerView : Translations -> Model -> Html Msg
@@ -1749,7 +1776,59 @@ loginView t model =
         [ h2 [ style "color" headingColor ] [ text t.loginTitle ]
         , p [ style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin-bottom" "30px" ] [ text t.loginDescription ]
         , button [ onClick ClickLoginGoogle, style "padding" "12px 24px", style "background-color" "#4285F4", style "color" "white", style "border" "none", style "border-radius" "4px", style "font-size" "16px", style "cursor" "pointer" ] [ text t.loginButton ]
+        , p [] [ button [ onClick OpenPrivacyPolicy, attribute "data-testid" "login-privacy-policy", style "margin-top" "16px", style "background" "none", style "border" "none", style "color" "#2563eb", style "text-decoration" "underline", style "cursor" "pointer" ] [ text (t.localize "Polityka prywatności") ] ]
         ]
+
+privacyPolicyView : Translations -> Model -> Html Msg
+privacyPolicyView t model =
+    if not model.showPrivacyPolicy then
+        text ""
+    else
+        let
+            titleText = if t.isEnglish then "Privacy policy and storage choices" else "Polityka prywatności i pamięć przeglądarki"
+            sections =
+                if t.isEnglish then
+                    [ ( "Controller and contact", "BeeLog is operated by the project operator. Contact the operator through the BeeLog project repository: github.com/aleklisi/BeeLog." )
+                    , ( "Data and purposes", "Google account identifier and email are used to sign you in and associate your apiaries, hives, notes and settings with your account. The app stores the records you enter and uses them to provide beekeeping management features." )
+                    , ( "Legal bases", "Account and requested app features are processed to provide the service (GDPR Article 6(1)(b)); service security and reliability may rely on legitimate interests (Article 6(1)(f)). Optional analytics or diagnostics are off unless you enable them (Article 6(1)(a), where consent is required)." )
+                    , ( "Cookies and browser storage", "BeeLog does not use advertising cookies. Firebase Authentication stores sign-in state in browser-managed storage. Local storage keeps your language, theme and this privacy choice. These are needed for sign-in or to remember your preferences. Optional analytics/diagnostics remain off by default." )
+                    , ( "Retention and processors", "Account data is kept while your account is active. You can request deletion from Settings; the app deletes account data through Firebase services. Google Firebase provides authentication and cloud database services and processes data under its service terms. Provider backups and security logs may have separate limited retention." )
+                    , ( "Your rights", "Depending on the applicable conditions, you may request access, correction, erasure, restriction, portability or object to processing. You may withdraw consent at any time for future processing. You may complain to the President of the Polish Personal Data Protection Office (PUODO). Use the repository contact above to submit a privacy request." )
+                    ]
+                else
+                    [ ( "Administrator i kontakt", "BeeLog jest prowadzony przez operatora projektu. Skontaktuj się z operatorem przez repozytorium projektu BeeLog: github.com/aleklisi/BeeLog." )
+                    , ( "Dane i cele", "Identyfikator i adres e-mail konta Google służą do logowania oraz przypisania pasieczysk, uli, notatek i ustawień do konta. Aplikacja przechowuje wprowadzone przez Ciebie dane, aby udostępniać funkcje zarządzania pasieką." )
+                    , ( "Podstawy prawne", "Konto i żądane funkcje aplikacji są przetwarzane w celu świadczenia usługi (art. 6 ust. 1 lit. b RODO); bezpieczeństwo i niezawodność mogą opierać się na prawnie uzasadnionym interesie (art. 6 ust. 1 lit. f). Opcjonalna analityka lub diagnostyka jest wyłączona, dopóki jej nie włączysz (art. 6 ust. 1 lit. a, gdy zgoda jest wymagana)." )
+                    , ( "Pliki cookie i pamięć przeglądarki", "BeeLog nie używa reklamowych plików cookie. Firebase Authentication zapisuje stan logowania w pamięci zarządzanej przez przeglądarkę. Pamięć lokalna przechowuje język, motyw i tę decyzję prywatności. Są one potrzebne do logowania lub zapamiętania preferencji. Opcjonalna analityka/diagnostyka jest domyślnie wyłączona." )
+                    , ( "Retencja i podmioty przetwarzające", "Dane konta są przechowywane, gdy konto jest aktywne. Usunięcie konta możesz zlecić w Ustawieniach; aplikacja usuwa dane konta za pośrednictwem usług Firebase. Google Firebase dostarcza uwierzytelnianie i bazę danych w chmurze oraz przetwarza dane zgodnie z warunkami swoich usług. Kopie zapasowe i logi bezpieczeństwa dostawcy mogą mieć odrębny, ograniczony okres przechowywania." )
+                    , ( "Twoje prawa", "Na warunkach określonych w przepisach możesz żądać dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania lub przeniesienia oraz wnieść sprzeciw. Zgodę możesz wycofać na przyszłość. Możesz złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (PUODO). Wniosek dotyczący prywatności zgłoś przez podane wyżej repozytorium." )
+                    ]
+            renderSection (heading, body) =
+                section [] [ h3 [ style "margin-bottom" "4px" ] [ text heading ], p [ style "margin-top" "0", style "line-height" "1.5" ] [ text body ] ]
+        in
+        div [ style "position" "fixed", style "inset" "0", style "z-index" "2000", style "display" "grid", style "place-items" "center", style "padding" "16px", style "background" "rgba(0,0,0,.6)", attribute "data-testid" "privacy-policy-modal" ]
+            [ div [ attribute "role" "dialog", attribute "aria-modal" "true", attribute "aria-labelledby" "privacy-policy-title", style "position" "relative", style "background" (if model.darkMode then "#1e1e1e" else "white"), style "color" (if model.darkMode then "#eee" else "#222"), style "padding" "24px", style "border-radius" "8px", style "width" "min(720px, 94vw)", style "max-height" "88vh", style "overflow-y" "auto" ]
+                [ button [ onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy", attribute "aria-label" (if t.isEnglish then "Close policy" else "Zamknij politykę"), style "float" "right" ] [ text "✕" ]
+                , h2 [ id "privacy-policy-title" ] [ text titleText ]
+                , p [] [ text (if t.isEnglish then "Last updated: 20 November 2026." else "Aktualizacja: 20 listopada 2026 r.") ]
+                , div [] (List.map renderSection sections)
+                , button [ onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy-btn" ] [ text (if t.isEnglish then "Close" else "Zamknij") ]
+                ]
+            ]
+
+consentBannerView : Translations -> Model -> Html Msg
+consentBannerView t model =
+    if model.consentDecided then
+        text ""
+    else
+        div [ style "position" "fixed", style "left" "0", style "right" "0", style "bottom" "0", style "z-index" "1500", style "padding" "16px", style "background" (if model.darkMode then "#202a35" else "#fff"), style "color" (if model.darkMode then "#f1f5f9" else "#1f2937"), style "box-shadow" "0 -2px 12px #0003", attribute "data-testid" "consent-banner" ]
+            [ div [ style "max-width" "800px", style "margin" "0 auto" ]
+                [ p [ style "margin-top" "0" ] [ text (if t.isEnglish then "BeeLog uses essential browser storage for sign-in and preferences. Optional diagnostics and analytics are off by default." else "BeeLog korzysta z niezbędnej pamięci przeglądarki do logowania i zapamiętania ustawień. Opcjonalna diagnostyka i analityka są domyślnie wyłączone.") ]
+                , button [ onClick (SetConsent { necessary = True, analytics = False }), attribute "data-testid" "consent-necessary", style "margin-right" "8px", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Only necessary" else "Tylko niezbędne") ]
+                , button [ onClick (SetConsent { necessary = True, analytics = True }), attribute "data-testid" "consent-all", style "margin-right" "8px", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Allow all" else "Zezwól na wszystkie") ]
+                , button [ onClick OpenPrivacyPolicy, attribute "data-testid" "consent-privacy-policy", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Privacy policy" else "Polityka prywatności") ]
+                ]
+            ]
 
 modalsView : Translations -> Model -> Html Msg
 modalsView t model =
@@ -2246,17 +2325,16 @@ reorderDraggedItem collection apiaryId targetId after model =
                             ( { model | apiaries = merged, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveApiaryOrders merged )
 
                     CommercialHives ->
-                        if not (List.all (\hive -> hive.apiaryId == apiaryId) model.hives) then
+                        let
+                            visible = List.filter (\hive -> hive.apiaryId == apiaryId) model.hives
+                            reordered = moveById .id dragged.id targetId after visible
+                            normalizedVisible = normalizeOrder (\item index -> { item | order = index }) reordered
+                            merged = replaceVisibleItems .id visible normalizedVisible model.hives
+                        in
+                        if reordered == visible then
                             ( { model | draggedOrderItem = Nothing }, Cmd.none )
                         else
-                            let
-                                reordered = moveById .id dragged.id targetId after model.hives
-                                normalized = normalizeOrder (\item index -> { item | order = index }) reordered
-                            in
-                            if reordered == model.hives then
-                                ( { model | draggedOrderItem = Nothing }, Cmd.none )
-                            else
-                                ( { model | hives = normalized, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveHiveOrders { apiaryId = apiaryId, hives = normalized } )
+                            ( { model | hives = merged, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveHiveOrders { apiaryId = apiaryId, hives = normalizedVisible } )
 
                     MatingHives ->
                         if not (List.all (\ulik -> ulik.apiaryId == apiaryId) model.uliki) then

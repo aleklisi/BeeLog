@@ -8,6 +8,10 @@ test.describe('BeeLog E2E Test Suite', () => {
       if (!sessionStorage.getItem('__PRESERVE_LANGUAGE__')) localStorage.setItem('beelog_language', 'pl');
     });
     await page.goto('/');
+    const consentButton = page.getByRole('button', { name: 'Tylko niezbędne' });
+    if (await consentButton.isVisible()) {
+      await consentButton.click();
+    }
   });
 
   test('1. Test logowania - widok początkowy', async ({ page }) => {
@@ -1645,6 +1649,7 @@ test.describe('BeeLog E2E Test Suite', () => {
   });
 
   test('drag and drop reorders apiaries, commercial hives, and filtered mating hives persistently', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
     const hive = (id, name, apiaryId, order) => ({ id, name, apiaryId, order, hiveType: 'korpusowy', frameType: 'Wielkopolska' });
     const ulik = (id, name, apiaryId, state, order) => ({ id, name, apiaryId, state, order, hiveType: 'Mini plus', hasQueen: state !== 'bezmatek', history: [] });
     await page.evaluate(({ hives, uliki }) => {
@@ -1669,10 +1674,12 @@ test.describe('BeeLog E2E Test Suite', () => {
       ], 'mating-b': [ulik('ulik-other', 'Ulik Other Apiary', 'mating-b', 'bezmatek', 0)] }
     });
     await page.reload();
+    page.on('console', msg => console.log('PAGE:', msg.text()));
     await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
 
     const dragCardTo = async (source, target, after) => {
       const box = await target.boundingBox();
+      console.log('DRAGGING', await source.getAttribute('data-order-id'), 'TO', await target.getAttribute('data-order-id'), 'box:', box);
       await source.dragTo(target, {
         targetPosition: { x: box.width / 2, y: box.height * (after ? 0.8 : 0.2) },
         steps: 8
@@ -1688,6 +1695,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     await dragCardTo(page.locator('[data-testid="apiary-card"][data-apiary-id="mating-a"]'), page.locator('[data-testid="apiary-card"][data-apiary-id="mating-b"]'), true);
     await expect.poll(matingOrder).toEqual(['mating-b', 'mating-a']);
     await page.reload();
+    page.on('console', msg => console.log('PAGE:', msg.text()));
     await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
     await page.getByTestId('main-menu-toggle').click();
     await page.getByRole('button', { name: 'Trutowiska' }).click();
@@ -1706,6 +1714,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('__E2E_STATE__')).hives['commercial-b'].map(item => item.id))).toEqual(['hive-other']);
     await expect(page.getByRole('heading', { name: 'Pasieka: Commercial A' })).toBeVisible();
     await page.reload();
+    page.on('console', msg => console.log('PAGE:', msg.text()));
     await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
     await page.getByTestId('main-menu-toggle').click();
     await page.getByRole('button', { name: 'Pasieczyska towarowe' }).click();
@@ -1725,6 +1734,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('__E2E_STATE__')).uliki['mating-b'].map(item => item.id))).toEqual(['ulik-other']);
     await expect(page.getByRole('heading', { name: 'Trutowisko: Mating A' })).toBeVisible();
     await page.reload();
+    page.on('console', msg => console.log('PAGE:', msg.text()));
     await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'order-user', email: 'order@beelog.test' }));
     await page.getByTestId('main-menu-toggle').click();
     await page.getByRole('button', { name: 'Trutowiska' }).click();

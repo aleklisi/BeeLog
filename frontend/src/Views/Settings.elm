@@ -272,6 +272,27 @@ settingsView t user model =
                   else
                     text ""
                 ]
+            , div [ style "display" "flex", style "flex-direction" "column" ]
+                [ sectionHeader SectionPrywatnosc "🔒" (t.localize "Prywatność i zgody") "settings-section-toggle-prywatnosc"
+                , if isExpanded SectionPrywatnosc then
+                    div [ style "display" "flex", style "flex-direction" "column", style "gap" "12px", attribute "data-testid" "settings-section-prywatnosc" ]
+                        [ div [ style "display" "flex", style "justify-content" "space-between", style "gap" "12px", style "align-items" "center" ]
+                            [ div []
+                                [ strong [] [ text (t.localize "Niezbędna pamięć przeglądarki") ]
+                                , p [ style "margin" "4px 0", style "font-size" "14px" ] [ text (t.localize "Zawsze aktywna: logowanie Firebase, ustawienia interfejsu i zapis tej decyzji.") ]
+                                ]
+                            , span [ attribute "aria-label" (t.localize "Zawsze aktywne"), style "white-space" "nowrap" ] [ text (t.localize "Zawsze aktywne") ]
+                            ]
+                        , label [ style "display" "flex", style "align-items" "center", style "gap" "10px", style "cursor" "pointer" ]
+                            [ input [ type_ "checkbox", checked model.consentAnalytics, onCheck (\_ -> ToggleConsentAnalytics), attribute "data-testid" "analytics-toggle" ] []
+                            , span [] [ text (t.localize "Opcjonalna diagnostyka i analityka") ]
+                            ]
+                        , p [ style "margin" "0", style "font-size" "14px" ] [ text (t.localize "Opcja jest domyślnie wyłączona. Zmiana zostaje zapisana w tej przeglądarce.") ]
+                        , button [ onClick OpenPrivacyPolicy, attribute "data-testid" "open-privacy-policy", style "align-self" "flex-start", style "padding" "8px 12px" ] [ text (t.localize "Polityka prywatności") ]
+                        ]
+                  else
+                    text ""
+                ]
             ]
         ]
         |> (\page ->

@@ -25,12 +25,37 @@ function saveE2EState(state) {
 
 const savedDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
 const savedLanguage = localStorage.getItem('beelog_language') === 'en' ? 'en' : 'pl';
+
+let savedConsent = null;
+try {
+    const rawConsent = localStorage.getItem('beelog_consent');
+    if (rawConsent) savedConsent = JSON.parse(rawConsent);
+} catch (e) {}
+const consentDecided = savedConsent !== null && typeof savedConsent === 'object';
+const consentAnalytics = savedConsent ? Boolean(savedConsent.analytics) : false;
+
 const initialHash = window.location.hash || "";
 const app = Elm.Main.init({
     node: document.getElementById('app'),
-    flags: { darkMode: savedDarkMode, language: savedLanguage, initialHash: initialHash }
+    flags: {
+        darkMode: savedDarkMode,
+        language: savedLanguage,
+        initialHash: initialHash,
+        consentDecided: consentDecided,
+        consentAnalytics: consentAnalytics
+    }
 });
 window.app = app;
+
+if (app.ports && app.ports.jsSaveConsent) {
+    app.ports.jsSaveConsent.subscribe(consent => {
+        localStorage.setItem('beelog_consent', JSON.stringify({
+            necessary: true,
+            analytics: Boolean(consent.analytics),
+            decidedAt: new Date().toISOString()
+        }));
+    });
+}
 
 let activeOrderDrag = null;
 let activeOrderTarget = null;

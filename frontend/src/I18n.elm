@@ -107,6 +107,13 @@ localizeText language value =
 
         EN ->
             case value of
+                "Prywatność i zgody" -> "Privacy & Consent"
+                "Niezbędna pamięć przeglądarki" -> "Essential browser storage"
+                "Zawsze aktywna: logowanie Firebase, ustawienia interfejsu i zapis tej decyzji." -> "Always active: Firebase sign-in, interface preferences and this choice."
+                "Zawsze aktywne" -> "Always active"
+                "Opcjonalna diagnostyka i analityka" -> "Optional diagnostics and analytics"
+                "Opcja jest domyślnie wyłączona. Zmiana zostaje zapisana w tej przeglądarce." -> "Off by default. Your choice is saved in this browser."
+                "Polityka prywatności" -> "Privacy policy"
                 "Nazwa Ula:" -> "Hive name:"
                 "Do spodziewanego wygryzienia: matka powinna się wygryźć." -> "Until expected emergence: the queen should emerge."
                 "Od wygryzienia do terminu unasiennienia: młoda matka dojrzewa i powinna odbyć loty godowe." -> "From emergence to expected mating: the young queen matures and should take mating flights."
