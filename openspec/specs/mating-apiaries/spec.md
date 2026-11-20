@@ -34,6 +34,10 @@ Users SHALL be able to relocate mating hives between mating apiaries.
 - **WHEN** a mating hive is moved from Mating Apiary A to Mating Apiary B
 - **THEN** it MUST be reassigned to Apiary B and the back button navigation MUST correctly return to the current apiary view.
 
+#### Scenario: Back Navigation from an Existing NFC Link
+- **WHEN** a user opens a mating hive through its existing NFC link after it has been moved to another apiary
+- **THEN** the detail view MUST use the apiary where the hive currently resides, and the back button MUST return to that apiary.
+
 ### Requirement: Korpusowy Mating Hives
 Mating hives SHALL support marking a mating hive as korpusowy and tracking its number of korpusy.
 
@@ -51,13 +55,13 @@ The mating-apiary hive list SHALL show a red exclamation mark on the right side 
 - **WHEN** the user views the mating-apiary hive list
 - **THEN** the hive row shows a red exclamation mark whose explanation says that the hive has no queen
 
-#### Scenario: Overdue expected emergence requires attention
-- **GIVEN** a hive is in the Matecznik state and its expected emergence date is before today's date
+#### Scenario: Expected emergence due today or overdue requires attention
+- **GIVEN** a hive is in the Matecznik state and its expected emergence date is today or earlier
 - **WHEN** the user views the mating-apiary hive list
 - **THEN** the hive row shows a red exclamation mark whose explanation asks the user to check whether the queen emerged
 
-#### Scenario: Overdue expected mating requires attention
-- **GIVEN** a hive is in the Matka wygryziona state and its expected mating date is before today's date
+#### Scenario: Expected mating due today or overdue requires attention
+- **GIVEN** a hive is in the Matka wygryziona state and its expected mating date is today or earlier
 - **WHEN** the user views the mating-apiary hive list
 - **THEN** the hive row shows a red exclamation mark whose explanation says the expected mating date has passed
 
@@ -72,8 +76,8 @@ The mating-apiary hive list SHALL show a red exclamation mark on the right side 
 - **WHEN** the user views the mating-apiary hive list
 - **THEN** the hive row shows a single red exclamation mark whose tooltip and accessible label contain all applicable reasons joined by " / "
 
-#### Scenario: Hive without an overdue condition has no attention mark
-- **GIVEN** a hive is not in the Bezmatek state and any applicable expected date is today or later
+#### Scenario: Hive without a due or overdue condition has no attention mark
+- **GIVEN** a hive is not in the Bezmatek state and any applicable expected date is after today
 - **WHEN** the user views the mating-apiary hive list
 - **THEN** the hive row does not show an attention mark
 
@@ -104,3 +108,39 @@ The mating-apiary card SHALL show a red exclamation mark when at least one matin
 - **GIVEN** a commercial apiary is shown on the apiary list
 - **WHEN** the user views the commercial apiary card
 - **THEN** the card does not show a mating-hive attention alert
+
+### Requirement: Mating-hive list can show only hives requiring action
+The mating-apiary hive list SHALL provide an unchecked `Tylko wymagające akcji` checkbox that filters the visible hives by the existing attention rules when selected.
+
+#### Scenario: Default list shows all hives
+- **WHEN** the user opens a mating-apiary hive list
+- **THEN** the checkbox is unchecked and the list shows the same hives as the current view, subject only to any existing state filter
+
+#### Scenario: Action-only filter is enabled
+- **WHEN** the user checks `Tylko wymagające akcji`
+- **THEN** the list shows only hives whose current state or dates require action according to the existing attention rules
+- **AND** hives that do not require action are hidden
+
+#### Scenario: Due today is included
+- **GIVEN** a hive has an applicable expected hatching or mating date equal to the current date
+- **WHEN** the action-only filter is checked
+- **THEN** that hive is shown as requiring action
+
+#### Scenario: Overdue hives are included
+- **GIVEN** a hive has an applicable expected hatching or mating date before the current date
+- **WHEN** the action-only filter is checked
+- **THEN** that hive is shown as requiring action
+
+#### Scenario: Queenless hive is included
+- **GIVEN** a hive is in the `Bezmatek` state
+- **WHEN** the action-only filter is checked
+- **THEN** that hive is shown as requiring action regardless of missing dates
+
+#### Scenario: Action-only filter combines with state filter
+- **GIVEN** the user has selected both an action-only filter and a specific hive state
+- **WHEN** the list is rendered
+- **THEN** only hives matching both conditions are shown
+
+#### Scenario: Turning the filter off restores the list
+- **WHEN** the user unchecks `Tylko wymagające akcji`
+- **THEN** the list again shows all hives allowed by the selected state filter, including hives with future dates

@@ -1,10 +1,10 @@
-# Spec Delta
+# Apiary Ordering Specification
 
 ## Purpose
 
 Provides a direct, persistent way to arrange apiary cards in the type-specific apiary views, while keeping apiary actions and data unchanged.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Reorder apiaries by drag and drop
 
@@ -33,7 +33,7 @@ The application SHALL save the new apiary order and use it for subsequent displa
 
 ### Requirement: Keep drag operations separate from card actions
 
-Dragging an apiary card SHALL not activate the card's navigation, edit, delete, sharing, or other action controls.
+Dragging an apiary card SHALL not activate the card's navigation, edit, delete, or other action controls.
 
 #### Scenario: Drop an apiary without opening it
 

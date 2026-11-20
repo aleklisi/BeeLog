@@ -17,4 +17,4 @@ The database SHALL follow a structured multi-root Firestore collection layout.
 
 #### Scenario: Firestore Collections
 - **WHEN** storing data in Firebase
-- **THEN** collections MUST follow the schema: `/users/{userId}`, `/pasieczyska/{pasieczyskoId}/collaborators/{userId}`, and `/hives/{hiveId}`.
+- **THEN** collections MUST follow the schema: `/users/{userId}`, `/pasieczyska/{pasieczyskoId}`, and `/hives/{hiveId}`.
