@@ -7,7 +7,6 @@ import Html.Events exposing (..)
 import QueenRearing.Domain as Domain
 import String
 import Types.Core exposing (..)
-import Types.QueenRearing as QR
 import I18n exposing (Translations)
 
 
@@ -27,48 +26,10 @@ queenRearingView t _ model =
                 [ text labelText
                 , Html.input [ type_ inputType, value (formValue key), onInput (QueenRearingInput key), attribute "data-testid" ("qr-input-" ++ key), style "padding" "8px" ] []
                 ]
-        section title children =
-            div [ style "background" (if model.darkMode then "#1e1e1e" else "white"), style "padding" "16px", style "border-radius" "8px", style "margin-bottom" "16px" ]
-                (h3 [ style "margin-top" "0" ] [ text title ] :: children)
         actionButton label msg = button [ onClick msg, style "padding" "8px 12px", style "margin" "4px", style "cursor" "pointer" ] [ text label ]
-        resourceForm =
-            [ div [ style "display" "grid", style "grid-template-columns" "repeat(auto-fit, minmax(160px, 1fr))", style "gap" "10px" ]
-                [ label [] [ text (tr "Resource type" "Rodzaj zasobu")
-                  , select [ value (formValue "kind"), onInput (QueenRearingInput "kind"), attribute "data-testid" "qr-resource-kind" ]
-                        [ option [ value "breederQueens" ] [ text (tr "Breeder queen" "Matka reprodukcyjna") ]
-                        , option [ value "starterColonies" ] [ text (tr "Starter colony" "Starter") ]
-                        , option [ value "finisherColonies" ] [ text (tr "Finisher colony" "Finisher") ]
-                        ]
-                  ]
-                , if formValue "kind" == "breederQueens" then input "breed" (tr "Breed" "Rasa") "text" else text ""
-                , if formValue "kind" == "breederQueens" then input "line" (tr "Line" "Linia") "text" else text ""
-                , if formValue "kind" == "breederQueens" then input "markingColor" (tr "Marking color" "Kolor opalitka") "text" else text ""
-                , if formValue "kind" == "breederQueens" then input "markingCode" (tr "Marking code" "Oznaczenie") "text" else text ""
-                , input "hiveNumber" (tr "Hive number" "Numer ula") "text"
-                ]
-            , actionButton (if model.editingQueenResource == Nothing then tr "Add resource" "Dodaj zasób" else tr "Save resource" "Zapisz zasób") (SaveQueenResource (formValue "kind"))
-            ]
-        resourceList title records =
-            section title
-                [ if List.isEmpty records then p [] [ text (tr "No resources yet." "Brak zasobów.") ] else text ""
-                , div [] records
-                ]
-        breederItem queen =
-            resourceRow queen.id (queen.hiveNumber ++ " · " ++ queen.breed ++ " " ++ queen.line ++ " · " ++ queen.markingColor ++ " " ++ queen.markingCode) (if queen.active then tr "Active" "Aktywna" else tr "Inactive" "Nieaktywna") "breederQueens"
-        colonyItem colony =
-            resourceRow colony.id (colony.hiveNumber ++ " · " ++ String.fromInt colony.completedSeries ++ " " ++ tr "completed series" "ukończonych serii") (if colony.availability == Domain.Reserved then tr "Reserved" "Zarezerwowany" else tr "Available" "Dostępny") "starterColonies"
-        finisherItem colony =
-            resourceRow colony.id (colony.hiveNumber ++ " · " ++ String.fromInt colony.completedSeries ++ " " ++ tr "completed series" "ukończonych serii") (if colony.availability == Domain.Reserved then tr "Reserved" "Zarezerwowany" else tr "Available" "Dostępny") "finisherColonies"
-        resourceRow id details availability kind =
-            div [ attribute "data-testid" ("qr-resource-" ++ id), style "display" "flex", style "align-items" "center", style "justify-content" "space-between", style "gap" "10px", style "padding" "8px", style "border-bottom" "1px solid #ddd" ]
-                [ span [] [ text (details ++ " — " ++ availability) ]
-                , div []
-                    ([ actionButton (tr "Edit" "Edytuj") (EditQueenResource kind id)
-                     ]
-                        ++ (if kind == "breederQueens" && availability == tr "Active" "Aktywna" then [ actionButton (tr "Retire" "Wycofaj") (RetireBreederQueen id) ] else [])
-                        ++ [ actionButton (tr "Delete" "Usuń") (DeleteQueenResource kind id) ]
-                    )
-                ]
+        section title children =
+            div [ class ("mb-4 rounded-xl border p-4 shadow-sm " ++ (if model.darkMode then "border-slate-700 bg-slate-900 text-slate-100" else "border-slate-200 bg-white text-slate-900")) ]
+                (h3 [ class "mb-4 mt-0 text-lg font-semibold" ] [ text title ] :: children)
         availableStarters = List.filter (\colony -> colony.availability == Domain.Available) model.queenRearingData.starterColonies
         availableFinishers = List.filter (\colony -> colony.availability == Domain.Available) model.queenRearingData.finisherColonies
         activeQueens = List.filter .active model.queenRearingData.breederQueens
@@ -173,12 +134,8 @@ queenRearingView t _ model =
     div [ attribute "data-testid" "queen-rearing-view" ]
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center" ]
             [ h2 [] [ text (if english then "Queen Rearing" else "Hodowla matek") ]
-            , actionButton (if english then "Settings" else "Ustawienia") (NavigateTo SettingsView)
+            , actionButton (tr "Resources" "Zasoby") (NavigateTo QueenRearingResourcesView)
             ]
-        , section (tr "Resources" "Zasoby") resourceForm
-        , resourceList (tr "Breeder queens" "Matki reprodukcyjne") (List.map breederItem model.queenRearingData.breederQueens)
-        , resourceList (tr "Starter colonies" "Startery") (List.map colonyItem model.queenRearingData.starterColonies)
-        , resourceList (tr "Finisher colonies" "Finishery") (List.map finisherItem model.queenRearingData.finisherColonies)
         , section (tr "New batch" "Nowa seria")
             [ div [ style "display" "flex", style "gap" "10px", style "align-items" "end", style "flex-wrap" "wrap" ]
                 [ label [] [ text (tr "Active breeder queen" "Aktywna matka reprodukcyjna")

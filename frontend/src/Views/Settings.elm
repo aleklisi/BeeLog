@@ -123,11 +123,11 @@ settingsView t user model =
                             , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin" "0 0 8px 0" ] [ text t.signedInEmail ]
                             , div [ style "font-size" "16px", style "font-weight" "bold", style "color" headingColor, style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px", attribute "data-testid" "user-email" ]
                                 [ text user.email ]
-                            , button [ onClick OpenAccountDeletion, style "margin-top" "12px", style "padding" "9px 14px", style "background" "#b91c1c", style "color" "white", style "border" "0", style "border-radius" "4px", attribute "data-testid" "delete-account" ] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
+                            , button [ onClick OpenAccountDeletion, style "margin-top" "12px", style "padding" "9px 14px", style "background" "oklch(57.7% 0.245 27.325)", style "color" "white", style "border" "0", style "border-radius" "4px", attribute "data-testid" "delete-account" ] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
                             ]
                         , div []
                             [ settingHeader t.appearance ""
-                            , button [ onClick ToggleDarkMode, style "padding" "10px 16px", style "background-color" (if model.darkMode then "#f1c40f" else "#2c3e50"), style "color" (if model.darkMode then "#121212" else "#ffffff"), style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "14px", style "margin-top" "10px" ]
+                            , button [ onClick ToggleDarkMode, style "padding" "10px 16px", style "background-color" (if model.darkMode then "#f4e8b8" else "#172b4d"), style "background-image" (if model.darkMode then "none" else "radial-gradient(circle at 12px 10px, #fff 1px, transparent 1.5px), radial-gradient(circle at 34px 22px, #dbeafe 1px, transparent 1.5px), radial-gradient(circle at 52px 8px, #fff 1px, transparent 1.5px)"), style "background-size" "60px 32px", style "color" (if model.darkMode then "#263238" else "#ffffff"), style "border" (if model.darkMode then "1px solid #d8c98f" else "1px solid #314d78"), style "border-radius" "6px", style "cursor" "pointer", style "font-size" "14px", style "font-weight" "600", style "margin-top" "10px", style "box-shadow" "0 2px 5px #0002" ]
                                 [ text (if model.darkMode then t.lightMode else t.darkMode) ]
                             ]
                         , div []

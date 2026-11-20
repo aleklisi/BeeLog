@@ -1,3 +1,25 @@
 @import "tailwindcss";
 
 @source "./**/*.elm";
+
+/* Shared Tailwind button system. Keep action colors consistent across Elm views. */
+button:not(.korpus-action):not([data-testid="delete-account"]):not([style*="background" i][style*="none"]) {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: oklch(84.1% 0.238 128.85) !important;
+    cursor: pointer;
+}
+
+button[data-testid="delete-account"] {
+    background-color: oklch(57.7% 0.245 27.325) !important;
+}
+
+button[style*="background" i][style*="none"] {
+    background-color: transparent !important;
+    @apply text-inherit shadow-none;
+}
+
+button[style*="background" i][style*="none"][title*="delete" i],
+button[style*="background" i][style*="none"][title*="usuń" i],
+button[style*="background" i][style*="none"][title*="remove" i] {
+    @apply text-red-600;
+}

@@ -91,7 +91,7 @@ ulikDetailView t user info model =
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
                     [ button [ onClick (NavigateTo (UlikListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
                     , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Ulik Weselny: " ++ ulik.name) ]
-                    , button [ attribute "data-testid" "move-ulik-apiary", onClick (OpenMoveUlikModal actualApiaryId ulik), style "padding" "10px 16px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "🚚 Zmień pasieczysko") ]
+                    , button [ attribute "data-testid" "MoveMatingHive", onClick (OpenMoveUlikModal actualApiaryId ulik), style "padding" "10px 16px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text ("🚚 " ++ t.moveMatingHive) ]
                     ]
                 , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
                     [ div []

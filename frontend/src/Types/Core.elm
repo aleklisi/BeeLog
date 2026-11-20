@@ -150,6 +150,7 @@ type ViewState
     | MatingApiariesView
     | CommercialApiariesView
     | QueenRearingView
+    | QueenRearingResourcesView
     | HiveListView { apiaryId : String, apiaryName : String }
     | HiveDetailView { apiaryId : String, hiveId : String, hiveName : String }
     | UlikListView { apiaryId : String, apiaryName : String }
@@ -170,6 +171,9 @@ type SettingsSection
     | SectionPasieczyskaTowarowe
     | SectionTrutowiska
     | SectionQueenRearing
+    | SectionBreederQueens
+    | SectionStarters
+    | SectionFinishers
     | SectionPrywatnosc
 
 type alias Model =
@@ -272,6 +276,7 @@ type Msg
     | QueenRearingDataReceived (Result String QR.QueenRearingData)
     | QueenRearingInput String String
     | SaveQueenResource String
+    | CancelQueenResourceEdit
     | EditQueenResource String String
     | RetireBreederQueen String
     | DeleteQueenResource String String

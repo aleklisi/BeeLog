@@ -18,6 +18,7 @@ import Views.HiveDetail exposing (hiveDetailView)
 import Views.PasieczyskoTowarowe exposing (hiveListView)
 import Views.Settings exposing (settingsView)
 import Views.QueenRearing exposing (queenRearingView)
+import Views.QueenRearingResources exposing (queenRearingResourcesView)
 import Views.Trutowisko exposing (ulikAttentionReasons, ulikListView)
 import Views.UlikDetail exposing (ulikDetailView)
 
@@ -311,12 +312,15 @@ queenResourceFields kind isEditing model =
     let
         field key = Encode.string (queenFormValue key model)
         identifying = [ ( "hiveNumber", field "hiveNumber" ) ]
+        breedParts = String.words (queenFormValue "breedLine" model)
+        breed = List.head breedParts |> Maybe.withDefault (queenFormValue "breed" model)
+        line = String.join " " (List.drop 1 breedParts) |> (\selected -> if selected == "" then queenFormValue "line" model else selected)
     in
     if kind == "breederQueens" then
         Encode.object
             (identifying
-                ++ [ ( "breed", field "breed" )
-                   , ( "line", field "line" )
+                ++ [ ( "breed", Encode.string breed )
+                   , ( "line", Encode.string line )
                    , ( "markingColor", field "markingColor" )
                    , ( "markingCode", field "markingCode" )
                    ]
@@ -548,7 +552,7 @@ update msg model =
                                 Nothing ->
                                     jsCreateQueenResource { uid = user.uid, kind = kind, fields = fields }
                     in
-                    ( { model | editingQueenResource = Nothing }, command )
+                    ( { model | editingQueenResource = Nothing, queenRearingForm = Dict.remove "hiveNumber" (Dict.remove "breedLine" (Dict.remove "markingColor" (Dict.remove "markingCode" model.queenRearingForm))) }, command )
 
                 _ ->
                     ( model, Cmd.none )
@@ -560,7 +564,7 @@ update msg model =
                         model.queenRearingData.breederQueens
                             |> List.filter (\item -> item.id == id)
                             |> List.head
-                            |> Maybe.map (\item -> [ ( "breed", item.breed ), ( "line", item.line ), ( "markingColor", item.markingColor ), ( "markingCode", item.markingCode ), ( "hiveNumber", item.hiveNumber ) ])
+                            |> Maybe.map (\item -> [ ( "breedLine", String.join " " (List.filter (\part -> part /= "") [ item.breed, item.line ]) ), ( "markingColor", item.markingColor ), ( "markingCode", item.markingCode ), ( "hiveNumber", item.hiveNumber ) ])
                             |> Maybe.withDefault []
 
                     else
@@ -584,6 +588,9 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        CancelQueenResourceEdit ->
+            ( { model | editingQueenResource = Nothing, queenRearingForm = Dict.remove "hiveNumber" (Dict.remove "breedLine" (Dict.remove "markingColor" (Dict.remove "markingCode" model.queenRearingForm))) }, Cmd.none )
 
         DeleteQueenResource kind id ->
             case model.authState of
@@ -1655,7 +1662,7 @@ view : Model -> Html Msg
 view model =
     let
         t = translationsFor model.language
-        bgColor = if model.darkMode then "#121212" else "#f7f9fa"
+        bgColor = if model.darkMode then "#121212" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333333"
     in
     div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto", style "background-color" bgColor, style "color" textColor, style "min-height" "100vh", style "position" "relative" ]
@@ -1681,6 +1688,9 @@ view model =
 
                     QueenRearingView ->
                         queenRearingView t user model
+
+                    QueenRearingResourcesView ->
+                        queenRearingResourcesView t model
 
                     HiveListView info ->
                         hiveListView t user info model
@@ -2070,7 +2080,7 @@ modalsView t model =
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
                             [ button [ onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                             , if not (List.isEmpty otherTrutowiska) then
-                                button [ onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przenieś") ]
+                                button [ attribute "data-testid" "submit-move-mating-hive", onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przenieś") ]
                               else
                                 text (t.localize "")
                             ]

@@ -1,5 +1,47 @@
 # Changelog
 
+## [2026-11-20] Doprecyzowanie przycisku przenoszenia ulika
+
+- Zmieniono nazwę testową kontrolki na `MoveMatingHive` i dodano podpowiedź „Przenieś ulik na inne trutowisko”.
+
+## [2026-11-20] Ulepszony przycisk zmiany motywu
+
+- Dodano opis kierunku zmiany motywu oraz gwiazdki w przycisku trybu ciemnego; przycisk trybu jasnego ma jasne tło i ikonę słońca.
+
+## [2026-11-20] Ujednolicenie kolorów przycisków
+
+- Ustawiono lime dla przycisków akcji, głęboki czerwony dla usuwania konta oraz wspólny styl powrotu z zasobów hodowli matek.
+
+## [2026-11-20] Jasnozielony interfejs i przyciski korpusów
+
+- Ujednolicono przyciski dodawania korpusu nad i pod przy pomocy klas Tailwind oraz rozjaśniono tło aplikacji w trybie jasnym.
+
+## [2026-11-20] Wydzielenie zasobów hodowli matek
+
+- Dodano widok z trzema zwijanymi sekcjami do zarządzania reproduktorkami, starterami i finisherami.
+- Przeniesiono formularze i listy zasobów z widoku serii, dodano obsługę ras i linii z ustawień oraz dostosowano testy E2E.
+
+## [2026-11-20] Usunięcie przycisku Ustawienia z hodowli matek
+
+- Usunięto przycisk „Ustawienia” z nagłówka widoku hodowli matek.
+
+## [2026-11-20] Ujednolicenie stylu przycisków
+
+- Dodano wspólny styl Tailwind dla przycisków oraz zielone kolory akcji i czerwone dla anulowania, odrzucania i usuwania.
+
+## [2026-11-20] Dokończenie polityki prywatności
+
+- Domknięto dwujęzyczny dialog polityki, testy tej zmiany i synchronizację specyfikacji przed archiwizacją.
+
+## [2026-11-20] Prywatność i zgody
+
+- Dodano dwujęzyczną politykę prywatności, baner wyboru pamięci oraz ustawienia zgód z zapisem w localStorage.
+- Dodano testy tłumaczeń Elm i scenariusze E2E dla polityki oraz wyborów prywatności.
+
+## [2026-11-20] Aktualizacja README na podstawie OpenSpec
+
+- Przepisano README.md z pełnym opisem dostępnej i planowanej funkcjonalności na podstawie wszystkich specyfikacji OpenSpec (`main-navigation`, `apiary-views`, `hives`, `mating-apiaries`, `queen-rearing`, `nfc-and-data`, `settings-and-user`, `account-deletion`, `firestore-access-control`, `privacy-and-consent`).
+
 ## [2026-11-20] Stabilizacja testu przeciągania kart
 
 - Dodano pośrednie kroki ruchu myszy w przeciąganiu kart, aby stabilnie wywoływać zdarzenia dragover.
@@ -211,3 +253,7 @@
 ## [2026-11-20] Przeciąganie i upuszczanie kolejności
 
 - Dodano trwałe przeciąganie pasiek, uli i ulików weselnych z zachowaniem elementów ukrytych filtrem oraz testy Elm i E2E.
+
+## [2026-11-20] Naprawa testów E2E
+
+- Testy aplikacji akceptują niezbędną pamięć, a sortowanie uli zachowuje osobną kolejność dla każdej pasieki.

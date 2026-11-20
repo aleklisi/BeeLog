@@ -232,26 +232,30 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: 'Hodowla matek' }).click();
     await expect(page.getByTestId('queen-rearing-view')).toBeVisible();
 
-    await page.getByTestId('qr-resource-kind').selectOption('breederQueens');
-    await page.getByTestId('qr-input-breed').fill('Carniolan');
-    await page.getByTestId('qr-input-line').fill('Galicja');
-    await page.getByTestId('qr-input-markingColor').fill('Blue');
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    await page.getByTestId('qr-resource-toggle-breederQueens').click();
+    await page.getByTestId('qr-input-breedLine').selectOption('car. Galicja');
+    await page.getByTestId('qr-input-markingColor').selectOption('blue');
     await page.getByTestId('qr-input-markingCode').fill('17');
     await page.getByTestId('qr-input-hiveNumber').fill('BQ-1');
-    await page.getByRole('button', { name: 'Dodaj zasób' }).click();
-    await expect(page.getByText('BQ-1 · Carniolan Galicja · Blue 17')).toBeVisible();
+    await page.getByTestId('qr-resource-save-breederQueens').click();
+    await expect(page.getByText('BQ-1 · car. Galicja · blue 17')).toBeVisible();
 
-    await page.getByTestId('qr-resource-kind').selectOption('starterColonies');
-    await page.getByTestId('qr-input-hiveNumber').fill('S-1');
-    await page.getByRole('button', { name: 'Dodaj zasób' }).click();
-    await expect(page.getByText('S-1 · 0 ukończonych serii — Dostępny')).toBeVisible();
+    await page.getByTestId('qr-resource-toggle-starterColonies').click();
+    const starterSection = page.getByTestId('qr-resource-section-starterColonies');
+    await starterSection.getByTestId('qr-input-hiveNumber').fill('S-1');
+    await starterSection.getByTestId('qr-resource-save-starterColonies').click();
+    await expect(page.getByText('S-1', { exact: true })).toBeVisible();
 
-    await page.getByTestId('qr-resource-kind').selectOption('finisherColonies');
-    await page.getByTestId('qr-input-hiveNumber').fill('F-1');
-    await page.getByRole('button', { name: 'Dodaj zasób' }).click();
-    await expect(page.getByText('F-1 · 0 ukończonych serii — Dostępny')).toBeVisible();
+    await page.getByTestId('qr-resource-toggle-finisherColonies').click();
+    const finisherSection = page.getByTestId('qr-resource-section-finisherColonies');
+    await finisherSection.getByTestId('qr-input-hiveNumber').fill('F-1');
+    await finisherSection.getByTestId('qr-resource-save-finisherColonies').click();
+    await expect(page.getByText('F-1', { exact: true })).toBeVisible();
 
-    await page.getByTestId('qr-breeder-select').selectOption({ label: 'BQ-1 · Carniolan Galicja' });
+    await page.getByRole('button', { name: '← Hodowla matek' }).click();
+
+    await page.getByTestId('qr-breeder-select').selectOption({ label: 'BQ-1 · car. Galicja' });
     await page.getByRole('button', { name: 'Utwórz zaplanowaną serię' }).click();
     const batch = page.locator('[data-testid^="qr-batch-"]').first();
     await expect(batch).toContainText(`${year}/01 · Zaplanowana`);
@@ -280,8 +284,10 @@ test.describe('BeeLog E2E Test Suite', () => {
     await batch.getByRole('button', { name: 'Zakończ bezpośrednio' }).click();
     await expect(batch).toContainText('Zakończona');
     await expect(batch).toContainText('Wygryzione: 5');
-    await expect(page.getByText('S-1 · 1 ukończonych serii — Dostępny')).toBeVisible();
-    await expect(page.getByText('F-1 · 1 ukończonych serii — Dostępny')).toBeVisible();
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    await expect(page.getByText('S-1', { exact: true })).toBeVisible();
+    await expect(page.getByText('F-1', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '← Hodowla matek' }).click();
 
     await page.getByRole('button', { name: 'Utwórz zaplanowaną serię' }).click();
     const zeroBatch = page.locator('[data-testid^="qr-batch-"]').filter({ hasText: `${year}/02` });
@@ -293,7 +299,6 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.getByTestId('qr-input-count').fill('0');
     await zeroBatch.getByRole('button', { name: 'Zakończ bez przyjętych mateczników' }).click();
     await expect(zeroBatch).toContainText('Zakończona');
-    await expect(page.getByText('S-1 · 2 ukończonych serii — Dostępny')).toBeVisible();
 
     await page.getByRole('button', { name: 'Utwórz zaplanowaną serię' }).click();
     const incubatorBatch = page.locator('[data-testid^="qr-batch-"]').filter({ hasText: `${year}/03` });
@@ -307,7 +312,6 @@ test.describe('BeeLog E2E Test Suite', () => {
     await incubatorBatch.getByRole('button', { name: 'Przenieś do inkubatora' }).click();
     await expect(incubatorBatch).toContainText('W inkubatorze');
     await expect(incubatorBatch).toContainText('Listwa inkubatorowa: B-4');
-    await expect(page.getByText('F-1 · 2 ukończonych serii — Dostępny')).toBeVisible();
     await page.getByTestId('qr-input-count').fill('7');
     await incubatorBatch.getByRole('button', { name: 'Zakończ serię' }).click();
     await expect(incubatorBatch).toContainText('Zakończona');
@@ -383,31 +387,36 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.getByTestId('main-menu-toggle').click();
     await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: 'Hodowla matek' }).click();
 
-    await page.getByTestId('qr-input-breed').fill('Carniolan');
-    await page.getByTestId('qr-input-line').fill('Old line');
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    await page.getByTestId('qr-resource-toggle-breederQueens').click();
+    await page.getByTestId('qr-input-breedLine').selectOption('car. Galicja');
     await page.getByTestId('qr-input-hiveNumber').fill('BQ-7');
-    await page.getByRole('button', { name: 'Dodaj zasób' }).click();
-    let queenRow = page.locator('[data-testid^="qr-resource-"]').filter({ hasText: 'BQ-7' });
+    await page.getByTestId('qr-resource-save-breederQueens').click();
+    let queenRow = page.locator('[data-testid^="qr-resource-qr-"]').filter({ hasText: 'BQ-7' });
     const queenId = await queenRow.getAttribute('data-testid').then(id => id.replace('qr-resource-', ''));
     await queenRow.getByRole('button', { name: 'Edytuj' }).click();
-    await page.getByTestId('qr-input-line').fill('New line');
-    await page.getByRole('button', { name: 'Zapisz zasób' }).click();
-    await expect(queenRow).toContainText('Carniolan New line');
+    await page.getByTestId('qr-input-breedLine').selectOption('cau. M');
+    await page.getByTestId('qr-resource-save-breederQueens').click();
+    await expect(queenRow).toContainText('cau. M');
 
     await page.reload();
     await page.waitForFunction(() => window.app && window.app.ports && window.app.ports.authStateChanged);
     await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'queen-resource-user', email: 'resources@beelog.test' }));
     await page.getByTestId('main-menu-toggle').click();
     await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: 'Hodowla matek' }).click();
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    await page.getByTestId('qr-resource-toggle-breederQueens').click();
     queenRow = page.locator(`[data-testid="qr-resource-${queenId}"]`);
-    await expect(queenRow).toContainText('Carniolan New line');
+    await expect(queenRow).toContainText('cau. M');
 
-    await page.getByTestId('qr-resource-kind').selectOption('starterColonies');
-    await page.getByTestId('qr-input-hiveNumber').fill('S-7');
-    await page.getByRole('button', { name: 'Dodaj zasób' }).click();
-    const starterRow = page.locator('[data-testid^="qr-resource-"]').filter({ hasText: 'S-7' });
+    await page.getByTestId('qr-resource-toggle-starterColonies').click();
+    const starterSection = page.getByTestId('qr-resource-section-starterColonies');
+    await starterSection.getByTestId('qr-input-hiveNumber').fill('S-7');
+    await starterSection.getByTestId('qr-resource-save-starterColonies').click();
+    const starterRow = page.locator('[data-testid^="qr-resource-qr-"]').filter({ hasText: 'S-7' });
     const starterId = await starterRow.getAttribute('data-testid').then(id => id.replace('qr-resource-', ''));
 
+    await page.getByRole('button', { name: '← Hodowla matek' }).click();
     await page.getByTestId('qr-breeder-select').selectOption(queenId);
     await page.getByRole('button', { name: 'Utwórz zaplanowaną serię' }).click();
     const batch = page.locator('[data-testid^="qr-batch-"]').filter({ hasText: `${year}/01` });
@@ -422,26 +431,33 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(conflictingBatch).toContainText('Zaplanowana');
     await expect(page.getByText('Batch or starter is unavailable.')).toBeVisible();
 
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    queenRow = page.locator(`[data-testid="qr-resource-${queenId}"]`);
     await queenRow.getByRole('button', { name: 'Usuń' }).click();
     await expect(page.getByText('A breeder queen referenced by a batch cannot be deleted. Retire it instead.')).toBeVisible();
     await expect(queenRow).toBeVisible();
-    await page.getByTestId('qr-resource-kind').selectOption('starterColonies');
     await starterRow.getByRole('button', { name: 'Usuń' }).click();
     await expect(page.getByText('This colony is reserved by an active batch.')).toBeVisible();
     await expect(starterRow).toBeVisible();
 
+    await page.getByRole('button', { name: '← Hodowla matek' }).click();
     await batch.getByRole('button', { name: 'Usuń serię' }).click();
     await expect(batch).toHaveCount(0);
     await conflictingBatch.getByRole('button', { name: 'Usuń serię' }).click();
     await expect(conflictingBatch).toHaveCount(0);
-    await expect(page.getByText('S-7 · 0 ukończonych serii — Dostępny')).toBeVisible();
-    await starterRow.getByRole('button', { name: 'Usuń' }).click();
-    await expect(starterRow).toHaveCount(0);
-    await queenRow.getByRole('button', { name: 'Wycofaj' }).click();
-    await expect(queenRow).toContainText('Nieaktywna');
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    const releasedStarter = page.locator(`[data-testid="qr-resource-${starterId}"]`);
+    const releasedQueen = page.locator(`[data-testid="qr-resource-${queenId}"]`);
+    await expect(releasedStarter).toBeVisible();
+    await releasedStarter.getByRole('button', { name: 'Usuń' }).click();
+    await expect(releasedStarter).toHaveCount(0);
+    await releasedQueen.getByRole('button', { name: 'Wycofaj' }).click();
+    await expect(releasedQueen).toContainText('Nieaktywna');
+    await page.getByRole('button', { name: '← Hodowla matek' }).click();
     await expect(page.getByTestId('qr-breeder-select').locator(`option[value="${queenId}"]`)).toHaveCount(0);
-    await queenRow.getByRole('button', { name: 'Usuń' }).click();
-    await expect(queenRow).toHaveCount(0);
+    await page.getByRole('button', { name: 'Zasoby' }).click();
+    await releasedQueen.getByRole('button', { name: 'Usuń' }).click();
+    await expect(releasedQueen).toHaveCount(0);
   });
 
   test('feature toggles persist independently and disabling the current view falls back', async ({ page }) => {
@@ -1128,8 +1144,8 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('[data-testid="user-email"]')).toHaveText('e2e@beelog.test');
 
     // Włącz tryb ciemny
-    await page.click('button:has-text("🌙 Przełącz na Tryb Ciemny")');
-    await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
+    await page.click('button:has-text("✨ Zmień na tryb ciemny")');
+    await expect(page.locator('button:has-text("☀️ Zmień na tryb jasny")')).toBeVisible();
 
     // Odśwież stronę
     await page.reload();
@@ -1146,7 +1162,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("⚙️ Ustawienia")');
     await expect(page.locator('text=⚙️ Ustawienia')).toBeVisible();
     await page.getByTestId('settings-section-toggle-ogolne').click();
-    await expect(page.locator('button:has-text("☀️ Przełącz na Tryb Jasny")')).toBeVisible();
+    await expect(page.locator('button:has-text("☀️ Zmień na tryb jasny")')).toBeVisible();
   });
 
   test('11. Edytowalna lista ras i linii matek oraz wybór w uliku weselnym', async ({ page }) => {
@@ -1238,12 +1254,12 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("← Powrót")');
 
     // Kliknij przycisk przeniesienia (🚚) na uliku
-    await page.getByTestId('move-ulik-apiary').evaluate(button => button.click());
+    await page.getByTestId('MoveMatingHive').evaluate(button => button.click());
     await expect(page.locator('text=Przenieś ulik: Ulik do Przeniesienia')).toBeVisible();
 
     // Wybierz docelowe trutowisko i kliknij Przenieś
     await page.selectOption('div[style*="position: fixed"] select', { label: 'Trutowisko Docelowe' });
-    await page.click('button:has-text("Przenieś")');
+    await page.getByTestId('submit-move-mating-hive').click();
 
     // Modal powinien zniknąć, a ulik powinien zniknąć z Trutowisko Źródłowe
     await expect(page.locator('text=Przenieś ulik: Ulik do Przeniesienia')).not.toBeVisible();
@@ -1298,12 +1314,12 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.locator('text=Ulik Weselny: Ulik Szczegóły Move')).toBeVisible();
 
     // Kliknij przycisk zmiany pasieczyska w szczegółach uliku
-    await page.click('button:has-text("🚚 Zmień pasieczysko")');
+    await page.getByTestId('MoveMatingHive').click();
     await expect(page.locator('text=Przenieś ulik: Ulik Szczegóły Move')).toBeVisible();
 
     // Wybierz docelowe trutowisko i kliknij Przenieś
     await page.selectOption('div[style*="position: fixed"] select', { label: 'Trutowisko Dest' });
-    await page.click('button:has-text("Przenieś")');
+    await page.getByTestId('submit-move-mating-hive').click();
 
     // Nie powinien wisieć na "Ładowanie uliku", powinien wrócić do listy ulików w Trutowisko Src
     await expect(page.locator('text=Trutowisko: Trutowisko Src')).toBeVisible();
@@ -1417,7 +1433,7 @@ test.describe('BeeLog E2E Test Suite', () => {
     await page.click('button:has-text("Zapisz")');
 
     // Przenieś ulik do Trutowisko Cel
-    await page.getByTestId('move-ulik-apiary').evaluate(button => button.click());
+    await page.getByTestId('MoveMatingHive').evaluate(button => button.click());
     await page.selectOption('div[style*="position: fixed"] select', { label: 'Trutowisko Cel' });
     await page.click('button:has-text("Przenieś")');
 
