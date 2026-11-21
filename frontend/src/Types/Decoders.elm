@@ -189,9 +189,9 @@ decodeUserSettings =
         |> andMap (optionalSetting "enablePasieczyskaTowarowe" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) True)
         |> andMap (optionalSetting "enableQueenRearing" (Decode.oneOf [ Decode.bool, Decode.string |> Decode.map (\s -> String.toLower s == "true") ]) False)
         |> andMap (optionalSetting "defaultGraftCount" Decode.int 24)
-        |> andMap (optionalSetting "starterDurationDays" Decode.int 2)
+        |> andMap (optionalSetting "starterDurationDays" Decode.int 1)
         |> andMap (optionalSetting "isolationDay" Decode.int 10)
-        |> andMap (optionalSetting "emergenceDay" Decode.int 11)
+        |> andMap (optionalSetting "emergenceDay" Decode.int 12)
         |> andMap (optionalSetting "language" (Decode.string |> Decode.map languageFromString) PL)
 
 optionalSetting : String -> Decode.Decoder a -> a -> Decode.Decoder a

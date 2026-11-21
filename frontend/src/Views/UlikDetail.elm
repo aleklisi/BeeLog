@@ -129,7 +129,7 @@ ulikDetailView t user info model =
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
                     [ button [ class "secondary-action", onClick (NavigateTo (UlikListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
                     , h2 [ style "margin" "0", style "color" headingColor ] [ text ("Ulik Weselny: " ++ ulik.name) ]
-                    , button [ attribute "data-testid" "MoveMatingHive", onClick (OpenMoveUlikModal actualApiaryId ulik) ] [ text ("🚚 " ++ t.moveMatingHive) ]
+                    , button [ attribute "data-testid" "MoveMatingHive", onClick (OpenMoveUlikModal actualApiaryId ulik), style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer" ] [ text ("🚚 " ++ t.moveMatingHive) ]
                     ]
                 , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
                     [ div []
@@ -142,7 +142,7 @@ ulikDetailView t user info model =
                         , label [] [ text (t.localize "Link do NFC:") ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px", style "flex-wrap" "wrap" ]
                             [ input [ type_ "text", value ulik.nfcLink, placeholder (t.localize "Brak linku"), readonly True, style "flex" "1", style "min-width" "200px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                            , button [ onClick (CopyText ulik.nfcLink), style "padding" "10px 16px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "📋 Kopiuj link do NFC") ]
+                            , button [ class "mating-state-m", onClick (CopyText ulik.nfcLink), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "📋 Kopiuj link do NFC") ]
                             ]
                         , label [] [ text (t.localize "Spodziewany termin wygryzienia:") ]
                         , input [ type_ "date", value ulik.expectedHatchDate, onInput (\val -> UpdateUlikField actualApiaryId ulik.id "expectedHatchDate" val), style "width" "100%", style "padding" "10px", style "font-size" "16px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
@@ -180,35 +180,35 @@ ulikDetailView t user info model =
                             [ text (t.localize "Aktualny stan: ")
                             , statusBadge t (getUlikState ulik)
                             ]
-                        , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "8px", style "margin-bottom" "15px" ]
+                        , div [ class "state-transition-buttons", style "display" "flex", style "flex-direction" "column", style "gap" "8px", style "margin-bottom" "15px" ]
                             (case getUlikState ulik of
                                 Bezmatek ->
                                     [ button [ class "mating-state-m", onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatecznik), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Poddano matecznik (M)") ]
                                     , button [ class "mating-state-n", onClick (OpenUlikModal actualApiaryId ulik.id ModalPoddajMatkeNieunasiennioną), style "padding" "8px 14px", style "background" "#d4ac0d", style "color" "#422006", style "border" "2px solid #8a6d00", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Poddano matkę nieunasiennioną (N)") ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), attribute "data-testid" "delete-account" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 ZMatecznikiem ->
-                                    [ button [ class "mating-state-n", onClick (TransitionUlikState actualApiaryId ulik.id MatkaWygryziona), style "padding" "8px 14px", style "background" "#d4ac0d", style "color" "#422006", style "border" "2px solid #8a6d00", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🦋 Matka się wygryzła (N)") ]
-                                    , button [ class "mating-state-b", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "❌ Matecznik się nie wygryzł (B)") ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
+                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaWygryziona), style "padding" "8px 12px", style "margin" "4px", style "cursor" "pointer" ] [ text (t.localize "🦋 Matka się wygryzła (N)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek) ] [ text (t.localize "❌ Matecznik się nie wygryzł (B)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), attribute "data-testid" "delete-account" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 MatkaWygryziona ->
-                                    [ button [ class "mating-state-unc", onClick (TransitionUlikState actualApiaryId ulik.id MatkaCzerwi), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "👑 Matka się unasienniła (UNC)") ]
+                                    [ button [ onClick (TransitionUlikState actualApiaryId ulik.id MatkaCzerwi) ] [ text (t.localize "👑 Matka się unasienniła (UNC)") ]
                                     , if not ulik.queen.hasOpalit then
-                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
+                                        button [ class "mating-state-m", onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
                                       else
                                         text (t.localize "")
-                                    , button [ class "mating-state-b", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "⚠️ Matka strutowiała / zniknęła (B)") ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), attribute "data-testid" "delete-account" ] [ text (t.localize "⚠️ Matka strutowiała / zniknęła (B)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), attribute "data-testid" "delete-account" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 MatkaCzerwi ->
                                     [ span [ style "color" "#27ae60", style "font-style" "italic", style "display" "block", style "margin-bottom" "10px" ] [ text (t.localize "Matka unasienniona / czerwi (pełny sukces uliku weselnego)") ]
                                     , if not ulik.queen.hasOpalit then
-                                        button [ onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#d35400", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
+                                        button [ class "mating-state-m", onClick (OpenUlikModal actualApiaryId ulik.id ModalZaopalitkuj), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🏷️ Zaopalitkuj") ]
                                       else
                                         text (t.localize "")
-                                    , button [ class "mating-state-b", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "zabieram matkę (B)") ]
-                                    , button [ onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), style "padding" "8px 14px", style "background" "#7f8c8d", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
+                                    , button [ class "mating-state-m", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "zabieram matkę (B)") ]
+                                    , button [ class "destructive-action", onClick (TransitionUlikState actualApiaryId ulik.id PustyUlik), attribute "data-testid" "delete-account" ] [ text (t.localize "🧹 Opróżnij ulik (P)") ]
                                     ]
                                 PustyUlik ->
                                     [ button [ class "mating-state-b", onClick (TransitionUlikState actualApiaryId ulik.id Bezmatek), style "padding" "8px 14px", style "background" "#e74c3c", style "color" "white", style "border" "2px solid #a93226", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "➕ Przejdź do Bezmatek (B)") ]

@@ -5,22 +5,23 @@ import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import I18n exposing (Translations, translationsFor)
 import Json.Decode as Decode exposing (Value)
 import Json.Encode as Encode
+import QueenRearing.Domain as QueenDomain
 import Types.Core exposing (..)
 import Types.Decoders exposing (..)
 import Types.Helpers exposing (..)
 import Types.QueenRearing as QR
-import I18n exposing (Translations, translationsFor)
-import QueenRearing.Domain as QueenDomain
 import Views.ApiaryList exposing (apiariesView)
 import Views.HiveDetail exposing (hiveDetailView)
 import Views.PasieczyskoTowarowe exposing (hiveListView)
-import Views.Settings exposing (settingsView)
 import Views.QueenRearing exposing (queenRearingView)
 import Views.QueenRearingResources exposing (queenRearingResourcesView)
+import Views.Settings exposing (settingsView)
 import Views.Trutowisko exposing (ulikAttentionReasons, ulikListView)
 import Views.UlikDetail exposing (ulikDetailView)
+
 
 type alias OrderDrop =
     { collection : OrderCollection
@@ -29,6 +30,7 @@ type alias OrderDrop =
     , targetId : String
     , after : Bool
     }
+
 
 main : Program Flags Model Msg
 main =
@@ -39,7 +41,10 @@ main =
         , subscriptions = subscriptions
         }
 
+
+
 -- MODEL
+
 
 type alias Flags =
     { darkMode : Bool
@@ -49,39 +54,49 @@ type alias Flags =
     , consentAnalytics : Bool
     }
 
+
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        hash = flags.initialHash
-        (pending, cmd) =
+        hash =
+            flags.initialHash
+
+        ( pending, cmd ) =
             if String.startsWith "#hive/" hash then
                 let
-                    parts = String.split "/" hash
+                    parts =
+                        String.split "/" hash
                 in
-                case (List.head (List.drop 1 parts), List.head (List.drop 2 parts)) of
-                    (Just apiaryId, Just hiveId) ->
+                case ( List.head (List.drop 1 parts), List.head (List.drop 2 parts) ) of
+                    ( Just apiaryId, Just hiveId ) ->
                         ( Just (PendingHive { apiaryId = apiaryId, hiveId = hiveId })
                         , jsLoadHives { apiaryId = apiaryId, deepLinkId = hiveId }
                         )
+
                     _ ->
                         ( Nothing, Cmd.none )
+
             else if String.startsWith "#ulik/" hash then
                 let
-                    parts = String.split "/" hash
+                    parts =
+                        String.split "/" hash
                 in
-                case (List.head (List.drop 1 parts), List.head (List.drop 2 parts)) of
-                    (Just apiaryId, Just ulikId) ->
+                case ( List.head (List.drop 1 parts), List.head (List.drop 2 parts) ) of
+                    ( Just apiaryId, Just ulikId ) ->
                         ( Just (PendingUlik { apiaryId = apiaryId, ulikId = ulikId })
                         , jsLoadUliki { apiaryId = apiaryId, deepLinkId = ulikId }
                         )
+
                     _ ->
                         ( Nothing, Cmd.none )
+
             else
                 ( Nothing, Cmd.none )
     in
     ( { authState = LoggedOut
       , viewState = LoginView
       , apiaries = []
+      , apiariesLoaded = False
       , hives = []
       , draggedKorpusId = Nothing
       , draggedOrderItem = Nothing
@@ -113,13 +128,13 @@ init flags =
       , enablePasieczyskaTowarowe = True
       , enableQueenRearing = False
       , defaultGraftCount = 24
-      , starterDurationDays = 2
+      , starterDurationDays = 1
       , isolationDay = 10
-      , emergenceDay = 11
+      , emergenceDay = 12
       , menuExpanded = False
       , previousPrimaryView = Nothing
       , queenRearingData = QR.QueenRearingData [] [] [] []
-      , queenRearingForm = Dict.fromList [ ( "kind", "breederQueens" ), ( "availability", "PUSTY" ), ( "graftCount", "24" ), ( "graftedAt", "" ), ( "timeZone", "Europe/Warsaw" ), ( "count", "" ), ( "starterId", "" ), ( "finisherId", "" ), ( "incubatorBar", "" ) ]
+      , queenRearingForm = Dict.fromList [ ( "kind", "breederQueens" ), ( "availability", "PUSTY" ), ( "graftCount", "" ), ( "graftedAt", "" ), ( "timeZone", "Europe/Warsaw" ), ( "count", "" ), ( "starterId", "" ), ( "finisherId", "" ), ( "incubatorBar", "" ) ]
       , editingQueenResource = Nothing
       , expandedSettingsSections = []
       , showAccountDeletion = False
@@ -177,6 +192,7 @@ syncApiaryContents model =
                 (\apiary ->
                     if apiary.id == info.apiaryId then
                         { apiary | hives = model.hives }
+
                     else
                         apiary
                 )
@@ -187,6 +203,7 @@ syncApiaryContents model =
                 (\apiary ->
                     if apiary.id == info.apiaryId then
                         { apiary | hives = model.hives }
+
                     else
                         apiary
                 )
@@ -197,6 +214,7 @@ syncApiaryContents model =
                 (\apiary ->
                     if apiary.id == info.apiaryId then
                         { apiary | uliki = model.uliki }
+
                     else
                         apiary
                 )
@@ -207,6 +225,7 @@ syncApiaryContents model =
                 (\apiary ->
                     if apiary.id == info.apiaryId then
                         { apiary | uliki = model.uliki }
+
                     else
                         apiary
                 )
@@ -215,70 +234,181 @@ syncApiaryContents model =
         _ ->
             model.apiaries
 
+
+
 -- PORTS (OUT)
 
-port jsLoginGoogle : () -> Cmd msg
+
 port jsLogout : () -> Cmd msg
+
+
 port jsDeleteAccount : String -> Cmd msg
+
+
 port jsSaveConsent : { necessary : Bool, analytics : Bool } -> Cmd msg
+
+
 port accountDeletionResult : (Value -> msg) -> Sub msg
+
+
 port jsLoadApiaries : String -> Cmd msg
+
+
 port jsCreateApiary : { name : String, apiaryType : String, uid : String } -> Cmd msg
+
+
 port jsUpdateApiary : { apiaryId : String, name : String } -> Cmd msg
+
+
 port jsDeleteApiary : { apiaryId : String } -> Cmd msg
+
+
 port jsLoadHives : { apiaryId : String, deepLinkId : String } -> Cmd msg
+
+
 port jsCreateHive : { apiaryId : String, name : String, hiveType : String, frameType : String, broodFrameType : String, broodFrameCount : Int, maxBroodFrames : Int, hasSuper : Bool, superFrameType : String, superCount : Int, superFrameCount : Int, maxSuperFrames : Int } -> Cmd msg
+
+
 port jsUpdateHive : { apiaryId : String, hiveId : String, field : String, value : String } -> Cmd msg
+
+
 port jsUpdateHiveFull : { apiaryId : String, hiveId : String, fields : Value } -> Cmd msg
+
+
 port jsLoadUliki : { apiaryId : String, deepLinkId : String } -> Cmd msg
+
+
 port jsCreateUlik : { apiaryId : String, name : String, hiveType : String } -> Cmd msg
+
+
 port jsUpdateUlik : { apiaryId : String, ulikId : String, field : String, value : String } -> Cmd msg
+
+
 port jsUpdateUlikFull : { apiaryId : String, ulikId : String, fields : Value } -> Cmd msg
+
+
 port jsUpdateUlikName : { apiaryId : String, ulikId : String, newName : String } -> Cmd msg
+
+
 port jsDeleteUlik : { apiaryId : String, ulikId : String } -> Cmd msg
+
+
 port jsMoveUlik : { sourceApiaryId : String, targetApiaryId : String, ulikId : String } -> Cmd msg
+
+
 port jsStartSpeechRecognition : () -> Cmd msg
+
+
 port jsLoadNotes : { apiaryId : String, hiveId : String } -> Cmd msg
+
+
 port jsSaveNote : { apiaryId : String, hiveId : String, text : String, authorId : String, authorEmail : String } -> Cmd msg
+
+
 port jsUpdateNote : { apiaryId : String, hiveId : String, noteId : String, text : String } -> Cmd msg
+
+
 port jsDeleteNote : { apiaryId : String, hiveId : String, noteId : String } -> Cmd msg
+
+
 port jsUpdateHiveName : { apiaryId : String, hiveId : String, newName : String } -> Cmd msg
+
+
 port jsDeleteHive : { apiaryId : String, hiveId : String } -> Cmd msg
+
+
 port jsCopyText : String -> Cmd msg
+
+
 port jsSaveApiaryOrders : List Apiary -> Cmd msg
+
+
 port jsSaveHiveOrders : { apiaryId : String, hives : List Hive } -> Cmd msg
+
+
 port jsSaveUlikOrders : { apiaryId : String, uliki : List UlikWeselny } -> Cmd msg
+
+
 port jsLoadUserSettings : { uid : String, email : String } -> Cmd msg
+
+
 port jsSaveUserSettings : { uid : String, email : String, frameTypes : List String, ulikTypes : List String, breedLines : List String, darkMode : Bool, language : String, hatchingToMatingDays : Int, maxUlikHistoryLimit : Int, enableTrutowiska : Bool, enablePasieczyskaTowarowe : Bool, enableQueenRearing : Bool, defaultGraftCount : Int, starterDurationDays : Int, isolationDay : Int, emergenceDay : Int } -> Cmd msg
+
+
 port jsLoadQueenRearing : String -> Cmd msg
+
+
 port jsCreateQueenResource : { uid : String, kind : String, fields : Value } -> Cmd msg
+
+
 port jsUpdateQueenResource : { uid : String, kind : String, id : String, fields : Value } -> Cmd msg
+
+
 port jsDeleteQueenResource : { uid : String, kind : String, id : String } -> Cmd msg
+
+
 port jsCreatePlannedRearingBatch : { uid : String, year : String, fields : Value } -> Cmd msg
-port jsStartRearingBatch : { uid : String, batchId : String, starterId : String, graftedAt : String, timeZone : String, starterDurationDays : Int, isolationDay : Int, emergenceDay : Int, schedule : Value } -> Cmd msg
+
+
+port jsStartRearingBatch : { uid : String, batchId : String, starterId : String, breederQueenId : String, graftCount : Int, graftedAt : String, timeZone : String, starterDurationDays : Int, isolationDay : Int, emergenceDay : Int, schedule : Value } -> Cmd msg
+
+
 port jsTransitionRearingBatch : { uid : String, batchId : String, action : String, colonyId : String, count : Int, incubatorBar : String } -> Cmd msg
+
+
 port jsDeleteRearingBatch : { uid : String, batchId : String } -> Cmd msg
+
+
 
 -- PORTS (IN)
 
+
 port authStateChanged : ({ uid : String, email : String } -> msg) -> Sub msg
+
+
 port apiariesReceived : (Value -> msg) -> Sub msg
+
+
 port hivesReceived : (Value -> msg) -> Sub msg
+
+
 port ulikiReceived : (Value -> msg) -> Sub msg
+
+
 port notesReceived : (Value -> msg) -> Sub msg
+
+
 port speechRecognized : (String -> msg) -> Sub msg
+
+
 port operationError : (String -> msg) -> Sub msg
+
+
 port successMessageReceived : (String -> msg) -> Sub msg
+
+
 port todayReceived : (String -> msg) -> Sub msg
+
+
 port currentEpochReceived : (Int -> msg) -> Sub msg
+
+
 port userSettingsReceived : (Value -> msg) -> Sub msg
+
+
 port queenRearingReceived : (Value -> msg) -> Sub msg
+
+
 port korpusDropReceived : (Value -> msg) -> Sub msg
+
+
 port orderDropReceived : (Value -> msg) -> Sub msg
 
--- MESSAGES
 
+
+-- MESSAGES
 -- HELPER
+
 
 saveSettings : User -> Model -> Cmd Msg
 saveSettings user model =
@@ -307,14 +437,38 @@ queenFormValue key model =
     Dict.get key model.queenRearingForm |> Maybe.withDefault ""
 
 
+clearQueenResourceForm : String -> Dict.Dict String String -> Dict.Dict String String
+clearQueenResourceForm kind form =
+    List.foldl (\key -> Dict.remove (kind ++ "." ++ key)) form [ "name", "hiveNumber", "breedLine", "markingColor", "markingCode" ]
+
+
 queenResourceFields : String -> Bool -> Model -> Value
 queenResourceFields kind isEditing model =
     let
-        field key = Encode.string (queenFormValue key model)
-        identifying = [ ( "hiveNumber", field "hiveNumber" ) ]
-        breedParts = String.words (queenFormValue "breedLine" model)
-        breed = List.head breedParts |> Maybe.withDefault (queenFormValue "breed" model)
-        line = String.join " " (List.drop 1 breedParts) |> (\selected -> if selected == "" then queenFormValue "line" model else selected)
+        field key =
+            Encode.string (queenFormValue (kind ++ "." ++ key) model)
+
+        hiveNumber =
+            queenFormValue (kind ++ ".hiveNumber") model |> String.toInt |> Maybe.withDefault 0
+
+        identifying =
+            [ ( "hiveNumber", Encode.int hiveNumber ) ]
+
+        breedParts =
+            String.words (queenFormValue (kind ++ ".breedLine") model)
+
+        breed =
+            List.head breedParts |> Maybe.withDefault (queenFormValue (kind ++ ".breed") model)
+
+        line =
+            String.join " " (List.drop 1 breedParts)
+                |> (\selected ->
+                        if selected == "" then
+                            queenFormValue (kind ++ ".line") model
+
+                        else
+                            selected
+                   )
     in
     if kind == "breederQueens" then
         Encode.object
@@ -324,29 +478,35 @@ queenResourceFields kind isEditing model =
                    , ( "markingColor", field "markingColor" )
                    , ( "markingCode", field "markingCode" )
                    ]
-                ++ (if isEditing then [] else [ ( "active", Encode.bool True ) ])
+                ++ (if isEditing then
+                        []
+
+                    else
+                        [ ( "active", Encode.bool True ) ]
+                   )
             )
 
     else if isEditing then
-        Encode.object identifying
+        Encode.object (identifying ++ [ ( "name", field "name" ) ])
 
     else
         Encode.object
             (identifying
+                ++ [ ( "name", field "name" ) ]
                 ++ [ ( "availability", Encode.string "PUSTY" )
                    , ( "completedSeries", Encode.int 0 )
                    , ( "activeBatchId", Encode.null )
                    ]
             )
 
+
+
 -- UPDATE
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ClickLoginGoogle ->
-            ( model, jsLoginGoogle () )
-
         ClickLogout ->
             ( { model | authState = LoggedOut, viewState = LoginView, apiaries = [] }
             , jsLogout ()
@@ -354,12 +514,17 @@ update msg model =
 
         ToggleDarkMode ->
             let
-                newDarkMode = not model.darkMode
-                newModel = { model | darkMode = newDarkMode }
+                newDarkMode =
+                    not model.darkMode
+
+                newModel =
+                    { model | darkMode = newDarkMode }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -367,25 +532,70 @@ update msg model =
 
         ChangeLanguage language ->
             let
-                newModel = { model | language = language }
-                cmd = case model.authState of
-                    LoggedIn user -> saveSettings user newModel
-                    _ -> Cmd.none
+                newModel =
+                    { model | language = language }
+
+                cmd =
+                    case model.authState of
+                        LoggedIn user ->
+                            saveSettings user newModel
+
+                        _ ->
+                            Cmd.none
             in
             ( newModel, cmd )
 
         ToggleEnableTrutowiska ->
             let
-                newEnable = not model.enableTrutowiska
-                newFilter = if not newEnable && model.apiaryFilter == "trutowisko" then "all" else model.apiaryFilter
-                disablingCurrent = not newEnable && (model.viewState == MatingApiariesView || model.previousPrimaryView == Just MatingApiariesView)
-                nextView = if disablingCurrent then (if model.enablePasieczyskaTowarowe then CommercialApiariesView else SettingsView) else model.viewState
-                fallbackFilter = if disablingCurrent && model.enablePasieczyskaTowarowe then "towarowe" else newFilter
-                newModel = { model | enableTrutowiska = newEnable, apiaryFilter = fallbackFilter, viewState = nextView, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
+                newEnable =
+                    not model.enableTrutowiska
+
+                newFilter =
+                    if not newEnable && model.apiaryFilter == "trutowisko" then
+                        "all"
+
+                    else
+                        model.apiaryFilter
+
+                disablingCurrent =
+                    not newEnable && (model.viewState == MatingApiariesView || model.previousPrimaryView == Just MatingApiariesView)
+
+                nextView =
+                    if disablingCurrent then
+                        if model.enablePasieczyskaTowarowe then
+                            CommercialApiariesView
+
+                        else
+                            SettingsView
+
+                    else
+                        model.viewState
+
+                fallbackFilter =
+                    if disablingCurrent && model.enablePasieczyskaTowarowe then
+                        "towarowe"
+
+                    else
+                        newFilter
+
+                newModel =
+                    { model
+                        | enableTrutowiska = newEnable
+                        , apiaryFilter = fallbackFilter
+                        , viewState = nextView
+                        , previousPrimaryView =
+                            if disablingCurrent then
+                                Nothing
+
+                            else
+                                model.previousPrimaryView
+                    }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -393,16 +603,59 @@ update msg model =
 
         ToggleEnablePasieczyskaTowarowe ->
             let
-                newEnable = not model.enablePasieczyskaTowarowe
-                newFilter = if not newEnable && model.apiaryFilter == "towarowe" then (if model.enableTrutowiska then "trutowisko" else "all") else model.apiaryFilter
-                disablingCurrent = not newEnable && (model.viewState == CommercialApiariesView || model.previousPrimaryView == Just CommercialApiariesView)
-                nextView = if disablingCurrent then (if model.enableTrutowiska then MatingApiariesView else SettingsView) else model.viewState
-                fallbackFilter = if disablingCurrent && model.enableTrutowiska then "trutowisko" else newFilter
-                newModel = { model | enablePasieczyskaTowarowe = newEnable, apiaryFilter = fallbackFilter, viewState = nextView, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
+                newEnable =
+                    not model.enablePasieczyskaTowarowe
+
+                newFilter =
+                    if not newEnable && model.apiaryFilter == "towarowe" then
+                        if model.enableTrutowiska then
+                            "trutowisko"
+
+                        else
+                            "all"
+
+                    else
+                        model.apiaryFilter
+
+                disablingCurrent =
+                    not newEnable && (model.viewState == CommercialApiariesView || model.previousPrimaryView == Just CommercialApiariesView)
+
+                nextView =
+                    if disablingCurrent then
+                        if model.enableTrutowiska then
+                            MatingApiariesView
+
+                        else
+                            SettingsView
+
+                    else
+                        model.viewState
+
+                fallbackFilter =
+                    if disablingCurrent && model.enableTrutowiska then
+                        "trutowisko"
+
+                    else
+                        newFilter
+
+                newModel =
+                    { model
+                        | enablePasieczyskaTowarowe = newEnable
+                        , apiaryFilter = fallbackFilter
+                        , viewState = nextView
+                        , previousPrimaryView =
+                            if disablingCurrent then
+                                Nothing
+
+                            else
+                                model.previousPrimaryView
+                    }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -410,15 +663,60 @@ update msg model =
 
         ToggleEnableQueenRearing ->
             let
-                enabled = not model.enableQueenRearing
-                disablingCurrent = not enabled && (model.viewState == QueenRearingView || model.previousPrimaryView == Just QueenRearingView)
-                fallback = if disablingCurrent then (if model.enablePasieczyskaTowarowe then CommercialApiariesView else if model.enableTrutowiska then MatingApiariesView else SettingsView) else model.viewState
-                fallbackFilter = if disablingCurrent then (if model.enablePasieczyskaTowarowe then "towarowe" else if model.enableTrutowiska then "trutowisko" else model.apiaryFilter) else model.apiaryFilter
-                newModel = { model | enableQueenRearing = enabled, viewState = fallback, apiaryFilter = fallbackFilter, previousPrimaryView = if disablingCurrent then Nothing else model.previousPrimaryView }
+                enabled =
+                    not model.enableQueenRearing
+
+                disablingCurrent =
+                    not enabled && (model.viewState == QueenRearingView || model.previousPrimaryView == Just QueenRearingView)
+
+                fallback =
+                    if disablingCurrent then
+                        if model.enablePasieczyskaTowarowe then
+                            CommercialApiariesView
+
+                        else if model.enableTrutowiska then
+                            MatingApiariesView
+
+                        else
+                            SettingsView
+
+                    else
+                        model.viewState
+
+                fallbackFilter =
+                    if disablingCurrent then
+                        if model.enablePasieczyskaTowarowe then
+                            "towarowe"
+
+                        else if model.enableTrutowiska then
+                            "trutowisko"
+
+                        else
+                            model.apiaryFilter
+
+                    else
+                        model.apiaryFilter
+
+                newModel =
+                    { model
+                        | enableQueenRearing = enabled
+                        , viewState = fallback
+                        , apiaryFilter = fallbackFilter
+                        , previousPrimaryView =
+                            if disablingCurrent then
+                                Nothing
+
+                            else
+                                model.previousPrimaryView
+                    }
+
                 cmd =
                     case model.authState of
-                        LoggedIn user -> saveSettings user newModel
-                        _ -> Cmd.none
+                        LoggedIn user ->
+                            saveSettings user newModel
+
+                        _ ->
+                            Cmd.none
             in
             ( newModel, cmd )
 
@@ -430,6 +728,7 @@ update msg model =
                 newExpanded =
                     if List.member section model.expandedSettingsSections then
                         List.filter (\s -> s /= section) model.expandedSettingsSections
+
                     else
                         section :: model.expandedSettingsSections
             in
@@ -448,7 +747,8 @@ update msg model =
 
         ToggleConsentAnalytics ->
             let
-                newAnalytics = not model.consentAnalytics
+                newAnalytics =
+                    not model.consentAnalytics
             in
             ( { model | consentAnalytics = newAnalytics }
             , jsSaveConsent { necessary = True, analytics = newAnalytics }
@@ -458,28 +758,53 @@ update msg model =
             ( { model | showAccountDeletion = True, deletionPhrase = "", deletionError = Nothing }, Cmd.none )
 
         CloseAccountDeletion ->
-            if model.deletionBusy then ( model, Cmd.none ) else ( { model | showAccountDeletion = False, deletionError = Nothing }, Cmd.none )
+            if model.deletionBusy then
+                ( model, Cmd.none )
+
+            else
+                ( { model | showAccountDeletion = False, deletionError = Nothing }, Cmd.none )
 
         UpdateDeletionPhrase phrase ->
             ( { model | deletionPhrase = phrase, deletionError = Nothing }, Cmd.none )
 
         SubmitAccountDeletion ->
-            if model.deletionBusy then ( model, Cmd.none )
-            else if model.deletionPhrase /= "Tak, usuwam konto!" then ( { model | deletionError = Just "Wpisana fraza jest nieprawidłowa." }, Cmd.none )
-            else ( { model | deletionBusy = True, deletionError = Nothing }, jsDeleteAccount model.deletionPhrase )
+            if model.deletionBusy then
+                ( model, Cmd.none )
+
+            else if model.deletionPhrase /= "Tak, usuwam konto!" then
+                ( { model | deletionError = Just "Wpisana fraza jest nieprawidłowa." }, Cmd.none )
+
+            else
+                ( { model | deletionBusy = True, deletionError = Nothing }, jsDeleteAccount model.deletionPhrase )
 
         AccountDeletionFinished result ->
             case result of
                 Ok _ ->
-                    ( { model | showAccountDeletion = False, deletionBusy = False, authState = LoggedOut, viewState = LoginView, successMessage = Just (if model.language == EN then "Your account and data were deleted." else "Konto i dane zostały usunięte.") }
+                    ( { model
+                        | showAccountDeletion = False
+                        , deletionBusy = False
+                        , authState = LoggedOut
+                        , viewState = LoginView
+                        , successMessage =
+                            Just
+                                (if model.language == EN then
+                                    "Your account and data were deleted."
+
+                                 else
+                                    "Konto i dane zostały usunięte."
+                                )
+                      }
                     , jsLogout ()
                     )
-                Err err -> ( { model | deletionBusy = False, deletionError = Just err }, Cmd.none )
+
+                Err err ->
+                    ( { model | deletionBusy = False, deletionError = Just err }, Cmd.none )
 
         UpdateQueenSetting setting raw ->
             case String.toInt raw of
                 Nothing ->
                     ( model, Cmd.none )
+
                 Just parsed ->
                     let
                         candidate =
@@ -495,13 +820,26 @@ update msg model =
 
                                 _ ->
                                     { model | emergenceDay = parsed }
-                        valid = candidate.isolationDay > candidate.starterDurationDays && candidate.emergenceDay >= candidate.isolationDay
-                        newModel = if valid then candidate else { candidate | errorMessage = Just "Isolation must follow starter transfer and emergence must not precede isolation." }
+
+                        valid =
+                            candidate.isolationDay > candidate.starterDurationDays && candidate.emergenceDay >= candidate.isolationDay
+
+                        newModel =
+                            if valid then
+                                candidate
+
+                            else
+                                { candidate | errorMessage = Just "Isolation must follow starter transfer and emergence must not precede isolation." }
+
                         cmd =
                             if valid then
                                 case model.authState of
-                                    LoggedIn user -> saveSettings user newModel
-                                    _ -> Cmd.none
+                                    LoggedIn user ->
+                                        saveSettings user newModel
+
+                                    _ ->
+                                        Cmd.none
+
                             else
                                 Cmd.none
                     in
@@ -510,11 +848,13 @@ update msg model =
         AuthStateUpdated { uid, email } ->
             if uid == "" then
                 ( { model | authState = LoggedOut, viewState = LoginView }, Cmd.none )
+
             else
                 let
-                    user = { uid = uid, email = email }
+                    user =
+                        { uid = uid, email = email }
                 in
-                ( { model | authState = LoggedIn user, viewState = ApiariesView }
+                ( { model | authState = LoggedIn user, viewState = ApiariesView, apiaries = [], apiariesLoaded = False }
                 , Cmd.batch [ jsLoadApiaries uid, jsLoadUserSettings { uid = uid, email = email }, jsLoadQueenRearing uid ]
                 )
 
@@ -524,7 +864,8 @@ update msg model =
         UserSettingsReceived result ->
             case result of
                 Ok settings ->
-                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, language = settings.language, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit, enableTrutowiska = settings.enableTrutowiska, enablePasieczyskaTowarowe = settings.enablePasieczyskaTowarowe, enableQueenRearing = settings.enableQueenRearing, defaultGraftCount = settings.defaultGraftCount, starterDurationDays = settings.starterDurationDays, isolationDay = settings.isolationDay, emergenceDay = settings.emergenceDay, queenRearingForm = Dict.insert "graftCount" (String.fromInt settings.defaultGraftCount) model.queenRearingForm }, Cmd.none )
+                    ( { model | frameTypes = settings.frameTypes, ulikTypes = settings.ulikTypes, breedLines = settings.breedLines, darkMode = settings.darkMode, language = settings.language, hatchingToMatingDays = settings.hatchingToMatingDays, maxUlikHistoryLimit = settings.maxUlikHistoryLimit, enableTrutowiska = settings.enableTrutowiska, enablePasieczyskaTowarowe = settings.enablePasieczyskaTowarowe, enableQueenRearing = settings.enableQueenRearing, defaultGraftCount = settings.defaultGraftCount, starterDurationDays = settings.starterDurationDays, isolationDay = settings.isolationDay, emergenceDay = settings.emergenceDay }, Cmd.none )
+
                 Err _ ->
                     ( model, Cmd.none )
 
@@ -543,7 +884,9 @@ update msg model =
             case model.authState of
                 LoggedIn user ->
                     let
-                        fields = queenResourceFields kind (model.editingQueenResource /= Nothing) model
+                        fields =
+                            queenResourceFields kind (model.editingQueenResource /= Nothing) model
+
                         command =
                             case model.editingQueenResource of
                                 Just editing ->
@@ -552,7 +895,7 @@ update msg model =
                                 Nothing ->
                                     jsCreateQueenResource { uid = user.uid, kind = kind, fields = fields }
                     in
-                    ( { model | editingQueenResource = Nothing, queenRearingForm = Dict.remove "hiveNumber" (Dict.remove "breedLine" (Dict.remove "markingColor" (Dict.remove "markingCode" model.queenRearingForm))) }, command )
+                    ( { model | editingQueenResource = Nothing, queenRearingForm = clearQueenResourceForm kind model.queenRearingForm }, command )
 
                 _ ->
                     ( model, Cmd.none )
@@ -564,33 +907,28 @@ update msg model =
                         model.queenRearingData.breederQueens
                             |> List.filter (\item -> item.id == id)
                             |> List.head
-                            |> Maybe.map (\item -> [ ( "breedLine", String.join " " (List.filter (\part -> part /= "") [ item.breed, item.line ]) ), ( "markingColor", item.markingColor ), ( "markingCode", item.markingCode ), ( "hiveNumber", item.hiveNumber ) ])
+                            |> Maybe.map (\item -> [ ( "breedLine", String.join " " (List.filter (\part -> part /= "") [ item.breed, item.line ]) ), ( "markingColor", item.markingColor ), ( "markingCode", item.markingCode ), ( "hiveNumber", String.fromInt item.hiveNumber ) ])
                             |> Maybe.withDefault []
 
                     else
                         let
-                            colonies = if kind == "starterColonies" then model.queenRearingData.starterColonies else model.queenRearingData.finisherColonies
+                            colonies =
+                                if kind == "starterColonies" then
+                                    model.queenRearingData.starterColonies
+
+                                else
+                                    model.queenRearingData.finisherColonies
                         in
                         colonies
                             |> List.filter (\item -> item.id == id)
                             |> List.head
-                            |> Maybe.map (\item -> [ ( "hiveNumber", item.hiveNumber ) ])
+                            |> Maybe.map (\item -> [ ( "hiveNumber", String.fromInt item.hiveNumber ), ( "name", item.name ) ])
                             |> Maybe.withDefault []
             in
-            ( { model | editingQueenResource = Just { kind = kind, id = id }, queenRearingForm = List.foldl (\( key, value ) form -> Dict.insert key value form) model.queenRearingForm pairs }, Cmd.none )
-
-        RetireBreederQueen id ->
-            case model.authState of
-                LoggedIn user ->
-                    ( model
-                    , jsUpdateQueenResource { uid = user.uid, kind = "breederQueens", id = id, fields = Encode.object [ ( "active", Encode.bool False ) ] }
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
+            ( { model | editingQueenResource = Just { kind = kind, id = id }, queenRearingForm = List.foldl (\( key, value ) form -> Dict.insert (kind ++ "." ++ key) value form) model.queenRearingForm pairs }, Cmd.none )
 
         CancelQueenResourceEdit ->
-            ( { model | editingQueenResource = Nothing, queenRearingForm = Dict.remove "hiveNumber" (Dict.remove "breedLine" (Dict.remove "markingColor" (Dict.remove "markingCode" model.queenRearingForm))) }, Cmd.none )
+            ( { model | editingQueenResource = Nothing, queenRearingForm = clearQueenResourceForm (Maybe.withDefault "" (Maybe.map .kind model.editingQueenResource)) model.queenRearingForm }, Cmd.none )
 
         DeleteQueenResource kind id ->
             case model.authState of
@@ -601,20 +939,9 @@ update msg model =
                     ( model, Cmd.none )
 
         CreatePlannedRearingBatch ->
-            case ( model.authState, String.toInt (queenFormValue "graftCount" model), String.toInt (String.left 4 model.currentDate) ) of
-                ( LoggedIn user, Just graftCount, Just year ) ->
-                    if graftCount <= 0 || queenFormValue "breederQueenId" model == "" then
-                        ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
-
-                    else
-                    let
-                        fields = Encode.object
-                            [ ( "breederQueenId", Encode.string (queenFormValue "breederQueenId" model) )
-                            , ( "graftCount", Encode.int graftCount )
-                            , ( "createdAt", Encode.string model.currentDate )
-                            ]
-                    in
-                    ( model, jsCreatePlannedRearingBatch { uid = user.uid, year = String.fromInt year, fields = fields } )
+            case ( model.authState, String.toInt (String.left 4 model.currentDate) ) of
+                ( LoggedIn user, Just year ) ->
+                    ( model, jsCreatePlannedRearingBatch { uid = user.uid, year = String.fromInt year, fields = Encode.object [ ( "createdAt", Encode.string model.currentDate ) ] } )
 
                 _ ->
                     ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
@@ -622,30 +949,33 @@ update msg model =
         StartRearingBatch batchId ->
             case model.authState of
                 LoggedIn user ->
-                    let
-                        defaults = { graftCount = model.defaultGraftCount, starterDurationDays = model.starterDurationDays, isolationDay = model.isolationDay, emergenceDay = model.emergenceDay }
-                    in
-                    case QueenDomain.calculateSchedule defaults (queenFormValue "graftedAt" model) of
-                        Just schedule ->
-                            ( model
-                            , jsStartRearingBatch
-                                { uid = user.uid
-                                , batchId = batchId
-                                , starterId = queenFormValue "starterId" model
-                                , graftedAt = queenFormValue "graftedAt" model
-                                , timeZone = queenFormValue "timeZone" model
-                                , starterDurationDays = model.starterDurationDays
-                                , isolationDay = model.isolationDay
-                                , emergenceDay = model.emergenceDay
-                                , schedule = Encode.object
-                                    [ ( "starterTransferAt", Encode.string schedule.starterTransferAt )
-                                    , ( "isolationAt", Encode.string schedule.isolationAt )
-                                    , ( "emergenceAt", Encode.string schedule.emergenceAt )
-                                    ]
-                                }
-                            )
+                    case ( String.toInt (queenFormValue "graftCount" model), QueenDomain.calculateSchedule { graftCount = model.defaultGraftCount, starterDurationDays = model.starterDurationDays, isolationDay = model.isolationDay, emergenceDay = model.emergenceDay } (queenFormValue "graftedAt" model) ) of
+                        ( Just graftCount, Just schedule ) ->
+                            if graftCount <= 0 || queenFormValue "breederQueenId" model == "" || queenFormValue "starterId" model == "" then
+                                ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
+                            else
+                                ( model
+                                , jsStartRearingBatch
+                                    { uid = user.uid
+                                    , batchId = batchId
+                                    , starterId = queenFormValue "starterId" model
+                                    , breederQueenId = queenFormValue "breederQueenId" model
+                                    , graftCount = graftCount
+                                    , graftedAt = queenFormValue "graftedAt" model
+                                    , timeZone = queenFormValue "timeZone" model
+                                    , starterDurationDays = model.starterDurationDays
+                                    , isolationDay = model.isolationDay
+                                    , emergenceDay = model.emergenceDay
+                                    , schedule =
+                                        Encode.object
+                                            [ ( "starterTransferAt", Encode.string schedule.starterTransferAt )
+                                            , ( "isolationAt", Encode.string schedule.isolationAt )
+                                            , ( "emergenceAt", Encode.string schedule.emergenceAt )
+                                            ]
+                                    }
+                                )
 
-                        Nothing ->
+                        _ ->
                             ( { model | errorMessage = Just "The queen-rearing schedule defaults are invalid." }, Cmd.none )
 
                 _ ->
@@ -659,7 +989,12 @@ update msg model =
                         { uid = user.uid
                         , batchId = batchId
                         , action = action
-                        , colonyId = if action == "toFinisher" then queenFormValue "finisherId" model else ""
+                        , colonyId =
+                            if action == "toFinisher" then
+                                queenFormValue "finisherId" model
+
+                            else
+                                ""
                         , count = count
                         , incubatorBar = queenFormValue "incubatorBar" model
                         }
@@ -679,35 +1014,63 @@ update msg model =
         ApiariesDecoded result ->
             case result of
                 Ok list ->
-                    ( { model | apiaries = list }, Cmd.none )
+                    ( { model | apiaries = list, apiariesLoaded = True }, Cmd.none )
+
                 Err err ->
-                    ( { model | errorMessage = Just ("Błąd dekodowania pasieczysk: " ++ err) }, Cmd.none )
+                    ( { model | apiariesLoaded = True, errorMessage = Just ("Błąd dekodowania pasieczysk: " ++ err) }, Cmd.none )
 
         NavigateTo state ->
             let
                 nextFilter =
                     case state of
-                        MatingApiariesView -> "trutowisko"
-                        CommercialApiariesView -> "towarowe"
-                        _ -> model.apiaryFilter
+                        MatingApiariesView ->
+                            "trutowisko"
+
+                        CommercialApiariesView ->
+                            "towarowe"
+
+                        _ ->
+                            model.apiaryFilter
+
                 cmds =
                     case state of
                         HiveListView { apiaryId } ->
                             jsLoadHives { apiaryId = apiaryId, deepLinkId = "" }
+
                         UlikListView { apiaryId } ->
                             jsLoadUliki { apiaryId = apiaryId, deepLinkId = "" }
+
                         HiveDetailView { apiaryId, hiveId } ->
                             jsLoadNotes { apiaryId = apiaryId, hiveId = hiveId }
+
                         UlikDetailView { apiaryId, ulikId } ->
                             Cmd.none
+
                         _ ->
                             Cmd.none
             in
-            ( { model | apiaries = syncApiaryContents model, viewState = state, apiaryFilter = nextFilter, newApiaryType = nextFilter, ulikFilter = "all", ulikActionRequiredOnly = False, menuExpanded = False, previousPrimaryView = if state == SettingsView then Just model.viewState else Nothing }, cmds )
+            ( { model
+                | apiaries = syncApiaryContents model
+                , viewState = state
+                , apiaryFilter = nextFilter
+                , newApiaryType = nextFilter
+                , ulikFilter = "all"
+                , ulikActionRequiredOnly = False
+                , menuExpanded = False
+                , previousPrimaryView =
+                    if state == SettingsView then
+                        Just model.viewState
+
+                    else
+                        Nothing
+              }
+            , cmds
+            )
 
         NavigateCard state ->
             if model.suppressCardClick then
                 ( { model | suppressCardClick = False }, Cmd.none )
+
             else
                 update (NavigateTo state) model
 
@@ -715,7 +1078,24 @@ update msg model =
             ( { model | suppressCardClick = False }, Cmd.none )
 
         OpenNewApiaryModal ->
-            ( { model | showNewApiaryModal = True, newApiaryName = "", newApiaryType = if model.viewState == MatingApiariesView then "trutowisko" else if model.viewState == CommercialApiariesView then "towarowe" else if model.enablePasieczyskaTowarowe then "towarowe" else "trutowisko" }, Cmd.none )
+            ( { model
+                | showNewApiaryModal = True
+                , newApiaryName = ""
+                , newApiaryType =
+                    if model.viewState == MatingApiariesView then
+                        "trutowisko"
+
+                    else if model.viewState == CommercialApiariesView then
+                        "towarowe"
+
+                    else if model.enablePasieczyskaTowarowe then
+                        "towarowe"
+
+                    else
+                        "trutowisko"
+              }
+            , Cmd.none
+            )
 
         SetApiaryFilter filter ->
             ( { model | apiaryFilter = filter }, Cmd.none )
@@ -732,27 +1112,38 @@ update msg model =
         AddFrameType ft ->
             if String.trim ft /= "" && not (List.member (String.trim ft) model.frameTypes) then
                 let
-                    updated = model.frameTypes ++ [ String.trim ft ]
-                    newModel = { model | frameTypes = updated, newFrameTypeInput = "" }
+                    updated =
+                        model.frameTypes ++ [ String.trim ft ]
+
+                    newModel =
+                        { model | frameTypes = updated, newFrameTypeInput = "" }
+
                     cmd =
                         case model.authState of
                             LoggedIn user ->
                                 saveSettings user newModel
+
                             _ ->
                                 Cmd.none
                 in
                 ( newModel, cmd )
+
             else
                 ( { model | newFrameTypeInput = "" }, Cmd.none )
 
         RemoveFrameType ft ->
             let
-                updated = List.filter (\x -> x /= ft) model.frameTypes
-                newModel = { model | frameTypes = updated }
+                updated =
+                    List.filter (\x -> x /= ft) model.frameTypes
+
+                newModel =
+                    { model | frameTypes = updated }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -764,27 +1155,38 @@ update msg model =
         AddUlikType ut ->
             if String.trim ut /= "" && not (List.member (String.trim ut) model.ulikTypes) then
                 let
-                    updated = model.ulikTypes ++ [ String.trim ut ]
-                    newModel = { model | ulikTypes = updated, newUlikTypeInput = "" }
+                    updated =
+                        model.ulikTypes ++ [ String.trim ut ]
+
+                    newModel =
+                        { model | ulikTypes = updated, newUlikTypeInput = "" }
+
                     cmd =
                         case model.authState of
                             LoggedIn user ->
                                 saveSettings user newModel
+
                             _ ->
                                 Cmd.none
                 in
                 ( newModel, cmd )
+
             else
                 ( { model | newUlikTypeInput = "" }, Cmd.none )
 
         RemoveUlikType ut ->
             let
-                updated = List.filter (\x -> x /= ut) model.ulikTypes
-                newModel = { model | ulikTypes = updated }
+                updated =
+                    List.filter (\x -> x /= ut) model.ulikTypes
+
+                newModel =
+                    { model | ulikTypes = updated }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -796,27 +1198,38 @@ update msg model =
         AddBreedLine bl ->
             if String.trim bl /= "" && not (List.member (String.trim bl) model.breedLines) then
                 let
-                    updated = model.breedLines ++ [ String.trim bl ]
-                    newModel = { model | breedLines = updated, newBreedLineInput = "" }
+                    updated =
+                        model.breedLines ++ [ String.trim bl ]
+
+                    newModel =
+                        { model | breedLines = updated, newBreedLineInput = "" }
+
                     cmd =
                         case model.authState of
                             LoggedIn user ->
                                 saveSettings user newModel
+
                             _ ->
                                 Cmd.none
                 in
                 ( newModel, cmd )
+
             else
                 ( { model | newBreedLineInput = "" }, Cmd.none )
 
         RemoveBreedLine bl ->
             let
-                updated = List.filter (\x -> x /= bl) model.breedLines
-                newModel = { model | breedLines = updated }
+                updated =
+                    List.filter (\x -> x /= bl) model.breedLines
+
+                newModel =
+                    { model | breedLines = updated }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -824,16 +1237,29 @@ update msg model =
 
         UpdateHatchingToMatingDaysInput str ->
             let
-                val = case String.toInt str of
-                    Just n ->
-                        if n < 1 then 1 else if n > 30 then 30 else n
-                    Nothing ->
-                        model.hatchingToMatingDays
-                newModel = { model | hatchingToMatingDays = val }
+                val =
+                    case String.toInt str of
+                        Just n ->
+                            if n < 1 then
+                                1
+
+                            else if n > 30 then
+                                30
+
+                            else
+                                n
+
+                        Nothing ->
+                            model.hatchingToMatingDays
+
+                newModel =
+                    { model | hatchingToMatingDays = val }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -841,16 +1267,29 @@ update msg model =
 
         UpdateMaxUlikHistoryLimitInput str ->
             let
-                val = case String.toInt str of
-                    Just n ->
-                        if n < 10 then 10 else if n > 60 then 60 else n
-                    Nothing ->
-                        model.maxUlikHistoryLimit
-                newModel = { model | maxUlikHistoryLimit = val }
+                val =
+                    case String.toInt str of
+                        Just n ->
+                            if n < 10 then
+                                10
+
+                            else if n > 60 then
+                                60
+
+                            else
+                                n
+
+                        Nothing ->
+                            model.maxUlikHistoryLimit
+
+                newModel =
+                    { model | maxUlikHistoryLimit = val }
+
                 cmd =
                     case model.authState of
                         LoggedIn user ->
                             saveSettings user newModel
+
                         _ ->
                             Cmd.none
             in
@@ -871,6 +1310,7 @@ update msg model =
                     ( { model | showNewApiaryModal = False }
                     , jsCreateApiary { name = model.newApiaryName, apiaryType = model.newApiaryType, uid = user.uid }
                     )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -889,6 +1329,7 @@ update msg model =
                     ( { model | showEditApiaryModal = Nothing }
                     , jsUpdateApiary { apiaryId = apiary.id, name = model.editApiaryNameInput }
                     )
+
                 Nothing ->
                     ( model, Cmd.none )
 
@@ -907,24 +1348,40 @@ update msg model =
             case result of
                 Ok list ->
                     let
-                        updatedApiaries = syncApiaryContents { model | hives = list }
-                        (updatedModel, extraCmd) =
+                        updatedApiaries =
+                            syncApiaryContents { model | hives = list }
+
+                        ( updatedModel, extraCmd ) =
                             case model.pendingDeepLink of
                                 Just (PendingHive { apiaryId, hiveId }) ->
                                     let
-                                        maybeHive = List.head (List.filter (\h -> h.id == hiveId) list)
-                                        hiveName = Maybe.withDefault "" (Maybe.map .name maybeHive)
-                                        actualApiaryId = case maybeHive of
-                                            Just h -> if h.apiaryId /= "" then h.apiaryId else apiaryId
-                                            Nothing -> apiaryId
+                                        maybeHive =
+                                            List.head (List.filter (\h -> h.id == hiveId) list)
+
+                                        hiveName =
+                                            Maybe.withDefault "" (Maybe.map .name maybeHive)
+
+                                        actualApiaryId =
+                                            case maybeHive of
+                                                Just h ->
+                                                    if h.apiaryId /= "" then
+                                                        h.apiaryId
+
+                                                    else
+                                                        apiaryId
+
+                                                Nothing ->
+                                                    apiaryId
                                     in
                                     ( { model | hives = list, apiaries = updatedApiaries, pendingDeepLink = Nothing, viewState = HiveDetailView { apiaryId = actualApiaryId, hiveId = hiveId, hiveName = hiveName } }
                                     , jsLoadNotes { apiaryId = actualApiaryId, hiveId = hiveId }
                                     )
+
                                 _ ->
                                     ( { model | hives = list, apiaries = updatedApiaries }, Cmd.none )
                     in
                     ( updatedModel, extraCmd )
+
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania uli: " ++ err) }, Cmd.none )
 
@@ -932,24 +1389,40 @@ update msg model =
             case result of
                 Ok list ->
                     let
-                        updatedApiaries = syncApiaryContents { model | uliki = list }
-                        (updatedModel, extraCmd) =
+                        updatedApiaries =
+                            syncApiaryContents { model | uliki = list }
+
+                        ( updatedModel, extraCmd ) =
                             case model.pendingDeepLink of
                                 Just (PendingUlik { apiaryId, ulikId }) ->
                                     let
-                                        maybeUlik = List.head (List.filter (\u -> u.id == ulikId) list)
-                                        ulikName = Maybe.withDefault "" (Maybe.map .name maybeUlik)
-                                        actualApiaryId = case maybeUlik of
-                                            Just u -> if u.apiaryId /= "" then u.apiaryId else apiaryId
-                                            Nothing -> apiaryId
+                                        maybeUlik =
+                                            List.head (List.filter (\u -> u.id == ulikId) list)
+
+                                        ulikName =
+                                            Maybe.withDefault "" (Maybe.map .name maybeUlik)
+
+                                        actualApiaryId =
+                                            case maybeUlik of
+                                                Just u ->
+                                                    if u.apiaryId /= "" then
+                                                        u.apiaryId
+
+                                                    else
+                                                        apiaryId
+
+                                                Nothing ->
+                                                    apiaryId
                                     in
                                     ( { model | uliki = list, apiaries = updatedApiaries, pendingDeepLink = Nothing, viewState = UlikDetailView { apiaryId = actualApiaryId, ulikId = ulikId, ulikName = ulikName } }
                                     , Cmd.none
                                     )
+
                                 _ ->
                                     ( { model | uliki = list, apiaries = updatedApiaries }, Cmd.none )
                     in
                     ( updatedModel, extraCmd )
+
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania ulików weselnych: " ++ err) }, Cmd.none )
 
@@ -1091,19 +1564,22 @@ update msg model =
 
                             "queen.hasOpalit" ->
                                 let
-                                    q = h.queen
+                                    q =
+                                        h.queen
                                 in
                                 { h | queen = { q | hasOpalit = value == "true" } }
 
                             "queen.color" ->
                                 let
-                                    q = h.queen
+                                    q =
+                                        h.queen
                                 in
                                 { h | queen = { q | color = value } }
 
                             "queen.number" ->
                                 let
-                                    q = h.queen
+                                    q =
+                                        h.queen
                                 in
                                 { h | queen = { q | number = value } }
 
@@ -1120,81 +1596,145 @@ update msg model =
 
         AddKorpusAbove apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = addKorpusAbove korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    addKorpusAbove korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         AddKorpusBelow apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = addKorpusBelow korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    addKorpusBelow korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         AddKorpusBetween apiaryId hiveId idx ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = addKorpusBetween idx korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    addKorpusBetween idx korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         DeleteKorpus apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = deleteKorpus korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    deleteKorpus korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         ToggleKorpusQueen apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = toggleKorpusQueen korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    toggleKorpusQueen korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         ToggleKorpusExcluder apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = toggleKorpusExcluder korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    toggleKorpusExcluder korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         ToggleKorpusFoil apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = toggleKorpusFoil korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    toggleKorpusFoil korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
         ToggleKorpusEntrance apiaryId hiveId korpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                korpusy = case maybeHive of
-                    Just h -> h.korpusy
-                    Nothing -> [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
-                newKorpusy = toggleKorpusEntrance korpusId korpusy
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                korpusy =
+                    case maybeHive of
+                        Just h ->
+                            h.korpusy
+
+                        Nothing ->
+                            [ { id = "1", hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False } ]
+
+                newKorpusy =
+                    toggleKorpusEntrance korpusId korpusy
             in
             updateKorpusyForHive apiaryId hiveId newKorpusy model
 
@@ -1214,7 +1754,8 @@ update msg model =
             case Decode.decodeValue decodeOrderDrop payload of
                 Ok drop ->
                     let
-                        dragModel = { model | draggedOrderItem = Just { collection = drop.collection, apiaryId = drop.apiaryId, id = drop.draggedId } }
+                        dragModel =
+                            { model | draggedOrderItem = Just { collection = drop.collection, apiaryId = drop.apiaryId, id = drop.draggedId } }
                     in
                     reorderDraggedItem drop.collection drop.apiaryId drop.targetId drop.after dragModel
 
@@ -1223,16 +1764,21 @@ update msg model =
 
         DropKorpusOn apiaryId hiveId targetKorpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
             in
             case ( model.draggedKorpusId, maybeHive ) of
                 ( Just draggedKorpusId, Just hive ) ->
                     let
-                        reordered = moveKorpusBefore draggedKorpusId targetKorpusId hive.korpusy
-                        clearedModel = { model | draggedKorpusId = Nothing }
+                        reordered =
+                            moveKorpusBefore draggedKorpusId targetKorpusId hive.korpusy
+
+                        clearedModel =
+                            { model | draggedKorpusId = Nothing }
                     in
                     if reordered == hive.korpusy then
                         ( clearedModel, Cmd.none )
+
                     else
                         updateKorpusyForHive apiaryId hiveId reordered clearedModel
 
@@ -1241,16 +1787,21 @@ update msg model =
 
         DropKorpusAfter apiaryId hiveId targetKorpusId ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
             in
             case ( model.draggedKorpusId, maybeHive ) of
                 ( Just draggedKorpusId, Just hive ) ->
                     let
-                        reordered = moveKorpusAfter draggedKorpusId targetKorpusId hive.korpusy
-                        clearedModel = { model | draggedKorpusId = Nothing }
+                        reordered =
+                            moveKorpusAfter draggedKorpusId targetKorpusId hive.korpusy
+
+                        clearedModel =
+                            { model | draggedKorpusId = Nothing }
                     in
                     if reordered == hive.korpusy then
                         ( clearedModel, Cmd.none )
+
                     else
                         updateKorpusyForHive apiaryId hiveId reordered clearedModel
 
@@ -1261,16 +1812,25 @@ update msg model =
             ( { model | draggedKorpusId = Nothing }, Cmd.none )
 
         KorpusDropReceived payload ->
-            case Decode.decodeValue
-                (Decode.map4 (\apiaryId hiveId korpusId after -> { apiaryId = apiaryId, hiveId = hiveId, korpusId = korpusId, after = after })
-                    (Decode.field "apiaryId" Decode.string)
-                    (Decode.field "hiveId" Decode.string)
-                    (Decode.field "korpusId" Decode.string)
-                    (Decode.field "after" Decode.bool)
-                )
-                payload of
+            case
+                Decode.decodeValue
+                    (Decode.map4 (\apiaryId hiveId korpusId after -> { apiaryId = apiaryId, hiveId = hiveId, korpusId = korpusId, after = after })
+                        (Decode.field "apiaryId" Decode.string)
+                        (Decode.field "hiveId" Decode.string)
+                        (Decode.field "korpusId" Decode.string)
+                        (Decode.field "after" Decode.bool)
+                    )
+                    payload
+            of
                 Ok drop ->
-                    update (if drop.after then DropKorpusAfter drop.apiaryId drop.hiveId drop.korpusId else DropKorpusOn drop.apiaryId drop.hiveId drop.korpusId) model
+                    update
+                        (if drop.after then
+                            DropKorpusAfter drop.apiaryId drop.hiveId drop.korpusId
+
+                         else
+                            DropKorpusOn drop.apiaryId drop.hiveId drop.korpusId
+                        )
+                        model
 
                 Err _ ->
                     ( { model | draggedKorpusId = Nothing }, Cmd.none )
@@ -1286,28 +1846,48 @@ update msg model =
                             if u.id == ulikId then
                                 if field == "expectedHatchDate" then
                                     { u | expectedHatchDate = value, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays value }
+
                                 else if field == "expectedMatingDate" then
                                     { u | expectedMatingDate = value }
+
                                 else if field == "name" then
                                     { u | name = value }
+
                                 else if field == "hiveType" then
                                     { u | hiveType = value }
+
                                 else if field == "hasQueen" then
-                                    { u | hasQueen = (String.toLower value == "true") }
+                                    { u | hasQueen = String.toLower value == "true" }
+
                                 else if String.startsWith "queen." field then
                                     let
-                                        q = u.queen
-                                        qField = String.dropLeft 6 field
+                                        q =
+                                            u.queen
+
+                                        qField =
+                                            String.dropLeft 6 field
+
                                         newQ =
-                                            if qField == "breedLine" then { q | breedLine = value }
-                                            else if qField == "hasOpalit" then { q | hasOpalit = (String.toLower value == "true") }
-                                            else if qField == "color" then { q | color = value }
-                                            else if qField == "number" then { q | number = value }
-                                            else q
+                                            if qField == "breedLine" then
+                                                { q | breedLine = value }
+
+                                            else if qField == "hasOpalit" then
+                                                { q | hasOpalit = String.toLower value == "true" }
+
+                                            else if qField == "color" then
+                                                { q | color = value }
+
+                                            else if qField == "number" then
+                                                { q | number = value }
+
+                                            else
+                                                q
                                     in
                                     { u | queen = newQ }
+
                                 else
                                     u
+
                             else
                                 u
                         )
@@ -1318,6 +1898,7 @@ update msg model =
                         [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedHatchDate", value = value }
                         , jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = "expectedMatingDate", value = addDaysToDateString model.hatchingToMatingDays value }
                         ]
+
                     else
                         [ jsUpdateUlik { apiaryId = apiaryId, ulikId = ulikId, field = field, value = value }
                         ]
@@ -1328,7 +1909,12 @@ update msg model =
             ( { model
                 | activeUlikModal = Just { apiaryId = apiaryId, ulikId = ulikId, modalType = modalType }
                 , modalBreedLine = Maybe.withDefault "" (List.head model.breedLines)
-                , modalHatchDate = if model.currentDate /= "" then model.currentDate else "2026-11-03"
+                , modalHatchDate =
+                    if model.currentDate /= "" then
+                        model.currentDate
+
+                    else
+                        "2026-11-03"
                 , modalIsOpalitkovana = "Nie"
                 , modalOpalitColor = "Biały"
                 , modalOpalitNumber = ""
@@ -1356,21 +1942,52 @@ update msg model =
 
         SubmitUlikModal apiaryId ulikId modalType ->
             let
-                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
+                maybeUlik =
+                    List.head (List.filter (\u -> u.id == ulikId) model.uliki)
             in
             case maybeUlik of
                 Just u ->
                     let
-                        timestamp = if model.currentDate /= "" then model.currentDate else "2026-11-03"
+                        timestamp =
+                            if model.currentDate /= "" then
+                                model.currentDate
+
+                            else
+                                "2026-11-03"
+
                         transition =
                             case modalType of
                                 ModalPoddajMatecznik ->
                                     { stateStr = "z_matecznikiem", desc = "Poddano matecznik", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = False, color = "", number = "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays model.modalHatchDate }
+
                                 ModalPoddajMatkeNieunasiennioną ->
                                     let
-                                        hasOpalit = model.modalIsOpalitkovana == "Tak"
+                                        hasOpalit =
+                                            model.modalIsOpalitkovana == "Tak"
                                     in
-                                    { stateStr = "matka_wygryziona", desc = "Poddano matkę nieunasiennioną", hasQueen = True, queen = { breedLine = model.modalBreedLine, hasOpalit = hasOpalit, color = if hasOpalit then model.modalOpalitColor else "", number = if hasOpalit then model.modalOpalitNumber else "" }, expectedHatchDate = model.modalHatchDate, expectedMatingDate = addDaysToDateString model.hatchingToMatingDays model.modalHatchDate }
+                                    { stateStr = "matka_wygryziona"
+                                    , desc = "Poddano matkę nieunasiennioną"
+                                    , hasQueen = True
+                                    , queen =
+                                        { breedLine = model.modalBreedLine
+                                        , hasOpalit = hasOpalit
+                                        , color =
+                                            if hasOpalit then
+                                                model.modalOpalitColor
+
+                                            else
+                                                ""
+                                        , number =
+                                            if hasOpalit then
+                                                model.modalOpalitNumber
+
+                                            else
+                                                ""
+                                        }
+                                    , expectedHatchDate = model.modalHatchDate
+                                    , expectedMatingDate = addDaysToDateString model.hatchingToMatingDays model.modalHatchDate
+                                    }
+
                                 ModalZaopalitkuj ->
                                     { stateStr = u.state, desc = "Zaopalitkowano matkę", hasQueen = True, queen = { breedLine = u.queen.breedLine, hasOpalit = True, color = model.modalOpalitColor, number = model.modalOpalitNumber }, expectedHatchDate = u.expectedHatchDate, expectedMatingDate = u.expectedMatingDate }
 
@@ -1389,44 +2006,74 @@ update msg model =
 
                         updatedUlik =
                             { u
-                            | state = transition.stateStr
-                            , hasQueen = transition.hasQueen
-                            , queen = transition.queen
-                            , expectedHatchDate = transition.expectedHatchDate
-                            , expectedMatingDate = transition.expectedMatingDate
-                            , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
+                                | state = transition.stateStr
+                                , hasQueen = transition.hasQueen
+                                , queen = transition.queen
+                                , expectedHatchDate = transition.expectedHatchDate
+                                , expectedMatingDate = transition.expectedMatingDate
+                                , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
                             }
 
                         updatedUliki =
-                            List.map (\x -> if x.id == ulikId then updatedUlik else x) model.uliki
+                            List.map
+                                (\x ->
+                                    if x.id == ulikId then
+                                        updatedUlik
+
+                                    else
+                                        x
+                                )
+                                model.uliki
                     in
                     ( { model | uliki = updatedUliki, activeUlikModal = Nothing }
                     , jsUpdateUlikFull { apiaryId = apiaryId, ulikId = ulikId, fields = encodeUlikFields updatedUlik }
                     )
+
                 Nothing ->
                     ( { model | activeUlikModal = Nothing }, Cmd.none )
 
         TransitionUlikState apiaryId ulikId newState ->
             let
-                maybeUlik = List.head (List.filter (\u -> u.id == ulikId) model.uliki)
+                maybeUlik =
+                    List.head (List.filter (\u -> u.id == ulikId) model.uliki)
             in
             case maybeUlik of
                 Just u ->
                     let
-                        timestamp = if model.currentDate /= "" then model.currentDate else "2026-11-03"
-                        newStateStr = ulikStateToString newState
-                        isReset = newState == Bezmatek || newState == PustyUlik
+                        timestamp =
+                            if model.currentDate /= "" then
+                                model.currentDate
+
+                            else
+                                "2026-11-03"
+
+                        newStateStr =
+                            ulikStateToString newState
+
+                        isReset =
+                            newState == Bezmatek || newState == PustyUlik
+
                         desc =
                             case newState of
-                                Bezmatek -> "Zabrano matkę / zresetowano stan"
-                                ZMatecznikiem -> "Poddano matecznik"
-                                MatkaWygryziona -> "Matka się wygryzła"
-                                MatkaCzerwi -> "Matka się unasienniła (UNC)"
-                                PustyUlik -> "Opróżniono ulik (P)"
+                                Bezmatek ->
+                                    "Zabrano matkę / zresetowano stan"
+
+                                ZMatecznikiem ->
+                                    "Poddano matecznik"
+
+                                MatkaWygryziona ->
+                                    "Matka się wygryzła"
+
+                                MatkaCzerwi ->
+                                    "Matka się unasienniła (UNC)"
+
+                                PustyUlik ->
+                                    "Opróżniono ulik (P)"
 
                         transition =
                             if isReset then
                                 { hasQueen = False, queen = { breedLine = "", hasOpalit = False, color = "", number = "" }, expectedHatchDate = "", expectedMatingDate = "" }
+
                             else
                                 { hasQueen = u.hasQueen, queen = u.queen, expectedHatchDate = u.expectedHatchDate, expectedMatingDate = u.expectedMatingDate }
 
@@ -1445,20 +2092,29 @@ update msg model =
 
                         updatedUlik =
                             { u
-                            | state = newStateStr
-                            , hasQueen = transition.hasQueen
-                            , queen = transition.queen
-                            , expectedHatchDate = transition.expectedHatchDate
-                            , expectedMatingDate = transition.expectedMatingDate
-                            , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
+                                | state = newStateStr
+                                , hasQueen = transition.hasQueen
+                                , queen = transition.queen
+                                , expectedHatchDate = transition.expectedHatchDate
+                                , expectedMatingDate = transition.expectedMatingDate
+                                , history = List.take model.maxUlikHistoryLimit (historyEntry :: u.history)
                             }
 
                         updatedUliki =
-                            List.map (\x -> if x.id == ulikId then updatedUlik else x) model.uliki
+                            List.map
+                                (\x ->
+                                    if x.id == ulikId then
+                                        updatedUlik
+
+                                    else
+                                        x
+                                )
+                                model.uliki
                     in
                     ( { model | uliki = updatedUliki }
                     , jsUpdateUlikFull { apiaryId = apiaryId, ulikId = ulikId, fields = encodeUlikFields updatedUlik }
                     )
+
                 Nothing ->
                     ( model, Cmd.none )
 
@@ -1466,6 +2122,7 @@ update msg model =
             case result of
                 Ok list ->
                     ( { model | notes = list }, Cmd.none )
+
                 Err err ->
                     ( { model | errorMessage = Just ("Błąd dekodowania notatek: " ++ err) }, Cmd.none )
 
@@ -1481,6 +2138,7 @@ update msg model =
         SubmitSaveNote apiaryId hiveId text authorId authorEmail ->
             if String.isEmpty text then
                 ( model, Cmd.none )
+
             else
                 ( { model | newNoteText = "" }
                 , jsSaveNote { apiaryId = apiaryId, hiveId = hiveId, text = text, authorId = authorId, authorEmail = authorEmail }
@@ -1498,6 +2156,7 @@ update msg model =
         SubmitUpdateNote apiaryId hiveId noteId ->
             if String.isEmpty model.editNoteText then
                 ( model, Cmd.none )
+
             else
                 ( { model | editingNoteId = Nothing, editNoteText = "" }
                 , jsUpdateNote { apiaryId = apiaryId, hiveId = hiveId, noteId = noteId, text = model.editNoteText }
@@ -1560,10 +2219,14 @@ update msg model =
             let
                 otherTrutowiska =
                     List.filter (\a -> a.apiaryType == "trutowisko" && a.id /= sourceApiaryId) model.apiaries
+
                 firstId =
                     case otherTrutowiska of
-                        a :: _ -> a.id
-                        [] -> ""
+                        a :: _ ->
+                            a.id
+
+                        [] ->
+                            ""
             in
             ( { model | showMoveUlikModal = Just { sourceApiaryId = sourceApiaryId, ulikId = ulik.id, ulikName = ulik.name }, moveUlikTargetApiaryId = firstId }, Cmd.none )
 
@@ -1576,14 +2239,18 @@ update msg model =
         SubmitMoveUlik sourceApiaryId ulikId targetApiaryId ->
             if targetApiaryId == "" then
                 ( model, Cmd.none )
+
             else
                 let
                     apiaryName =
                         case List.head (List.filter (\a -> a.id == sourceApiaryId) model.apiaries) of
-                            Just a -> a.name
-                            Nothing -> "Trutowisko"
+                            Just a ->
+                                a.name
 
-                    (updatedModel, navCmd) =
+                            Nothing ->
+                                "Trutowisko"
+
+                    ( updatedModel, navCmd ) =
                         update (NavigateTo (UlikListView { apiaryId = sourceApiaryId, apiaryName = apiaryName })) { model | showMoveUlikModal = Nothing, moveUlikTargetApiaryId = "" }
                 in
                 ( updatedModel
@@ -1596,7 +2263,15 @@ update msg model =
         UpdatePollenTrap apiaryId hiveId trap ->
             let
                 updatedHives =
-                    List.map (\h -> if h.id == hiveId then { h | pollenTrap = trap } else h) model.hives
+                    List.map
+                        (\h ->
+                            if h.id == hiveId then
+                                { h | pollenTrap = trap }
+
+                            else
+                                h
+                        )
+                        model.hives
             in
             ( { model | hives = updatedHives }, jsUpdateHive { apiaryId = apiaryId, hiveId = hiveId, field = "pollenTrap", value = trap } )
 
@@ -1605,10 +2280,16 @@ update msg model =
 
         SubmitHiveSnapshot apiaryId hiveId user ->
             let
-                maybeHive = List.head (List.filter (\h -> h.id == hiveId) model.hives)
-                snapshotText = case maybeHive of
-                    Just hive -> hiveSnapshotText hive
-                    Nothing -> "Brak danych ula"
+                maybeHive =
+                    List.head (List.filter (\h -> h.id == hiveId) model.hives)
+
+                snapshotText =
+                    case maybeHive of
+                        Just hive ->
+                            hiveSnapshotText hive
+
+                        Nothing ->
+                            "Brak danych ula"
             in
             ( { model | successMessage = Just "📸 Zapisano zrzut ula jako notatkę!" }
             , jsSaveNote
@@ -1621,7 +2302,20 @@ update msg model =
             )
 
         HandleError err ->
-            ( { model | errorMessage = Just err }, Cmd.none )
+            ( { model
+                | errorMessage = Just
+                    (if err == "Enter a valid graft date." && model.language == PL then
+                        "Wprowadź prawidłową datę przekładania larw."
+
+                     else if String.startsWith "Invalid document reference. Document references must have an even number of segments" err && model.language == PL then
+                        "Nieprawidłowe odwołanie do dokumentu. Ścieżka dokumentu musi zawierać parzystą liczbę segmentów."
+
+                     else
+                        err
+                    )
+              }
+            , Cmd.none
+            )
 
         SuccessMessageReceived successText ->
             ( { model | successMessage = Just successText }, Cmd.none )
@@ -1629,7 +2323,10 @@ update msg model =
         ClearMessages ->
             ( { model | errorMessage = Nothing, successMessage = Nothing }, Cmd.none )
 
+
+
 -- SUBSCRIPTIONS
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -1639,14 +2336,17 @@ subscriptions _ =
         , hivesReceived (\val -> HivesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeHives val)))
         , ulikiReceived (\val -> UlikiDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeUliki val)))
         , notesReceived (\val -> NotesDecoded (Result.mapError Decode.errorToString (Decode.decodeValue decodeNotes val)))
-
         , speechRecognized SpeechResultReceived
         , operationError HandleError
-        , accountDeletionResult (\value ->
-            case Decode.decodeValue (Decode.field "success" Decode.bool) value of
-                Ok True -> AccountDeletionFinished (Ok "success")
-                _ -> AccountDeletionFinished (Decode.decodeValue (Decode.field "error" Decode.string) value |> Result.mapError Decode.errorToString |> Result.andThen Err)
-          )
+        , accountDeletionResult
+            (\value ->
+                case Decode.decodeValue (Decode.field "success" Decode.bool) value of
+                    Ok True ->
+                        AccountDeletionFinished (Ok "success")
+
+                    _ ->
+                        AccountDeletionFinished (Decode.decodeValue (Decode.field "error" Decode.string) value |> Result.mapError Decode.errorToString |> Result.andThen Err)
+            )
         , successMessageReceived SuccessMessageReceived
         , todayReceived CurrentDateReceived
         , currentEpochReceived CurrentEpochReceived
@@ -1656,14 +2356,30 @@ subscriptions _ =
         , orderDropReceived OrderDropReceived
         ]
 
+
+
 -- VIEW
+
 
 view : Model -> Html Msg
 view model =
     let
-        t = translationsFor model.language
-        bgColor = if model.darkMode then "#121212" else "#f0fdf4"
-        textColor = if model.darkMode then "#e0e0e0" else "#333333"
+        t =
+            translationsFor model.language
+
+        bgColor =
+            if model.darkMode then
+                "#121212"
+
+            else
+                "#f0fdf4"
+
+        textColor =
+            if model.darkMode then
+                "#e0e0e0"
+
+            else
+                "#333333"
     in
     div [ style "padding" "20px", style "max-width" "800px", style "margin" "0 auto", style "background-color" bgColor, style "color" textColor, style "min-height" "100vh", style "position" "relative" ]
         [ headerView t model
@@ -1689,7 +2405,13 @@ view model =
                     QueenRearingView ->
                         queenRearingView t user model
 
+                    QueenRearingBatchView _ ->
+                        queenRearingView t user model
+
                     QueenRearingResourcesView ->
+                        queenRearingResourcesView t model
+
+                    QueenResourceDetailView info ->
                         queenRearingResourcesView t model
 
                     HiveListView info ->
@@ -1710,6 +2432,7 @@ view model =
         , privacyPolicyView t model
         , consentBannerView t model
         ]
+
 
 headerView : Translations -> Model -> Html Msg
 headerView t model =
@@ -1735,24 +2458,92 @@ headerView t model =
             LoggedIn user ->
                 topRow []
                     [ div [ style "position" "relative" ]
-                        [ button [ onClick ToggleMainMenu, attribute "aria-label" t.menu, attribute "aria-expanded" (if model.menuExpanded then "true" else "false"), attribute "aria-controls" "main-navigation", attribute "data-testid" "main-menu-toggle", style "padding" "8px 12px", style "font-size" "22px", style "cursor" "pointer" ] [ text (t.localize "☰") ]
+                        [ button
+                            [ onClick ToggleMainMenu
+                            , attribute "aria-label" t.menu
+                            , attribute "aria-expanded"
+                                (if model.menuExpanded then
+                                    "true"
+
+                                 else
+                                    "false"
+                                )
+                            , attribute "aria-controls" "main-navigation"
+                            , attribute "data-testid" "main-menu-toggle"
+                            , style "padding" "8px 12px"
+                            , style "font-size" "22px"
+                            , style "cursor" "pointer"
+                            ]
+                            [ text (t.localize "☰") ]
                         , if model.menuExpanded then
-                            nav [ id "main-navigation", attribute "aria-label" t.mainNavigation, style "position" "absolute", style "left" "0", style "top" "44px", style "z-index" "5", style "min-width" "220px", style "padding" "8px", style "background" (if model.darkMode then "#2d2d2d" else "white"), style "box-shadow" "0 2px 8px #0004", style "border-radius" "6px" ]
-                                ([ if model.enableQueenRearing then menuItem t.queenRearing (NavigateTo QueenRearingView) else text (t.localize "")
-                                 , if model.enableTrutowiska then menuItem t.matingApiaries (NavigateTo MatingApiariesView) else text (t.localize "")
-                                 , if model.enablePasieczyskaTowarowe then menuItem t.commercialApiaries (NavigateTo CommercialApiariesView) else text (t.localize "")
-                                 , menuItem t.settings (NavigateTo SettingsView)
-                                 , menuItem t.logout ClickLogout
-                                 ])
+                            nav
+                                [ id "main-navigation"
+                                , attribute "aria-label" t.mainNavigation
+                                , style "position" "absolute"
+                                , style "left" "0"
+                                , style "top" "44px"
+                                , style "z-index" "5"
+                                , style "min-width" "220px"
+                                , style "padding" "8px"
+                                , style "background"
+                                    (if model.darkMode then
+                                        "#2d2d2d"
+
+                                     else
+                                        "white"
+                                    )
+                                , style "box-shadow" "0 2px 8px #0004"
+                                , style "border-radius" "6px"
+                                ]
+                                [ if model.enableQueenRearing then
+                                    menuItem t.queenRearing (NavigateTo QueenRearingView)
+
+                                  else
+                                    text (t.localize "")
+                                , if model.enableTrutowiska then
+                                    menuItem t.matingApiaries (NavigateTo MatingApiariesView)
+
+                                  else
+                                    text (t.localize "")
+                                , if model.enablePasieczyskaTowarowe then
+                                    menuItem t.commercialApiaries (NavigateTo CommercialApiariesView)
+
+                                  else
+                                    text (t.localize "")
+                                , menuItem t.settings (NavigateTo SettingsView)
+                                , menuItem t.logout ClickLogout
+                                ]
+
                           else
                             text (t.localize "")
                         ]
-                    , span [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text user.email ]
+                    , span
+                        [ style "font-size" "14px"
+                        , style "color"
+                            (if model.darkMode then
+                                "#b0b0b0"
+
+                             else
+                                "#666"
+                            )
+                        ]
+                        [ text user.email ]
                     ]
 
             LoggedOut ->
-                h1 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "#2c3e50") ] [ text (t.localize "BeeLog 🐝") ]
+                h1
+                    [ style "margin" "0"
+                    , style "color"
+                        (if model.darkMode then
+                            "#ffffff"
+
+                         else
+                            "#2c3e50"
+                        )
+                    ]
+                    [ text (t.localize "BeeLog 🐝") ]
         ]
+
 
 notificationsView : Translations -> Model -> Html Msg
 notificationsView t model =
@@ -1763,6 +2554,7 @@ notificationsView t model =
                     [ span [] [ text (t.localize err) ]
                     , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text (t.localize "✕") ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.successMessage of
@@ -1771,31 +2563,68 @@ notificationsView t model =
                     [ span [] [ text (t.localize succ) ]
                     , button [ onClick ClearMessages, style "background" "none", style "border" "none", style "cursor" "pointer" ] [ text (t.localize "✕") ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         ]
 
+
 loginView : Translations -> Model -> Html Msg
 loginView t model =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
-        textColor = if model.darkMode then "#e0e0e0" else "#333333"
-        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
+        cardBg =
+            if model.darkMode then
+                "#1e1e1e"
+
+            else
+                "white"
+
+        textColor =
+            if model.darkMode then
+                "#e0e0e0"
+
+            else
+                "#333333"
+
+        headingColor =
+            if model.darkMode then
+                "#ffffff"
+
+            else
+                "#2c3e50"
     in
     div [ style "text-align" "center", style "padding" "40px", style "background" cardBg, style "color" textColor, style "border-radius" "8px", style "box-shadow" "0 2px 4px rgba(0,0,0,0.1)" ]
         [ h2 [ style "color" headingColor ] [ text t.loginTitle ]
-        , p [ style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin-bottom" "30px" ] [ text t.loginDescription ]
-        , button [ onClick ClickLoginGoogle, style "padding" "12px 24px", style "background-color" "#4285F4", style "color" "white", style "border" "none", style "border-radius" "4px", style "font-size" "16px", style "cursor" "pointer" ] [ text t.loginButton ]
+        , p
+            [ style "color"
+                (if model.darkMode then
+                    "#b0b0b0"
+
+                 else
+                    "#666"
+                )
+            , style "margin-bottom" "30px"
+            ]
+            [ text t.loginDescription ]
+        , div [ id "google-signin-button", style "display" "flex", style "justify-content" "center", style "margin" "4px" ] []
         , p [] [ button [ onClick OpenPrivacyPolicy, attribute "data-testid" "login-privacy-policy", style "margin-top" "16px", style "background" "none", style "border" "none", style "color" "#2563eb", style "text-decoration" "underline", style "cursor" "pointer" ] [ text (t.localize "Polityka prywatności") ] ]
         ]
+
 
 privacyPolicyView : Translations -> Model -> Html Msg
 privacyPolicyView t model =
     if not model.showPrivacyPolicy then
         text ""
+
     else
         let
-            titleText = if t.isEnglish then "Privacy policy and storage choices" else "Polityka prywatności i pamięć przeglądarki"
+            titleText =
+                if t.isEnglish then
+                    "Privacy policy and storage choices"
+
+                else
+                    "Polityka prywatności i pamięć przeglądarki"
+
             sections =
                 if t.isEnglish then
                     [ ( "Controller and contact", "BeeLog is operated by the project operator. Contact the operator through the BeeLog project repository: github.com/aleklisi/BeeLog." )
@@ -1805,6 +2634,7 @@ privacyPolicyView t model =
                     , ( "Retention and processors", "Account data is kept while your account is active. You can request deletion from Settings; the app deletes account data through Firebase services. Google Firebase provides authentication and cloud database services and processes data under its service terms. Provider backups and security logs may have separate limited retention." )
                     , ( "Your rights", "Depending on the applicable conditions, you may request access, correction, erasure, restriction, portability or object to processing. You may withdraw consent at any time for future processing. You may complain to the President of the Polish Personal Data Protection Office (PUODO). Use the repository contact above to submit a privacy request." )
                     ]
+
                 else
                     [ ( "Administrator i kontakt", "BeeLog jest prowadzony przez operatora projektu. Skontaktuj się z operatorem przez repozytorium projektu BeeLog: github.com/aleklisi/BeeLog." )
                     , ( "Dane i cele", "Identyfikator i adres e-mail konta Google służą do logowania oraz przypisania pasieczysk, uli, notatek i ustawień do konta. Aplikacja przechowuje wprowadzone przez Ciebie dane, aby udostępniać funkcje zarządzania pasieką." )
@@ -1813,43 +2643,192 @@ privacyPolicyView t model =
                     , ( "Retencja i podmioty przetwarzające", "Dane konta są przechowywane, gdy konto jest aktywne. Usunięcie konta możesz zlecić w Ustawieniach; aplikacja usuwa dane konta za pośrednictwem usług Firebase. Google Firebase dostarcza uwierzytelnianie i bazę danych w chmurze oraz przetwarza dane zgodnie z warunkami swoich usług. Kopie zapasowe i logi bezpieczeństwa dostawcy mogą mieć odrębny, ograniczony okres przechowywania." )
                     , ( "Twoje prawa", "Na warunkach określonych w przepisach możesz żądać dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania lub przeniesienia oraz wnieść sprzeciw. Zgodę możesz wycofać na przyszłość. Możesz złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (PUODO). Wniosek dotyczący prywatności zgłoś przez podane wyżej repozytorium." )
                     ]
-            renderSection (heading, body) =
+
+            renderSection ( heading, body ) =
                 section [] [ h3 [ style "margin-bottom" "4px" ] [ text heading ], p [ style "margin-top" "0", style "line-height" "1.5" ] [ text body ] ]
         in
         div [ style "position" "fixed", style "inset" "0", style "z-index" "2000", style "display" "grid", style "place-items" "center", style "padding" "16px", style "background" "rgba(0,0,0,.6)", attribute "data-testid" "privacy-policy-modal" ]
-            [ div [ attribute "role" "dialog", attribute "aria-modal" "true", attribute "aria-labelledby" "privacy-policy-title", style "position" "relative", style "background" (if model.darkMode then "#1e1e1e" else "white"), style "color" (if model.darkMode then "#eee" else "#222"), style "padding" "24px", style "border-radius" "8px", style "width" "min(720px, 94vw)", style "max-height" "88vh", style "overflow-y" "auto" ]
-                [ button [ class "secondary-action", onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy", attribute "aria-label" (if t.isEnglish then "Close policy" else "Zamknij politykę"), style "float" "right" ] [ text "✕" ]
+            [ div
+                [ attribute "role" "dialog"
+                , attribute "aria-modal" "true"
+                , attribute "aria-labelledby" "privacy-policy-title"
+                , style "position" "relative"
+                , style "background"
+                    (if model.darkMode then
+                        "#1e1e1e"
+
+                     else
+                        "white"
+                    )
+                , style "color"
+                    (if model.darkMode then
+                        "#eee"
+
+                     else
+                        "#222"
+                    )
+                , style "padding" "24px"
+                , style "border-radius" "8px"
+                , style "width" "min(720px, 94vw)"
+                , style "max-height" "88vh"
+                , style "overflow-y" "auto"
+                ]
+                [ button
+                    [ class "secondary-action"
+                    , onClick ClosePrivacyPolicy
+                    , attribute "data-testid" "close-privacy-policy"
+                    , attribute "aria-label"
+                        (if t.isEnglish then
+                            "Close policy"
+
+                         else
+                            "Zamknij politykę"
+                        )
+                    , style "float" "right"
+                    ]
+                    [ text "✕" ]
                 , h2 [ id "privacy-policy-title" ] [ text titleText ]
-                , p [] [ text (if t.isEnglish then "Last updated: 20 November 2026." else "Aktualizacja: 20 listopada 2026 r.") ]
+                , p []
+                    [ text
+                        (if t.isEnglish then
+                            "Last updated: 20 November 2026."
+
+                         else
+                            "Aktualizacja: 20 listopada 2026 r."
+                        )
+                    ]
                 , div [] (List.map renderSection sections)
-                , button [ class "secondary-action", onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy-btn" ] [ text (if t.isEnglish then "Close" else "Zamknij") ]
+                , button [ class "secondary-action", onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy-btn" ]
+                    [ text
+                        (if t.isEnglish then
+                            "Close"
+
+                         else
+                            "Zamknij"
+                        )
+                    ]
                 ]
             ]
+
 
 consentBannerView : Translations -> Model -> Html Msg
 consentBannerView t model =
     if model.consentDecided then
         text ""
+
     else
-        div [ style "position" "fixed", style "left" "0", style "right" "0", style "bottom" "0", style "z-index" "1500", style "padding" "16px", style "background" (if model.darkMode then "#202a35" else "#fff"), style "color" (if model.darkMode then "#f1f5f9" else "#1f2937"), style "box-shadow" "0 -2px 12px #0003", attribute "data-testid" "consent-banner" ]
+        div
+            [ style "position" "fixed"
+            , style "left" "0"
+            , style "right" "0"
+            , style "bottom" "0"
+            , style "z-index" "1500"
+            , style "padding" "16px"
+            , style "background"
+                (if model.darkMode then
+                    "#202a35"
+
+                 else
+                    "#fff"
+                )
+            , style "color"
+                (if model.darkMode then
+                    "#f1f5f9"
+
+                 else
+                    "#1f2937"
+                )
+            , style "box-shadow" "0 -2px 12px #0003"
+            , attribute "data-testid" "consent-banner"
+            ]
             [ div [ style "max-width" "800px", style "margin" "0 auto" ]
-                [ p [ style "margin-top" "0" ] [ text (if t.isEnglish then "BeeLog uses essential browser storage for sign-in and preferences. Optional diagnostics and analytics are off by default." else "BeeLog korzysta z niezbędnej pamięci przeglądarki do logowania i zapamiętania ustawień. Opcjonalna diagnostyka i analityka są domyślnie wyłączone.") ]
-                , button [ onClick (SetConsent { necessary = True, analytics = False }), attribute "data-testid" "consent-necessary", style "margin-right" "8px", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Only necessary" else "Tylko niezbędne") ]
-                , button [ onClick (SetConsent { necessary = True, analytics = True }), attribute "data-testid" "consent-all", style "margin-right" "8px", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Allow all" else "Zezwól na wszystkie") ]
-                , button [ onClick OpenPrivacyPolicy, attribute "data-testid" "consent-privacy-policy", style "padding" "8px 12px" ] [ text (if t.isEnglish then "Privacy policy" else "Polityka prywatności") ]
+                [ p [ style "margin-top" "0" ]
+                    [ text
+                        (if t.isEnglish then
+                            "BeeLog uses essential browser storage for sign-in and preferences. Optional diagnostics and analytics are off by default."
+
+                         else
+                            "BeeLog korzysta z niezbędnej pamięci przeglądarki do logowania i zapamiętania ustawień. Opcjonalna diagnostyka i analityka są domyślnie wyłączone."
+                        )
+                    ]
+                , button [ onClick (SetConsent { necessary = True, analytics = False }), attribute "data-testid" "consent-necessary", style "margin-right" "8px", style "padding" "8px 12px" ]
+                    [ text
+                        (if t.isEnglish then
+                            "Only necessary"
+
+                         else
+                            "Tylko niezbędne"
+                        )
+                    ]
+                , button [ onClick (SetConsent { necessary = True, analytics = True }), attribute "data-testid" "consent-all", style "margin-right" "8px", style "padding" "8px 12px" ]
+                    [ text
+                        (if t.isEnglish then
+                            "Allow all"
+
+                         else
+                            "Zezwól na wszystkie"
+                        )
+                    ]
+                , button [ onClick OpenPrivacyPolicy, attribute "data-testid" "consent-privacy-policy", style "padding" "8px 12px" ]
+                    [ text
+                        (if t.isEnglish then
+                            "Privacy policy"
+
+                         else
+                            "Polityka prywatności"
+                        )
+                    ]
                 ]
             ]
+
 
 modalsView : Translations -> Model -> Html Msg
 modalsView t model =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
-        textColor = if model.darkMode then "#e0e0e0" else "#333"
-        headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
-        inputBg = if model.darkMode then "#2a2a2a" else "white"
-        inputColor = if model.darkMode then "#e0e0e0" else "#333"
-        inputBorder = if model.darkMode then "1px solid #444" else "1px solid #ccc"
-        typeScoped = model.viewState == MatingApiariesView || model.viewState == CommercialApiariesView
+        cardBg =
+            if model.darkMode then
+                "#1e1e1e"
+
+            else
+                "white"
+
+        textColor =
+            if model.darkMode then
+                "#e0e0e0"
+
+            else
+                "#333"
+
+        headingColor =
+            if model.darkMode then
+                "#ffffff"
+
+            else
+                "#2c3e50"
+
+        inputBg =
+            if model.darkMode then
+                "#2a2a2a"
+
+            else
+                "white"
+
+        inputColor =
+            if model.darkMode then
+                "#e0e0e0"
+
+            else
+                "#333"
+
+        inputBorder =
+            if model.darkMode then
+                "1px solid #444"
+
+            else
+                "1px solid #ccc"
+
+        typeScoped =
+            model.viewState == MatingApiariesView || model.viewState == CommercialApiariesView
     in
     div []
         [ if model.showNewApiaryModal then
@@ -1858,25 +2837,52 @@ modalsView t model =
                     [ h3 [ style "color" headingColor ] [ text (t.localize "Nowe Pasieczysko") ]
                     , label [] [ text (t.localize "Nazwa pasieczyska:") ]
                     , input [ type_ "text", placeholder (t.localize "Nazwa pasieczyska"), value model.newApiaryName, onInput UpdateNewApiaryName, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
-                    , if typeScoped then text (t.localize "") else label [] [ text (t.localize "Typ pasieczyska:") ]
-                    , if typeScoped then text (t.localize "") else select [ value (if model.enablePasieczyskaTowarowe && (model.newApiaryType == "towarowe" || not model.enableTrutowiska) then "towarowe" else "trutowisko"), onInput UpdateNewApiaryType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
-                        ((if model.enablePasieczyskaTowarowe then
-                            [ option [ value "towarowe" ] [ text (t.localize "Pasieczysko towarowe") ] ]
-                          else
-                            []
-                         )
-                         ++ (if model.enableTrutowiska then
-                                [ option [ value "trutowisko" ] [ text (t.localize "Trutowisko (uliki weselne)") ] ]
-                            else
+                    , if typeScoped then
+                        text (t.localize "")
+
+                      else
+                        label [] [ text (t.localize "Typ pasieczyska:") ]
+                    , if typeScoped then
+                        text (t.localize "")
+
+                      else
+                        select
+                            [ value
+                                (if model.enablePasieczyskaTowarowe && (model.newApiaryType == "towarowe" || not model.enableTrutowiska) then
+                                    "towarowe"
+
+                                 else
+                                    "trutowisko"
+                                )
+                            , onInput UpdateNewApiaryType
+                            , style "width" "100%"
+                            , style "padding" "8px"
+                            , style "margin-bottom" "15px"
+                            , style "box-sizing" "border-box"
+                            , style "background" inputBg
+                            , style "color" inputColor
+                            , style "border" inputBorder
+                            ]
+                            ((if model.enablePasieczyskaTowarowe then
+                                [ option [ value "towarowe" ] [ text (t.localize "Pasieczysko towarowe") ] ]
+
+                              else
                                 []
+                             )
+                                ++ (if model.enableTrutowiska then
+                                        [ option [ value "trutowisko" ] [ text (t.localize "Trutowisko (uliki weselne)") ] ]
+
+                                    else
+                                        []
+                                   )
                             )
-                        )
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ class "secondary-action", onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        [ button [ class "destructive-action", onClick CloseNewApiaryModal ] [ text (t.localize "Anuluj") ]
                         , button [ onClick SubmitCreateApiary ] [ text (t.localize "Zapisz") ]
                         ]
                     ]
                 ]
+
           else
             text (t.localize "")
         , case model.showEditApiaryModal of
@@ -1886,11 +2892,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Edytuj Nazwę Pasieczyska") ]
                         , input [ type_ "text", value model.editApiaryNameInput, onInput UpdateEditApiaryNameInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseEditApiaryModal ] [ text (t.localize "Anuluj") ]
                             , button [ onClick SubmitUpdateApiary ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.showDeleteApiaryModal of
@@ -1900,11 +2907,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń Pasieczysko") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć pasieczysko \"" ++ apiary.name ++ t.localize "\" wraz ze wszystkimi ulami i notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseDeleteApiaryModal ] [ text (t.localize "Anuluj") ]
                             , button [ class "destructive-action", onClick (SubmitDeleteApiary apiary.id), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , if model.showNewHiveModal then
@@ -1925,6 +2933,7 @@ modalsView t model =
                             , select [ value model.newHiveFrameType, onInput UpdateNewHiveFrameType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\ft -> option [ value ft, selected (model.newHiveFrameType == ft) ] [ text ft ]) model.frameTypes)
                             ]
+
                       else if model.newHiveType == "lezak" then
                         div []
                             [ label [] [ text (t.localize "Typ ramki gniazdowej:") ]
@@ -1948,9 +2957,11 @@ modalsView t model =
                                     , label [] [ text (t.localize "Początkowa liczba ramek w nadstawce:") ]
                                     , input [ type_ "number", value (String.fromInt model.newHiveSuperFrameCount), onInput (\val -> UpdateNewHiveSuperFrameCount (Maybe.withDefault 10 (String.toInt val))), style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                     ]
+
                               else
                                 text (t.localize "")
                             ]
+
                       else
                         div []
                             [ label [] [ text (t.localize "Typ ramki gniazdowej:") ]
@@ -1965,15 +2976,17 @@ modalsView t model =
                             , input [ type_ "number", attribute "min" "0", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Basics.max 0 (Maybe.withDefault 0 (String.toInt val)))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ class "secondary-action", onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        [ button [ class "destructive-action", onClick CloseNewHiveModal ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             HiveListView info ->
                                 button [ onClick (SubmitCreateHive info.apiaryId) ] [ text (t.localize "Zapisz") ]
+
                             _ ->
                                 text (t.localize "")
                         ]
                     ]
                 ]
+
           else
             text (t.localize "")
         , if model.showNewUlikModal then
@@ -1986,15 +2999,17 @@ modalsView t model =
                     , select [ value model.newUlikHiveType, onInput UpdateNewUlikHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                         (List.map (\ut -> option [ value ut, selected (model.newUlikHiveType == ut) ] [ text ut ]) model.ulikTypes)
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ class "secondary-action", onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        [ button [ class "destructive-action", onClick CloseNewUlikModal ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             UlikListView info ->
                                 button [ onClick (SubmitCreateUlik info.apiaryId) ] [ text (t.localize "Zapisz") ]
+
                             _ ->
                                 text (t.localize "")
                         ]
                     ]
                 ]
+
           else
             text (t.localize "")
         , case model.showRenameHiveModal of
@@ -2004,11 +3019,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę ula") ]
                         , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseRenameHiveModal ] [ text (t.localize "Anuluj") ]
                             , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.showDeleteHiveModal of
@@ -2018,11 +3034,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ul") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseDeleteHiveModal ] [ text (t.localize "Anuluj") ]
                             , button [ class "destructive-action", attribute "data-testid" "confirm-delete-hive", onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.showRenameUlikModal of
@@ -2032,11 +3049,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę uliku") ]
                         , input [ type_ "text", value model.renameUlikInput, onInput UpdateRenameUlikInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseRenameUlikModal ] [ text (t.localize "Anuluj") ]
                             , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.showDeleteUlikModal of
@@ -2046,11 +3064,12 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ulik weselny") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć ulik \"" ++ info.ulikName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseDeleteUlikModal ] [ text (t.localize "Anuluj") ]
                             , button [ class "destructive-action", onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.showMoveUlikModal of
@@ -2058,13 +3077,19 @@ modalsView t model =
                 let
                     otherTrutowiska =
                         List.filter (\a -> a.apiaryType == "trutowisko" && a.id /= info.sourceApiaryId) model.apiaries
+
                     defaultTargetId =
                         case otherTrutowiska of
-                            a :: _ -> a.id
-                            [] -> ""
+                            a :: _ ->
+                                a.id
+
+                            [] ->
+                                ""
+
                     targetId =
                         if model.moveUlikTargetApiaryId == "" then
                             defaultTargetId
+
                         else
                             model.moveUlikTargetApiaryId
                 in
@@ -2074,18 +3099,21 @@ modalsView t model =
                         , p [] [ text (t.localize "Wybierz docelowe trutowisko:") ]
                         , if List.isEmpty otherTrutowiska then
                             p [ style "color" "#e74c3c" ] [ text (t.localize "Brak innych trutowisk do wyboru.") ]
+
                           else
                             select [ onInput SelectMoveUlikTargetApiary, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\a -> option [ value a.id, selected (targetId == a.id) ] [ text a.name ]) otherTrutowiska)
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseMoveUlikModal ] [ text (t.localize "Anuluj") ]
                             , if not (List.isEmpty otherTrutowiska) then
-                                button [ attribute "data-testid" "submit-move-mating-hive", onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przenieś") ]
+                                button [ class "save-action move-action", attribute "data-testid" "submit-move-mating-hive", onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId) ] [ text (t.localize "Przenieś") ]
+
                               else
                                 text (t.localize "")
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         , case model.activeUlikModal of
@@ -2093,11 +3121,17 @@ modalsView t model =
                 div [ style "position" "fixed", style "top" "0", style "left" "0", style "width" "100%", style "height" "100%", style "background" "rgba(0,0,0,0.5)", style "display" "flex", style "justify-content" "center", style "align-items" "center" ]
                     [ div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "width" "400px", style "color" textColor ]
                         [ h3 [ style "color" headingColor ]
-                            [ text (case info.modalType of
-                                ModalPoddajMatecznik -> "Poddaj Matecznik (M)"
-                                ModalPoddajMatkeNieunasiennioną -> "Poddaj Matkę Nieunasiennioną (N)"
-                                ModalZaopalitkuj -> "Zaopalitkuj Matkę Pszczelą"
-                              )
+                            [ text
+                                (case info.modalType of
+                                    ModalPoddajMatecznik ->
+                                        "Poddaj Matecznik (M)"
+
+                                    ModalPoddajMatkeNieunasiennioną ->
+                                        "Poddaj Matkę Nieunasiennioną (N)"
+
+                                    ModalZaopalitkuj ->
+                                        "Zaopalitkuj Matkę Pszczelą"
+                                )
                             ]
                         , if info.modalType == ModalPoddajMatecznik || info.modalType == ModalPoddajMatkeNieunasiennioną then
                             div []
@@ -2107,6 +3141,7 @@ modalsView t model =
                                 , label [] [ text (t.localize "Spodziewany termin wygryzienia:") ]
                                 , input [ type_ "date", value model.modalHatchDate, onInput UpdateModalHatchDate, style "width" "100%", style "padding" "8px", style "margin-bottom" "10px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                 ]
+
                           else
                             text (t.localize "")
                         , if info.modalType == ModalPoddajMatkeNieunasiennioną then
@@ -2117,6 +3152,7 @@ modalsView t model =
                                     , option [ value "Tak", selected (model.modalIsOpalitkovana == "Tak") ] [ text (t.localize "Tak") ]
                                     ]
                                 ]
+
                           else
                             text (t.localize "")
                         , if info.modalType == ModalZaopalitkuj || (info.modalType == ModalPoddajMatkeNieunasiennioną && model.modalIsOpalitkovana == "Tak") then
@@ -2132,99 +3168,151 @@ modalsView t model =
                                 , label [] [ text (t.localize "Numer Opalitka:") ]
                                 , input [ type_ "text", placeholder (t.localize "np. 42"), value model.modalOpalitNumber, onInput UpdateModalOpalitNumber, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                                 ]
+
                           else
                             text (t.localize "")
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ class "secondary-action", onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "destructive-action", onClick CloseUlikModal ] [ text (t.localize "Anuluj") ]
                             , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
+
             Nothing ->
                 text (t.localize "")
         ]
 
+
 hiveSnapshotText : Hive -> String
 hiveSnapshotText hive =
     let
-        opalitText = if hive.queen.hasOpalit then "Tak (Kolor: " ++ hive.queen.color ++ ", Nr: " ++ hive.queen.number ++ ")" else "Nie"
-        pollenText = case hive.pollenTrap of
-            "powałkowy" -> "Powałkowy"
-            "dennicowy" -> "Dennicowy"
-            _ -> "Brak"
+        opalitText =
+            if hive.queen.hasOpalit then
+                "Tak (Kolor: " ++ hive.queen.color ++ ", Nr: " ++ hive.queen.number ++ ")"
+
+            else
+                "Nie"
+
+        pollenText =
+            case hive.pollenTrap of
+                "powałkowy" ->
+                    "Powałkowy"
+
+                "dennicowy" ->
+                    "Dennicowy"
+
+                _ ->
+                    "Brak"
+
         hiveSpecificText =
             if hive.hiveType == "lezak" then
                 [ "Gniazdo: " ++ hive.broodFrameType ++ ", " ++ String.fromInt hive.broodFrameCount ++ " / " ++ String.fromInt hive.maxBroodFrames ++ " ramek"
                 , if hive.hasSuper then
                     "Nadstawka: Tak — " ++ hive.superFrameType ++ ", " ++ String.fromInt hive.superFrameCount ++ " / " ++ String.fromInt hive.maxSuperFrames ++ " ramek"
+
                   else
                     "Nadstawka: Nie"
                 ]
+
             else if hive.hiveType == "kombinowany" then
                 [ "Gniazdo: " ++ hive.broodFrameType ++ ", " ++ String.fromInt hive.broodFrameCount ++ " ramek"
                 , "Nadstawki: " ++ String.fromInt hive.superCount ++ " (ramka: " ++ hive.superFrameType ++ ")"
                 ]
+
             else if hive.hiveType == "korpusowy" then
                 [ "Typ ramki: " ++ hive.frameType, "Korpusy (od góry):" ]
                     ++ List.map snapshotKorpusText hive.korpusy
+
             else
                 [ "Typ ramki: " ++ hive.frameType ]
     in
     String.join "\n"
         ([ "📸 Zrzut Stanu Ula:"
-        , "Nazwa: " ++ hive.name
-        , "Typ ula: " ++ hive.hiveType
-        ]
-        ++ hiveSpecificText
-        ++ [ "Poławiacz pyłku: " ++ pollenText
-        , "Matka pszczela (opalitek): " ++ opalitText
-        ])
+         , "Nazwa: " ++ hive.name
+         , "Typ ula: " ++ hive.hiveType
+         ]
+            ++ hiveSpecificText
+            ++ [ "Poławiacz pyłku: " ++ pollenText
+               , "Matka pszczela (opalitek): " ++ opalitText
+               ]
+        )
+
 
 snapshotKorpusText : Korpus -> String
 snapshotKorpusText korpus =
     let
         yesNo value =
-            if value then "tak" else "nie"
+            if value then
+                "tak"
+
+            else
+                "nie"
     in
-    "Korpus #" ++ korpus.id
-        ++ ": matka " ++ yesNo korpus.hasQueen
-        ++ ", krata nad korpusem " ++ yesNo korpus.hasExcluderAbove
-        ++ ", folia nad korpusem " ++ yesNo korpus.hasFoilAbove
-        ++ ", otwarty wylotek " ++ yesNo korpus.hasOpenEntrance
+    "Korpus #"
+        ++ korpus.id
+        ++ ": matka "
+        ++ yesNo korpus.hasQueen
+        ++ ", krata nad korpusem "
+        ++ yesNo korpus.hasExcluderAbove
+        ++ ", folia nad korpusem "
+        ++ yesNo korpus.hasFoilAbove
+        ++ ", otwarty wylotek "
+        ++ yesNo korpus.hasOpenEntrance
+
 
 ulikSnapshotText : UlikWeselny -> String
 ulikSnapshotText ulik =
     let
-        queenText = if ulik.hasQueen then
-                        "Tak (Rasa/Linia: " ++ ulik.queen.breedLine ++ ", Opalit: " ++ (if ulik.queen.hasOpalit then ulik.queen.color ++ " #" ++ ulik.queen.number else "Nie") ++ ")"
-                    else
-                        "Brak"
+        queenText =
+            if ulik.hasQueen then
+                "Tak (Rasa/Linia: "
+                    ++ ulik.queen.breedLine
+                    ++ ", Opalit: "
+                    ++ (if ulik.queen.hasOpalit then
+                            ulik.queen.color ++ " #" ++ ulik.queen.number
+
+                        else
+                            "Nie"
+                       )
+                    ++ ")"
+
+            else
+                "Brak"
     in
     String.join "\n"
         [ "📸 Zrzut Stanu Uliku Weselnego:"
         , "Nazwa: " ++ ulik.name
         , "Typ ula: " ++ ulik.hiveType
         , "Stan: " ++ ulikStateLabel (getUlikState ulik)
-        , "Link NFC: " ++ (if ulik.nfcLink == "" then "Brak" else ulik.nfcLink)
+        , "Link NFC: "
+            ++ (if ulik.nfcLink == "" then
+                    "Brak"
+
+                else
+                    ulik.nfcLink
+               )
         , "Matka pszczela: " ++ queenText
         ]
+
 
 encodeUlikFields : UlikWeselny -> Encode.Value
 encodeUlikFields u =
     Encode.object
         [ ( "state", Encode.string u.state )
         , ( "hasQueen", Encode.bool u.hasQueen )
-        , ( "queen", Encode.object
-            [ ( "breedLine", Encode.string u.queen.breedLine )
-            , ( "hasOpalit", Encode.bool u.queen.hasOpalit )
-            , ( "color", Encode.string u.queen.color )
-            , ( "number", Encode.string u.queen.number )
-            ]
+        , ( "queen"
+          , Encode.object
+                [ ( "breedLine", Encode.string u.queen.breedLine )
+                , ( "hasOpalit", Encode.bool u.queen.hasOpalit )
+                , ( "color", Encode.string u.queen.color )
+                , ( "number", Encode.string u.queen.number )
+                ]
           )
         , ( "expectedHatchDate", Encode.string u.expectedHatchDate )
         , ( "expectedMatingDate", Encode.string u.expectedMatingDate )
         , ( "history", Encode.list encodeUlikHistoryEntry u.history )
         ]
+
 
 encodeUlikHistoryEntry : UlikHistoryEntry -> Encode.Value
 encodeUlikHistoryEntry h =
@@ -2241,32 +3329,44 @@ encodeUlikHistoryEntry h =
         , ( "number", Encode.string h.number )
         ]
 
+
 addKorpusAbove : String -> List Korpus -> List Korpus
 addKorpusAbove targetId korpusy =
     let
-        newKorpus = createKorpus korpusy
+        newKorpus =
+            createKorpus korpusy
     in
     insertKorpusBefore targetId newKorpus korpusy
+
 
 addKorpusBelow : String -> List Korpus -> List Korpus
 addKorpusBelow targetId korpusy =
     insertKorpusAfter targetId (createKorpus korpusy) korpusy
 
+
 addKorpusBetween : Int -> List Korpus -> List Korpus
 addKorpusBetween idx korpusy =
     let
-        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
-        newId = String.fromInt (maxId + 1)
-        newKorpus = { id = newId, hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
+        maxId =
+            Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+
+        newId =
+            String.fromInt (maxId + 1)
+
+        newKorpus =
+            { id = newId, hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
     in
     List.take (idx + 1) korpusy ++ [ newKorpus ] ++ List.drop (idx + 1) korpusy
+
 
 createKorpus : List Korpus -> Korpus
 createKorpus korpusy =
     let
-        maxId = Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
+        maxId =
+            Maybe.withDefault 0 (List.maximum (List.filterMap (\k -> String.toInt k.id) korpusy))
     in
     { id = String.fromInt (maxId + 1), hasQueen = False, hasExcluderAbove = False, hasFoilAbove = False, hasOpenEntrance = False }
+
 
 insertKorpusBefore : String -> Korpus -> List Korpus -> List Korpus
 insertKorpusBefore targetId korpus korpusy =
@@ -2277,8 +3377,10 @@ insertKorpusBefore targetId korpus korpusy =
         current :: rest ->
             if current.id == targetId then
                 korpus :: current :: rest
+
             else
                 current :: insertKorpusBefore targetId korpus rest
+
 
 insertKorpusAfter : String -> Korpus -> List Korpus -> List Korpus
 insertKorpusAfter targetId korpus korpusy =
@@ -2289,8 +3391,10 @@ insertKorpusAfter targetId korpus korpusy =
         current :: rest ->
             if current.id == targetId then
                 current :: korpus :: rest
+
             else
                 current :: insertKorpusAfter targetId korpus rest
+
 
 decodeOrderCollection : Decode.Decoder OrderCollection
 decodeOrderCollection =
@@ -2298,10 +3402,17 @@ decodeOrderCollection =
         |> Decode.andThen
             (\value ->
                 case value of
-                    "apiaries" -> Decode.succeed Apiaries
-                    "commercial-hives" -> Decode.succeed CommercialHives
-                    "mating-hives" -> Decode.succeed MatingHives
-                    _ -> Decode.fail "Unknown order collection"
+                    "apiaries" ->
+                        Decode.succeed Apiaries
+
+                    "commercial-hives" ->
+                        Decode.succeed CommercialHives
+
+                    "mating-hives" ->
+                        Decode.succeed MatingHives
+
+                    _ ->
+                        Decode.fail "Unknown order collection"
             )
 
 
@@ -2321,42 +3432,64 @@ reorderDraggedItem collection apiaryId targetId after model =
         Just dragged ->
             if dragged.collection /= collection || dragged.apiaryId /= apiaryId || dragged.id == targetId then
                 ( { model | draggedOrderItem = Nothing }, Cmd.none )
+
             else
                 case collection of
                     Apiaries ->
                         let
-                            visible = List.filter (isApiaryVisible model) model.apiaries
-                            reordered = moveById .id dragged.id targetId after visible
-                            merged = replaceVisibleItems .id visible reordered model.apiaries |> normalizeOrder (\item index -> { item | order = index })
+                            visible =
+                                List.filter (isApiaryVisible model) model.apiaries
+
+                            reordered =
+                                moveById .id dragged.id targetId after visible
+
+                            merged =
+                                replaceVisibleItems .id visible reordered model.apiaries |> normalizeOrder (\item index -> { item | order = index })
                         in
                         if reordered == visible then
                             ( { model | draggedOrderItem = Nothing }, Cmd.none )
+
                         else
                             ( { model | apiaries = merged, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveApiaryOrders merged )
 
                     CommercialHives ->
                         let
-                            visible = List.filter (\hive -> hive.apiaryId == apiaryId) model.hives
-                            reordered = moveById .id dragged.id targetId after visible
-                            normalizedVisible = normalizeOrder (\item index -> { item | order = index }) reordered
-                            merged = replaceVisibleItems .id visible normalizedVisible model.hives
+                            visible =
+                                List.filter (\hive -> hive.apiaryId == apiaryId) model.hives
+
+                            reordered =
+                                moveById .id dragged.id targetId after visible
+
+                            normalizedVisible =
+                                normalizeOrder (\item index -> { item | order = index }) reordered
+
+                            merged =
+                                replaceVisibleItems .id visible normalizedVisible model.hives
                         in
                         if reordered == visible then
                             ( { model | draggedOrderItem = Nothing }, Cmd.none )
+
                         else
                             ( { model | hives = merged, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveHiveOrders { apiaryId = apiaryId, hives = normalizedVisible } )
 
                     MatingHives ->
                         if not (List.all (\ulik -> ulik.apiaryId == apiaryId) model.uliki) then
                             ( { model | draggedOrderItem = Nothing }, Cmd.none )
+
                         else
                             let
-                                visible = List.filter (isUlikVisible model) model.uliki
-                                reordered = moveById .id dragged.id targetId after visible
-                                merged = replaceVisibleItems .id visible reordered model.uliki |> normalizeOrder (\item index -> { item | order = index })
+                                visible =
+                                    List.filter (isUlikVisible model) model.uliki
+
+                                reordered =
+                                    moveById .id dragged.id targetId after visible
+
+                                merged =
+                                    replaceVisibleItems .id visible reordered model.uliki |> normalizeOrder (\item index -> { item | order = index })
                             in
                             if reordered == visible then
                                 ( { model | draggedOrderItem = Nothing }, Cmd.none )
+
                             else
                                 ( { model | uliki = merged, draggedOrderItem = Nothing, suppressCardClick = True }, jsSaveUlikOrders { apiaryId = apiaryId, uliki = merged } )
 
@@ -2381,18 +3514,28 @@ moveById : (a -> String) -> String -> String -> Bool -> List a -> List a
 moveById getId draggedId targetId after items =
     if draggedId == targetId || not (List.any (\item -> getId item == draggedId) items) || not (List.any (\item -> getId item == targetId) items) then
         items
+
     else
         let
-            dragged = List.filter (\item -> getId item == draggedId) items |> List.head
-            remaining = List.filter (\item -> getId item /= draggedId) items
+            dragged =
+                List.filter (\item -> getId item == draggedId) items |> List.head
+
+            remaining =
+                List.filter (\item -> getId item /= draggedId) items
+
             insert item =
                 let
-                    ( before, targetAndRest ) = splitBeforeId getId targetId remaining
+                    ( before, targetAndRest ) =
+                        splitBeforeId getId targetId remaining
                 in
                 if after then
                     case targetAndRest of
-                        target :: rest -> before ++ [ target, item ] ++ rest
-                        [] -> items
+                        target :: rest ->
+                            before ++ [ target, item ] ++ rest
+
+                        [] ->
+                            items
+
                 else
                     before ++ item :: targetAndRest
         in
@@ -2408,9 +3551,11 @@ splitBeforeId getId targetId items =
         item :: rest ->
             if getId item == targetId then
                 ( [], items )
+
             else
                 let
-                    ( before, after ) = splitBeforeId getId targetId rest
+                    ( before, after ) =
+                        splitBeforeId getId targetId rest
                 in
                 ( item :: before, after )
 
@@ -2418,12 +3563,18 @@ splitBeforeId getId targetId items =
 replaceVisibleItems : (a -> String) -> List a -> List a -> List a -> List a
 replaceVisibleItems getId visible reordered allItems =
     let
-        isVisible item = List.any (\shown -> getId shown == getId item) visible
-        step item (remaining, result) =
+        isVisible item =
+            List.any (\shown -> getId shown == getId item) visible
+
+        step item ( remaining, result ) =
             if isVisible item then
                 case remaining of
-                    next :: rest -> ( rest, result ++ [ next ] )
-                    [] -> ( remaining, result ++ [ item ] )
+                    next :: rest ->
+                        ( rest, result ++ [ next ] )
+
+                    [] ->
+                        ( remaining, result ++ [ item ] )
+
             else
                 ( remaining, result ++ [ item ] )
     in
@@ -2439,64 +3590,114 @@ moveKorpusBefore : String -> String -> List Korpus -> List Korpus
 moveKorpusBefore draggedId targetId korpusy =
     if draggedId == targetId then
         korpusy
+
     else
         let
-            maybeDragged = List.head (List.filter (\k -> k.id == draggedId) korpusy)
-            targetExists = List.any (\k -> k.id == targetId) korpusy
+            maybeDragged =
+                List.head (List.filter (\k -> k.id == draggedId) korpusy)
+
+            targetExists =
+                List.any (\k -> k.id == targetId) korpusy
         in
         case maybeDragged of
             Just dragged ->
                 if targetExists then
                     insertKorpusBefore targetId dragged (List.filter (\k -> k.id /= draggedId) korpusy)
+
                 else
                     korpusy
 
             Nothing ->
                 korpusy
+
 
 moveKorpusAfter : String -> String -> List Korpus -> List Korpus
 moveKorpusAfter draggedId targetId korpusy =
     if draggedId == targetId then
         korpusy
+
     else
         let
-            maybeDragged = List.head (List.filter (\k -> k.id == draggedId) korpusy)
-            targetExists = List.any (\k -> k.id == targetId) korpusy
+            maybeDragged =
+                List.head (List.filter (\k -> k.id == draggedId) korpusy)
+
+            targetExists =
+                List.any (\k -> k.id == targetId) korpusy
         in
         case maybeDragged of
             Just dragged ->
                 if targetExists then
                     insertKorpusAfter targetId dragged (List.filter (\k -> k.id /= draggedId) korpusy)
+
                 else
                     korpusy
 
             Nothing ->
                 korpusy
 
+
 deleteKorpus : String -> List Korpus -> List Korpus
 deleteKorpus targetId korpusy =
     if List.length korpusy <= 1 then
         korpusy
+
     else
         List.filter (\k -> k.id /= targetId) korpusy
 
+
 toggleKorpusQueen : String -> List Korpus -> List Korpus
 toggleKorpusQueen targetId korpusy =
-    List.map (\k -> if k.id == targetId then { k | hasQueen = not k.hasQueen } else k) korpusy
+    List.map
+        (\k ->
+            if k.id == targetId then
+                { k | hasQueen = not k.hasQueen }
+
+            else
+                k
+        )
+        korpusy
+
 
 toggleKorpusExcluder : String -> List Korpus -> List Korpus
 toggleKorpusExcluder targetId korpusy =
-    List.map (\k -> if k.id == targetId then { k | hasExcluderAbove = not k.hasExcluderAbove } else k) korpusy
+    List.map
+        (\k ->
+            if k.id == targetId then
+                { k | hasExcluderAbove = not k.hasExcluderAbove }
+
+            else
+                k
+        )
+        korpusy
+
 
 toggleKorpusFoil : String -> List Korpus -> List Korpus
 toggleKorpusFoil targetId korpusy =
-    List.map (\k -> if k.id == targetId then { k | hasFoilAbove = not k.hasFoilAbove } else k) korpusy
+    List.map
+        (\k ->
+            if k.id == targetId then
+                { k | hasFoilAbove = not k.hasFoilAbove }
+
+            else
+                k
+        )
+        korpusy
+
 
 toggleKorpusEntrance : String -> List Korpus -> List Korpus
 toggleKorpusEntrance targetId korpusy =
-    List.map (\k -> if k.id == targetId then { k | hasOpenEntrance = not k.hasOpenEntrance } else k) korpusy
+    List.map
+        (\k ->
+            if k.id == targetId then
+                { k | hasOpenEntrance = not k.hasOpenEntrance }
 
-updateKorpusyForHive : String -> String -> List Korpus -> Model -> (Model, Cmd Msg)
+            else
+                k
+        )
+        korpusy
+
+
+updateKorpusyForHive : String -> String -> List Korpus -> Model -> ( Model, Cmd Msg )
 updateKorpusyForHive apiaryId hiveId newKorpusy model =
     let
         updatedHives =
@@ -2504,6 +3705,7 @@ updateKorpusyForHive apiaryId hiveId newKorpusy model =
                 (\h ->
                     if h.id == hiveId then
                         { h | korpusy = newKorpusy }
+
                     else
                         h
                 )
@@ -2515,7 +3717,8 @@ updateKorpusyForHive apiaryId hiveId newKorpusy model =
     case updatedHive of
         Just h ->
             ( { model | hives = updatedHives }
-            , jsUpdateHiveFull { apiaryId = apiaryId, hiveId = hiveId, fields = Encode.object [ ("korpusy", encodeKorpusy h.korpusy) ] }
+            , jsUpdateHiveFull { apiaryId = apiaryId, hiveId = hiveId, fields = Encode.object [ ( "korpusy", encodeKorpusy h.korpusy ) ] }
             )
+
         Nothing ->
             ( { model | hives = updatedHives }, Cmd.none )

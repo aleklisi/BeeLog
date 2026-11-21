@@ -130,9 +130,9 @@ suite =
                             Expect.all
                                 [ \s -> Expect.equal False s.enableQueenRearing
                                 , \s -> Expect.equal 24 s.defaultGraftCount
-                                , \s -> Expect.equal 2 s.starterDurationDays
+                                , \s -> Expect.equal 1 s.starterDurationDays
                                 , \s -> Expect.equal 10 s.isolationDay
-                                , \s -> Expect.equal 11 s.emergenceDay
+                                , \s -> Expect.equal 12 s.emergenceDay
                                 , \s -> Expect.equal True s.enableTrutowiska
                                 , \s -> Expect.equal True s.enablePasieczyskaTowarowe
                                 ]

@@ -1,33 +1,46 @@
 module Types.Core exposing (..)
 
-import Json.Decode as Decode
 import Dict exposing (Dict)
+import Json.Decode as Decode
 import Types.QueenRearing as QR
+
 
 type alias User =
     { uid : String
     , email : String
     }
 
+
 type Language
     = PL
     | EN
 
+
 languageFromString : String -> Language
 languageFromString value =
-    if String.toLower value == "en" then EN else PL
+    if String.toLower value == "en" then
+        EN
+
+    else
+        PL
+
 
 languageToString : Language -> String
 languageToString language =
     case language of
-        PL -> "pl"
-        EN -> "en"
+        PL ->
+            "pl"
+
+        EN ->
+            "en"
+
 
 type alias Queen =
     { hasOpalit : Bool
     , color : String
     , number : String
     }
+
 
 type alias Korpus =
     { id : String
@@ -36,6 +49,7 @@ type alias Korpus =
     , hasFoilAbove : Bool
     , hasOpenEntrance : Bool
     }
+
 
 type alias Hive =
     { id : String
@@ -58,6 +72,7 @@ type alias Hive =
     , korpusy : List Korpus
     }
 
+
 type UlikState
     = Bezmatek
     | ZMatecznikiem
@@ -65,12 +80,14 @@ type UlikState
     | MatkaCzerwi
     | PustyUlik
 
+
 type alias UlikQueen =
     { breedLine : String
     , hasOpalit : Bool
     , color : String
     , number : String
     }
+
 
 type alias UlikHistoryEntry =
     { timestamp : String
@@ -84,6 +101,7 @@ type alias UlikHistoryEntry =
     , color : String
     , number : String
     }
+
 
 type alias UlikWeselny =
     { id : String
@@ -100,6 +118,7 @@ type alias UlikWeselny =
     , history : List UlikHistoryEntry
     }
 
+
 type alias Note =
     { id : String
     , text : String
@@ -107,6 +126,7 @@ type alias Note =
     , authorEmail : String
     , timestamp : String
     }
+
 
 type alias Apiary =
     { id : String
@@ -118,10 +138,12 @@ type alias Apiary =
     , hives : List Hive
     }
 
+
 type OrderCollection
     = Apiaries
     | CommercialHives
     | MatingHives
+
 
 type alias UserSettings =
     { frameTypes : List String
@@ -140,9 +162,11 @@ type alias UserSettings =
     , language : Language
     }
 
+
 type AuthState
     = LoggedOut
     | LoggedIn User
+
 
 type ViewState
     = LoginView
@@ -150,21 +174,26 @@ type ViewState
     | MatingApiariesView
     | CommercialApiariesView
     | QueenRearingView
+    | QueenRearingBatchView String
     | QueenRearingResourcesView
+    | QueenResourceDetailView { kind : String, id : String }
     | HiveListView { apiaryId : String, apiaryName : String }
     | HiveDetailView { apiaryId : String, hiveId : String, hiveName : String }
     | UlikListView { apiaryId : String, apiaryName : String }
     | UlikDetailView { apiaryId : String, ulikId : String, ulikName : String }
     | SettingsView
 
+
 type UlikModalType
     = ModalPoddajMatecznik
     | ModalPoddajMatkeNieunasiennioną
     | ModalZaopalitkuj
 
+
 type PendingDeepLink
     = PendingHive { apiaryId : String, hiveId : String }
     | PendingUlik { apiaryId : String, ulikId : String }
+
 
 type SettingsSection
     = SectionOgolne
@@ -176,10 +205,12 @@ type SettingsSection
     | SectionFinishers
     | SectionPrywatnosc
 
+
 type alias Model =
     { authState : AuthState
     , viewState : ViewState
     , apiaries : List Apiary
+    , apiariesLoaded : Bool
     , hives : List Hive
     , draggedKorpusId : Maybe String
     , draggedOrderItem : Maybe { collection : OrderCollection, apiaryId : String, id : String }
@@ -264,9 +295,9 @@ type alias Model =
     , modalOpalitNumber : String
     }
 
+
 type Msg
-    = ClickLoginGoogle
-    | ClickLogout
+    = ClickLogout
     | ToggleDarkMode
     | ChangeLanguage Language
     | ToggleEnableTrutowiska
@@ -278,7 +309,6 @@ type Msg
     | SaveQueenResource String
     | CancelQueenResourceEdit
     | EditQueenResource String String
-    | RetireBreederQueen String
     | DeleteQueenResource String String
     | CreatePlannedRearingBatch
     | StartRearingBatch String

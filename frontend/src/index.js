@@ -1,7 +1,45 @@
 import { Elm } from './Main.elm';
 import './styles.css';
-import { auth, db, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
-import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, runTransaction, Timestamp } from '../../src/firebase.js';
+import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential } from 'firebase/auth';
+
+const googleClientId = '463631392264-t76kj0hsba8utbq52privcvhoh9m2qii.apps.googleusercontent.com';
+let isFirebaseAuthenticated = Boolean(auth.currentUser);
+
+function renderGoogleSignInButton() {
+    const container = document.getElementById('google-signin-button');
+    if (!container || isFirebaseAuthenticated || !window.google?.accounts?.id) return;
+    if (container.dataset.googleButtonRendered === 'true' && container.childElementCount > 0) return;
+
+    window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async ({ credential }) => {
+            try {
+                const firebaseCredential = GoogleAuthProvider.credential(credential);
+                await signInWithCredential(auth, firebaseCredential);
+            } catch (error) {
+                app.ports.operationError.send(error.message);
+            }
+        }
+    });
+    window.google.accounts.id.renderButton(container, {
+        type: 'standard',
+        theme: 'filled_blue',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        locale: savedLanguage === 'en' ? 'en' : 'pl'
+    });
+    container.dataset.googleButtonRendered = 'true';
+}
+
+new MutationObserver(renderGoogleSignInButton).observe(document.getElementById('app'), {
+    childList: true,
+    subtree: true
+});
+renderGoogleSignInButton();
+document.querySelector('script[src="https://accounts.google.com/gsi/client"]')?.addEventListener('load', renderGoogleSignInButton);
 
 function getE2EState() {
     let state = { apiaries: [], hives: {}, notes: {}, queenRearing: { breederQueens: [], starterColonies: [], finisherColonies: [], rearingBatches: [], sequences: {} } };
@@ -52,6 +90,7 @@ const app = Elm.Main.init({
     }
 });
 window.app = app;
+renderGoogleSignInButton();
 
 if (app.ports && app.ports.jsSaveConsent) {
     app.ports.jsSaveConsent.subscribe(consent => {
@@ -132,40 +171,43 @@ document.addEventListener('dragend', () => {
     activeOrderList = null;
 }, true);
 
-// Touch browsers implicitly capture pointers on the pressed element. Resolve
-// the actual drop target from the pointer coordinates instead of the event target.
-let activeKorpusDrag = null;
-document.addEventListener('pointerdown', (event) => {
-    const handle = event.target.closest?.('[data-korpus-drag-handle]');
-    if (handle) activeKorpusDrag = { id: handle.dataset.korpusDragHandle, pointerId: event.pointerId };
-});
-document.addEventListener('pointerup', (event) => {
-    if (!activeKorpusDrag || activeKorpusDrag.pointerId !== event.pointerId) return;
-    activeKorpusDrag = null;
-    const hit = document.elementFromPoint(event.clientX, event.clientY);
+// Korpus reordering follows the same native HTML drag-and-drop flow as lists.
+let activeKorpusDrag = false;
+const korpusDropTarget = (hit, clientY) => {
     const zone = hit?.closest('[data-korpus-drop]');
     const card = hit?.closest('[data-korpus-card]');
-    if (!zone && !card) {
-        app.ports.korpusDropReceived.send({});
-        return;
-    }
-    let apiaryId;
-    let hiveId;
-    let korpusId;
-    let after;
     if (zone) {
-        [apiaryId, hiveId, korpusId] = zone.dataset.korpusDrop.split('|');
-        after = zone.dataset.korpusDrop.endsWith('|after');
-    } else {
-        [apiaryId, hiveId, korpusId] = card.dataset.korpusCard.split('|');
-        after = event.clientY > card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2;
+        const [apiaryId, hiveId, korpusId] = zone.dataset.korpusDrop.split('|');
+        return { apiaryId, hiveId, korpusId, after: zone.dataset.korpusDrop.endsWith('|after') };
     }
-    app.ports.korpusDropReceived.send({ apiaryId, hiveId, korpusId, after });
-});
-document.addEventListener('pointercancel', () => {
-    if (activeKorpusDrag) app.ports.korpusDropReceived.send({});
-    activeKorpusDrag = null;
-});
+    if (card) {
+        const [apiaryId, hiveId, korpusId] = card.dataset.korpusCard.split('|');
+        return { apiaryId, hiveId, korpusId, after: clientY > card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2 };
+    }
+    return null;
+};
+document.addEventListener('dragstart', event => {
+    if (!event.target.closest?.('[data-korpus-drag-handle]')) return;
+    activeKorpusDrag = true;
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', event.target.closest('[data-korpus-drag-handle]').dataset.korpusDragHandle);
+    }
+}, true);
+document.addEventListener('dragover', event => {
+    if (!activeKorpusDrag || !korpusDropTarget(document.elementFromPoint(event.clientX, event.clientY), event.clientY)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+}, true);
+document.addEventListener('drop', event => {
+    if (!activeKorpusDrag) return;
+    event.preventDefault();
+    app.ports.korpusDropReceived.send(korpusDropTarget(document.elementFromPoint(event.clientX, event.clientY), event.clientY) || {});
+}, true);
+document.addEventListener('dragend', event => {
+    if (!event.target.closest?.('[data-korpus-drag-handle]')) return;
+    activeKorpusDrag = false;
+}, true);
 
 function sendQueenRearingState(data) {
     if (app.ports.queenRearingReceived) {
@@ -175,10 +217,10 @@ function sendQueenRearingState(data) {
 }
 
 function localDateTimeToDate(localDateTime, timeZone) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(localDateTime || '');
-    if (!match) throw new Error('Enter a valid local graft date and time.');
+    const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(localDateTime || '');
+    if (!match) throw new Error('Enter a valid graft date.');
     const [, year, month, day, hour, minute] = match.map(Number);
-    const wanted = Date.UTC(year, month - 1, day, hour, minute);
+    const wanted = Date.UTC(year, month - 1, day, hour || 0, minute || 0);
     let result = wanted;
     for (let i = 0; i < 4; i += 1) {
         const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(result));
@@ -201,7 +243,7 @@ function normalizeRearingBatch(batch) {
     const zone = batch.timeZone || 'UTC';
     const normalized = { ...batch };
     for (const key of ['graftedAt', 'starterTransferAt', 'isolationAt', 'emergenceAt']) {
-        if (normalized[key] && typeof normalized[key].toDate === 'function') normalized[key] = dateToLocalDateTime(normalized[key].toDate(), zone);
+        if (normalized[key] && typeof normalized[key].toDate === 'function') normalized[key] = dateToLocalDateTime(normalized[key].toDate(), zone).slice(0, 10);
     }
     return normalized;
 }
@@ -226,6 +268,10 @@ if (app.ports.currentEpochReceived) {
 
 // Auth state observer
 onAuthStateChanged(auth, (user) => {
+    isFirebaseAuthenticated = Boolean(user);
+    if (user) {
+        document.getElementById('google-signin-button')?.replaceChildren();
+    }
     if (window.__E2E__) return;
     if (user) {
         app.ports.authStateChanged.send({
@@ -233,6 +279,11 @@ onAuthStateChanged(auth, (user) => {
             email: user.email || ""
         });
     } else {
+        queenRearingUnsubscribers.forEach(unsubscribe => unsubscribe());
+        queenRearingUnsubscribers = [];
+        queenRearingUid = null;
+        queenRearingLoad = null;
+        queenRearingCache = null;
         app.ports.authStateChanged.send({
             uid: "",
             email: ""
@@ -241,19 +292,13 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // Outgoing port handlers from Elm
-app.ports.jsLoginGoogle.subscribe(async () => {
-    try {
-        await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-        app.ports.operationError.send(error.message);
-    }
-});
-
 app.ports.jsLogout.subscribe(async () => {
     try {
         await signOut(auth);
     } catch (error) {
         app.ports.operationError.send(error.message);
+    } finally {
+        requestAnimationFrame(renderGoogleSignInButton);
     }
 });
 
@@ -281,9 +326,11 @@ app.ports.jsDeleteAccount.subscribe(async (confirmation) => {
             await deleteDoc(apiary.ref);
         }
 
-        for (const name of ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches', 'rearingSequences']) {
+        for (const name of ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches']) {
+            await removeCollection(query(collection(db, name), where('userId', '==', uid)));
             await removeCollection(collection(db, 'users', uid, name));
         }
+        await removeCollection(collection(db, 'users', uid, 'rearingSequences'));
         await deleteDoc(doc(db, 'users', uid));
         await deleteUser(user);
         app.ports.accountDeletionResult.send({ success: true, error: '' });
@@ -310,9 +357,9 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
     const defaultEnablePasieczyskaTowarowe = true;
     const defaultEnableQueenRearing = false;
     const defaultGraftCount = 24;
-    const defaultStarterDurationDays = 2;
+    const defaultStarterDurationDays = 1;
     const defaultIsolationDay = 10;
-    const defaultEmergenceDay = 11;
+    const defaultEmergenceDay = 12;
     if (window.__E2E__) {
         const state = getE2EState();
         const settings = state.userSettings || {
@@ -422,9 +469,9 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
             enablePasieczyskaTowarowe: enablePasieczyskaTowarowe !== undefined ? enablePasieczyskaTowarowe : (state.userSettings ? state.userSettings.enablePasieczyskaTowarowe : defaultEnablePasieczyskaTowarowe)
             , enableQueenRearing: enableQueenRearing !== undefined ? enableQueenRearing : (state.userSettings ? state.userSettings.enableQueenRearing : false)
             , defaultGraftCount: defaultGraftCount ?? (state.userSettings?.defaultGraftCount ?? 24)
-            , starterDurationDays: starterDurationDays ?? (state.userSettings?.starterDurationDays ?? 2)
+            , starterDurationDays: starterDurationDays ?? (state.userSettings?.starterDurationDays ?? 1)
             , isolationDay: isolationDay ?? (state.userSettings?.isolationDay ?? 10)
-            , emergenceDay: emergenceDay ?? (state.userSettings?.emergenceDay ?? 11)
+            , emergenceDay: emergenceDay ?? (state.userSettings?.emergenceDay ?? 12)
         };
         saveE2EState(state);
         return;
@@ -456,6 +503,48 @@ app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikType
 
 const queenCollections = ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches'];
 const newLocalId = () => `qr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+let queenRearingUid = null;
+let queenRearingLoad = null;
+let queenRearingUnsubscribers = [];
+let queenRearingCache = null;
+
+async function migrateLegacyQueenCollection(uid, name) {
+    const legacy = await getDocs(collection(db, 'users', uid, name));
+    for (const item of legacy.docs) {
+        const target = doc(db, name, item.id);
+        const current = await getDoc(target);
+        if (!current.exists()) {
+            await setDoc(target, { ...item.data(), id: item.id, userId: uid });
+        } else if (current.data().userId !== uid) {
+            throw new Error(`Cannot migrate ${name}/${item.id}: document ID is already owned by another user.`);
+        }
+        await deleteDoc(item.ref);
+    }
+}
+
+async function reloadQueenRearing(uid) {
+    if (queenRearingUid === uid) return queenRearingLoad;
+    queenRearingUnsubscribers.forEach(unsubscribe => unsubscribe());
+    queenRearingUnsubscribers = [];
+    queenRearingUid = uid;
+    queenRearingCache = Object.fromEntries(queenCollections.map(name => [name, []]));
+    queenRearingLoad = (async () => {
+        // Legacy data is migrated once when the user's queen-rearing view is first loaded.
+        await Promise.all(queenCollections.map(name => migrateLegacyQueenCollection(uid, name)));
+        queenCollections.forEach(name => {
+            const q = query(collection(db, name), where('userId', '==', uid));
+            const unsubscribe = onSnapshot(q, snapshot => {
+                queenRearingCache[name] = snapshot.docs.map(item => {
+                    const record = { id: item.id, ...item.data() };
+                    return name === 'rearingBatches' ? normalizeRearingBatch(record) : record;
+                });
+                sendQueenRearingState(queenRearingCache);
+            }, error => app.ports.operationError.send(error.message));
+            queenRearingUnsubscribers.push(unsubscribe);
+        });
+    })();
+    return queenRearingLoad;
+}
 
 app.ports.jsLoadQueenRearing?.subscribe(async (uid) => {
     if (window.__E2E__) {
@@ -464,15 +553,7 @@ app.ports.jsLoadQueenRearing?.subscribe(async (uid) => {
         return;
     }
     try {
-        const data = {};
-        await Promise.all(queenCollections.map(async (name) => {
-            const snapshot = await getDocs(collection(db, 'users', uid, name));
-            data[name] = snapshot.docs.map(item => {
-                const record = { id: item.id, ...item.data() };
-                return name === 'rearingBatches' ? normalizeRearingBatch(record) : record;
-            });
-        }));
-        sendQueenRearingState(data);
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -490,7 +571,8 @@ app.ports.jsCreateQueenResource?.subscribe(async ({ uid, kind, fields }) => {
             sendQueenRearingState(state.queenRearing);
             return;
         }
-        await setDoc(doc(db, 'users', uid, kind, id), record);
+        await setDoc(doc(db, kind, id), { ...record, userId: uid });
+        await reloadQueenRearing(uid);
         app.ports.successMessageReceived.send('Queen-rearing resource saved.');
     } catch (error) {
         app.ports.operationError.send(error.message);
@@ -507,7 +589,8 @@ app.ports.jsUpdateQueenResource?.subscribe(async ({ uid, kind, id, fields }) => 
             sendQueenRearingState(state.queenRearing);
             return;
         }
-        await updateDoc(doc(db, 'users', uid, kind, id), fields);
+        await updateDoc(doc(db, kind, id), fields);
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -527,14 +610,15 @@ app.ports.jsDeleteQueenResource?.subscribe(async ({ uid, kind, id }) => {
             return;
         }
         await runTransaction(db, async (transaction) => {
-            const resourceRef = doc(db, 'users', uid, kind, id);
-            const resourceQuery = kind === 'breederQueens' ? query(collection(db, 'users', uid, 'rearingBatches'), where('breederQueenId', '==', id)) : null;
+            const resourceRef = doc(db, kind, id);
+            const resourceQuery = kind === 'breederQueens' ? query(collection(db, 'rearingBatches'), where('userId', '==', uid), where('breederQueenId', '==', id)) : null;
             const [resource, batches] = await Promise.all([transaction.get(resourceRef), resourceQuery ? transaction.get(resourceQuery) : Promise.resolve(null)]);
             if (!resource.exists()) return;
             if (resource.data().activeBatchId) throw new Error('This colony is reserved by an active batch.');
             if (batches && !batches.empty) throw new Error('A breeder queen referenced by a batch cannot be deleted. Retire it instead.');
             transaction.delete(resourceRef);
         });
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -545,38 +629,40 @@ app.ports.jsCreatePlannedRearingBatch?.subscribe(async ({ uid, year, fields }) =
     try {
         if (window.__E2E__) {
             const state = getE2EState();
-            const queen = state.queenRearing.breederQueens.find(item => item.id === fields.breederQueenId && item.active !== false);
-            if (!queen) throw new Error('Select an active breeder queen.');
             const nextNumber = (state.queenRearing.sequences[year] || 0) + 1;
             state.queenRearing.sequences[year] = nextNumber;
-            state.queenRearing.rearingBatches.push({ ...fields, id: batchId, number: `${year}/${String(nextNumber).padStart(2, '0')}`, status: 'ZAPLANOWANA' });
+            state.queenRearing.rearingBatches.push({ ...fields, id: batchId, number: `${year}/${nextNumber}`, status: 'ZAPLANOWANA' });
             saveE2EState(state);
             sendQueenRearingState(state.queenRearing);
             return;
         }
         await runTransaction(db, async (transaction) => {
-            const sequenceRef = doc(db, 'users', uid, 'rearingSequences', String(year));
-            const breederRef = doc(db, 'users', uid, 'breederQueens', fields.breederQueenId);
-            const [sequence, breeder] = await Promise.all([transaction.get(sequenceRef), transaction.get(breederRef)]);
-            if (!breeder.exists() || breeder.data().active === false) throw new Error('Select an active breeder queen.');
-            const nextNumber = (sequence.exists() ? sequence.data().lastNumber || 0 : 0) + 1;
-            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
-            transaction.set(sequenceRef, { lastNumber: nextNumber, year });
-            transaction.set(batchRef, { ...fields, id: batchId, number: `${year}/${String(nextNumber).padStart(2, '0')}`, status: 'ZAPLANOWANA' });
+            const sequenceRef = doc(db, 'users', uid, 'rearingSequences', year);
+            const sequence = await transaction.get(sequenceRef);
+            const previousNumber = sequence.exists() ? sequence.data().lastNumber || 0 : 0;
+            const nextNumber = previousNumber + 1;
+            const batchRef = doc(db, 'rearingBatches', batchId);
+            transaction.set(sequenceRef, { lastNumber: nextNumber });
+            transaction.set(batchRef, { ...fields, id: batchId, userId: uid, number: `${year}/${nextNumber}`, status: 'ZAPLANOWANA' });
         });
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
 });
 
-app.ports.jsStartRearingBatch?.subscribe(async ({ uid, batchId, starterId, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, schedule }) => {
+app.ports.jsStartRearingBatch?.subscribe(async ({ uid, batchId, starterId, breederQueenId, graftCount, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, schedule }) => {
     try {
         if (window.__E2E__) {
             const state = getE2EState();
             const batch = state.queenRearing.rearingBatches.find(item => item.id === batchId);
             const starter = state.queenRearing.starterColonies.find(item => item.id === starterId);
-            if (!batch || batch.status !== 'ZAPLANOWANA' || !starter || starter.availability !== 'PUSTY' || starter.activeBatchId) throw new Error('Batch or starter is unavailable.');
-            Object.assign(batch, { status: 'W_STARTERZE', starterColonyId: starterId, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, ...schedule });
+            const queen = state.queenRearing.breederQueens.find(item => item.id === breederQueenId && item.active !== false);
+            if (!batch || batch.status !== 'ZAPLANOWANA') throw new Error('Only a planned batch can be started.');
+            if (!starter || starter.availability !== 'PUSTY' || starter.activeBatchId) throw new Error('The selected starter is already reserved.');
+            if (!queen) throw new Error('Select an active breeder queen.');
+            if (!Number.isInteger(graftCount) || graftCount < 1) throw new Error('Enter a positive whole graft count.');
+            Object.assign(batch, { status: 'W_STARTERZE', breederQueenId, graftCount, starterColonyId: starterId, graftedAt, timeZone, starterDurationDays, isolationDay, emergenceDay, ...schedule });
             Object.assign(starter, { availability: 'ZAJETY', activeBatchId: batchId });
             saveE2EState(state);
             sendQueenRearingState(state.queenRearing);
@@ -585,14 +671,18 @@ app.ports.jsStartRearingBatch?.subscribe(async ({ uid, batchId, starterId, graft
         const graftDate = localDateTimeToDate(graftedAt, timeZone);
         const timestamps = Object.fromEntries(Object.entries(schedule).map(([key, value]) => [key, Timestamp.fromDate(localDateTimeToDate(value, timeZone))]));
         await runTransaction(db, async (transaction) => {
-            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
-            const starterRef = doc(db, 'users', uid, 'starterColonies', starterId);
-            const [batch, starter] = await Promise.all([transaction.get(batchRef), transaction.get(starterRef)]);
+            const batchRef = doc(db, 'rearingBatches', batchId);
+            const starterRef = doc(db, 'starterColonies', starterId);
+            const breederRef = doc(db, 'breederQueens', breederQueenId);
+            const [batch, starter, breeder] = await Promise.all([transaction.get(batchRef), transaction.get(starterRef), transaction.get(breederRef)]);
             if (!batch.exists() || batch.data().status !== 'ZAPLANOWANA') throw new Error('Only a planned batch can be started.');
             if (!starter.exists() || starter.data().availability !== 'PUSTY' || starter.data().activeBatchId) throw new Error('The selected starter is already reserved.');
-            transaction.update(batchRef, { status: 'W_STARTERZE', starterColonyId: starterId, graftedAt: Timestamp.fromDate(graftDate), timeZone, starterDurationDays, isolationDay, emergenceDay, ...timestamps });
+            if (!breeder.exists() || breeder.data().active === false) throw new Error('Select an active breeder queen.');
+            if (!Number.isInteger(graftCount) || graftCount < 1) throw new Error('Enter a positive whole graft count.');
+            transaction.update(batchRef, { status: 'W_STARTERZE', breederQueenId, graftCount, starterColonyId: starterId, graftedAt: Timestamp.fromDate(graftDate), timeZone, starterDurationDays, isolationDay, emergenceDay, ...timestamps });
             transaction.update(starterRef, { availability: 'ZAJETY', activeBatchId: batchId });
         });
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -638,12 +728,12 @@ app.ports.jsTransitionRearingBatch?.subscribe(async ({ uid, batchId, action, col
             return;
         }
         await runTransaction(db, async (transaction) => {
-            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            const batchRef = doc(db, 'rearingBatches', batchId);
             const batchSnap = await transaction.get(batchRef);
             if (!batchSnap.exists()) throw new Error('Batch not found.');
             const batch = batchSnap.data();
             const resourceIds = [batch.starterColonyId, batch.finisherColonyId, action === 'toFinisher' ? colonyId : null].filter(Boolean);
-            const resourceRefs = resourceIds.map(id => doc(db, 'users', uid, id === colonyId && action === 'toFinisher' ? 'finisherColonies' : (batch.finisherColonyId === id ? 'finisherColonies' : 'starterColonies'), id));
+            const resourceRefs = resourceIds.map(id => doc(db, id === colonyId && action === 'toFinisher' ? 'finisherColonies' : (batch.finisherColonyId === id ? 'finisherColonies' : 'starterColonies'), id));
             const resources = await Promise.all(resourceRefs.map(ref => transaction.get(ref)));
             const byId = new Map(resources.map((item, index) => [resourceIds[index], { ref: resourceRefs[index], snap: item }]));
             const release = (kind, increment) => {
@@ -677,6 +767,7 @@ app.ports.jsTransitionRearingBatch?.subscribe(async ({ uid, batchId, action, col
                 throw new Error('Unsupported batch transition.');
             }
         });
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }
@@ -701,20 +792,21 @@ app.ports.jsDeleteRearingBatch?.subscribe(async ({ uid, batchId }) => {
             return;
         }
         await runTransaction(db, async (transaction) => {
-            const batchRef = doc(db, 'users', uid, 'rearingBatches', batchId);
+            const batchRef = doc(db, 'rearingBatches', batchId);
             const batchSnap = await transaction.get(batchRef);
             if (!batchSnap.exists()) return;
             const batch = batchSnap.data();
             const assigned = [];
             if (batch.starterColonyId) assigned.push(['starterColonies', batch.starterColonyId]);
             if (batch.finisherColonyId) assigned.push(['finisherColonies', batch.finisherColonyId]);
-            const refs = assigned.map(([kind, id]) => doc(db, 'users', uid, kind, id));
+            const refs = assigned.map(([kind, id]) => doc(db, kind, id));
             const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
             snaps.forEach((snap, index) => {
                 if (snap.exists() && snap.data().activeBatchId === batchId) transaction.update(refs[index], { availability: 'PUSTY', activeBatchId: null });
             });
             transaction.delete(batchRef);
         });
+        await reloadQueenRearing(uid);
     } catch (error) {
         app.ports.operationError.send(error.message);
     }

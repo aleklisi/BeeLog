@@ -64,9 +64,9 @@ type alias SortableBatch =
 defaultSettings : QueenRearingDefaults
 defaultSettings =
     { graftCount = 24
-    , starterDurationDays = 2
+    , starterDurationDays = 1
     , isolationDay = 10
-    , emergenceDay = 11
+    , emergenceDay = 12
     }
 
 
@@ -128,21 +128,16 @@ calculateSchedule settings graftedAt =
 
 
 addCalendarDays : Int -> String -> String
-addCalendarDays offset localDateTime =
-    case String.split "T" localDateTime of
-        [ datePart, timePart ] ->
-            case String.split "-" datePart |> List.filterMap String.toInt of
-                [ year, month, day ] ->
-                    let
-                        moved = moveDate (Basics.max 0 offset) { year = year, month = month, day = day }
-                    in
-                    formatDate moved ++ "T" ++ timePart
-
-                _ ->
-                    localDateTime
+addCalendarDays offset localDate =
+    case String.split "-" (String.left 10 localDate) |> List.filterMap String.toInt of
+        [ year, month, day ] ->
+            let
+                moved = moveDate (Basics.max 0 offset) { year = year, month = month, day = day }
+            in
+            formatDate moved
 
         _ ->
-            localDateTime
+            localDate
 
 
 type alias DateParts =
@@ -226,38 +221,19 @@ sortBatches now batches =
 
 
 compareBatch : Int -> SortableBatch -> SortableBatch -> Order
-compareBatch now left right =
+compareBatch _ left right =
+    compareSeriesNumber right.number left.number
+
+
+compareSeriesNumber : String -> String -> Order
+compareSeriesNumber left right =
     let
-        leftGroup = groupFor now left
-        rightGroup = groupFor now right
-        deadlineOrder = Maybe.withDefault 0 left.nextActionAt - Maybe.withDefault 0 right.nextActionAt
+        key value =
+            case String.split "/" value of
+                [ year, number ] ->
+                    ( Maybe.withDefault 0 (String.toInt year), Maybe.withDefault 0 (String.toInt number), value )
+
+                _ ->
+                    ( 0, Maybe.withDefault 0 (String.toInt value), value )
     in
-    if leftGroup < rightGroup then
-        LT
-
-    else if leftGroup > rightGroup then
-        GT
-
-    else if leftGroup < 2 && deadlineOrder /= 0 then
-        if deadlineOrder < 0 then LT else GT
-
-    else
-        compare left.number right.number
-
-
-groupFor : Int -> SortableBatch -> Int
-groupFor now batch =
-    case batch.status of
-        Planned ->
-            2
-
-        Completed ->
-            3
-
-        _ ->
-            case batch.nextActionAt of
-                Just deadline ->
-                    if deadline <= now then 0 else 1
-
-                Nothing ->
-                    1
+    compare (key left) (key right)

@@ -1,5 +1,329 @@
 # Changelog
 
+## [2026-11-21] Naprawa ustawień i testów E2E hodowli matek
+
+- Przywrócono odczyt ustawienia włączającego hodowlę matek i zaktualizowano scenariusze E2E do tworzenia zaplanowanych serii.
+
+## [2026-11-21] Naprawa testów Elm hodowli matek
+
+- Dostosowano testy walidacji harmonogramu i sortowania serii do aktualnych reguł domenowych.
+
+## [2026-11-21] Numer serii z rokiem i licznikiem rocznym
+
+- Numery serii mają format `RRRR/N`, a kolejny numer jest przydzielany osobno dla każdego roku.
+
+## [2026-11-21] Serie hodowlane od najwyższego numeru
+
+- Lista serii jest sortowana malejąco według numeru, niezależnie od statusu i terminu kolejnego działania.
+
+## [2026-11-21] Dane serii wymagane przy rozpoczęciu
+
+- Planowaną serię można utworzyć bez wyboru matki reproduktorki i liczby larw; oba pola są wymagane przy jej rozpoczęciu.
+
+## [2026-11-21] Doprecyzowanie przeniesienia do finiszera
+
+- Oś czasu pokazuje przeniesienie do finiszera w dniu następującym po czasie pracy startera.
+
+## [2026-11-21] Doprecyzowanie dnia 0 harmonogramu matek
+
+- Opisano dzień 0 jako przekładanie larw i umieszczenie ich w starterze.
+
+## [2026-11-21] Domyślny harmonogram hodowli matek
+
+- Dopasowano domyślny czas w starterze do 1 dnia, izolację do 10. dnia i wygryzienie do 12. dnia zgodnie z kalendarzem Starter–Finisher.
+
+## [2026-11-21] Poprawa asercji testów hodowli matek
+
+- Zaktualizowano oczekiwane komunikaty błędów E2E do polskich tłumaczeń wyświetlanych przez aplikację.
+
+## [2026-11-21] Ujednolicenie pól szczegółów serii hodowlanej
+
+- Pola tekstowe i dropdowny w szczegółach serii mają teraz ten sam rozmiar i kolorystykę co pola w szczegółach ula.
+
+## [2026-11-21] Tłumaczenie komunikatów błędów według języka
+
+- Dodano polskie komunikaty dla błędów walidacji, operacji hodowlanych i typowych błędów Firebase; okno usuwania konta korzysta z tych samych tłumaczeń.
+
+## [2026-11-21] Polskie tłumaczenie błędu odwołania do dokumentu
+
+- Błąd nieprawidłowej ścieżki dokumentu Firestore jest wyświetlany po polsku przy polskim języku aplikacji.
+
+## [2026-11-21] Naprawa tworzenia serii wychowu
+
+- Numer serii jest przydzielany z licznika odczytywanego w transakcji Firestore, bez próby pobierania zapytania kolekcji w transakcji.
+
+## [2026-11-21] Naprawa nieaktualnych scenariuszy E2E
+
+- Uodporniono test zgody na zapisany wybór i zaktualizowano test edycji matki reprodukcyjnej do widoku szczegółowego.
+
+## [2026-11-21] Szczegóły matek reprodukcyjnych
+
+- Dodano widok szczegółowy matki z informacjami o jej oznakowaniu, statusie i powiązanych seriach oraz akcjami edycji i usuwania.
+
+## [2026-11-21] Uproszczenie list zasobów hodowlanych
+
+- Usunięto przyciski edycji z list matek reprodukcyjnych, starterów i finisherów, a usuwanie oznaczono ikoną kosza.
+
+## [2026-11-21] Podział testów E2E według widoków
+
+- Rozdzielono scenariusze E2E na pliki dotyczące list pasiek, pasiek towarowych, trutowisk, hodowli matek oraz logowania i ustawień.
+
+## [2026-11-21] Aktualizacja selektorów E2E hodowli matek
+
+- Dostosowano testy E2E formularzy reproduktorek, starterów i finisherów do identyfikatorów pól zawierających typ zasobu.
+
+## [2026-11-21] Poprawa typu formularza zasobów
+
+- Poprawiono adnotację typu słownika formularza, aby kompilacja Elm przechodziła przed uruchomieniem testów.
+
+## [2026-11-21] Ikony akcji szczegółów zasobów
+
+- Przyciski edycji i usuwania startera oraz finishera zastąpiono ikonami ołówka i kosza.
+
+## [2026-11-21] Ukrycie listy zasobów w szczegółach
+
+- Szczegóły startera i finishera pokazują wyłącznie wybrany zasób, kalendarz serii oraz akcje edycji i usuwania.
+
+## [2026-11-21] Edycja startera i finishera w szczegółach
+
+- Usunięto formularz dodawania ze szczegółów zasobu; pola nazwy i numeru ula pojawiają się tylko podczas edycji i znikają po zapisie lub anulowaniu.
+
+## [2026-11-21] Rozdzielenie pól zasobów hodowlanych
+
+- Pola numeru ula i nazwy w formularzach starterów, finisherów i matek hodowlanych przechowują teraz niezależne wartości.
+
+## [2026-11-21] Polskie tłumaczenie błędu daty przekładania
+
+- Komunikat o nieprawidłowej dacie przekładania larw jest wyświetlany po polsku przy polskim języku aplikacji.
+
+## [2026-11-21] Usunięcie pola strefy czasowej z serii hodowlanej
+
+- Usunięto pole IANA strefy czasowej z formularza startu serii i szczegółów serii.
+
+## [2026-11-21] Poprawa walidacji specyfikacji kalendarza zasobów
+
+- Uzupełniono zmieniony wymóg rezerwacji o zachowane scenariusze z głównej specyfikacji.
+
+## [2026-11-21] Szczegóły starterów i finisherów
+
+- Kliknięcie zasobu otwiera kalendarz serii, które go używają; startery i finishery mają też edytowalne nazwy.
+
+## [2026-11-21] Widok szczegółów serii wychowu
+
+- Lista serii pokazuje numer, stan i daty, a kliknięcie otwiera pełny widok serii z ikoną kosza.
+
+## [2026-11-21] Testy E2E widoku serii wychowu
+
+- Scenariusze E2E uwzględniają przechodzenie między listą a szczegółami serii.
+
+## [2026-11-21] Aktualizacja testu Elm zasobów wychowu
+
+- Test kodowania kolonii uwzględnia teraz pole nazwy startera lub finishera.
+
+## [2026-11-21] Kalendarz zajętości starterów i finisherów
+
+- Dodano OpenSpec dla kalendarza dostępności zasobów z regułą ponownego użycia od dnia zakończenia poprzedniej serii.
+
+## [2026-11-21] Numerowanie serii hodowlanych
+
+- Serie hodowlane otrzymują kolejne numery naturalne, niezależnie od roku.
+
+## [2026-11-21] Oś czasu serii hodowli matek
+
+- Każda seria pokazuje etapy przekładania larw, startera, finishera, opcjonalnego inkubatora i wygryzienia.
+
+## [2026-11-21] Poprawa dat w testach E2E wychowu matek
+
+- Dostosowano wartości pól daty w scenariuszach E2E do formatu `YYYY-MM-DD`.
+
+## [2026-11-21] Testy harmonogramu wychowu matek
+
+- Zaktualizowano testy Elm dla dat przekładania i etapów serii bez godziny.
+
+## [2026-11-21] Szybsze aktualizacje hodowli matek
+
+- Dane hodowli matek są aktualizowane na bieżąco przez nasłuch Firestore; migracja starych danych uruchamia się tylko przy pierwszym wczytaniu.
+
+## [2026-11-21] Data przekładania larw bez godziny
+
+- Seria wychowu matek zapisuje i wyświetla datę przekładania larw bez wyboru godziny i minut.
+
+## [2026-11-21] Styl pola aktywnej matki reprodukcyjnej
+
+- Ujednolicono wygląd wyboru aktywnej matki reprodukcyjnej z wyborem typu uliku weselnego.
+
+## [2026-11-21] Naprawa pomiaru coverage w CI
+
+- Ustawiono Node 20 w jobie `elm-coverage`, aby uniknąć błędu inicjalizacji portów `elm-test` na Node 24.
+
+## [2026-11-21] Uproszczenie listy reproduktorek
+
+- Usunięto akcję „Wycofaj” oraz widoczny status aktywności reproduktorek z widoku zasobów.
+
+## [2026-11-21] Aktualizacja asercji E2E kolorów opalitków
+
+- Dostosowano oczekiwany tekst reproduktorki do ujednoliconych etykiet kolorów.
+
+## [2026-11-21] Ujednolicone kolory opalitków
+
+- Dodano kolorowe emotikony i tłumaczenia kolorów opalitków w ulach, ulikach oraz hodowli matek.
+
+## [2026-11-21] Sekcje zasobów hodowli matek jak w ustawieniach
+
+- Ujednolicono nagłówki i strzałki zwijania sekcji zasobów ze stylem sekcji w Ustawieniach.
+
+## [2026-11-21] Numery uli hodowli matek jako liczby całkowite
+
+- Zmieniono numery uli reproduktorek, starterów i finisherów na wartości całkowite w modelu i zapisie Firestore.
+
+## [2026-11-21] Główne kolekcje hodowli matek
+
+- Przeniesiono matki reprodukcyjne, startery, finishery i serie hodowlane do kolekcji głównych Firestore z kontrolą właściciela przez `userId` oraz migracją istniejących danych.
+
+## [2026-11-21] Odświeżanie danych hodowli matek
+
+- Po udanych zmianach w hodowli matek i zasobach aplikacja ponownie pobiera dane z Firestore.
+
+## [2026-11-21] Styl przycisku przenoszenia ulika
+
+- Dopasowano rozmiar i wygląd przycisku „Przenieś” do przycisku „Zapisz”, zachowując żółte kolory akcji z ikoną 🚚.
+
+## [2026-11-21] Równa wysokość przycisków zmiany stanu
+
+- Ustawiono jednakową wysokość przycisków zmieniających stan ulika.
+
+## [2026-11-21] Równa szerokość przycisków edycji notatki
+
+- Ustawiono taką samą szerokość przycisków „Zapisz” i „Anuluj” podczas edycji notatki.
+
+## [2026-11-21] Ukrywanie przycisku Google po zalogowaniu
+
+- Wyczyść przycisk Google Identity Services po zalogowaniu i dodaj test jego usunięcia z widoku aplikacji.
+
+## [2026-11-21] Renderowanie przycisku Google po wylogowaniu
+
+- Ponownie renderuj oficjalny przycisk logowania po powrocie z widoków aplikacji.
+
+## [2026-11-21] Testy logowania Google
+
+- Zaktualizowano testy e2e dla przycisku Google Identity Services i ustabilizowano jego renderowanie po uruchomieniu Elm.
+
+## [2026-11-21] Oficjalny przycisk logowania Google
+
+- Zastąpiono własny przycisk przyciskiem Google Identity Services i połączono go z logowaniem Firebase.
+
+## [2026-11-21] Ciemnoniebieskie tło przycisku logowania Google
+
+- Ustawiono wyraźnie ciemniejszy, nasycony niebieski kolor tła przycisku logowania Google.
+
+## [2026-11-21] Niebieski przycisk logowania Google
+
+- Dopasowano wymiary i zaokrąglenie przycisku logowania Google do stylu przycisku „Zasoby”, zachowując niebieski kolor.
+
+## [2026-11-21] Żółty przycisk zabierania matki
+
+- Dopasowano wygląd przycisku „zabieram matkę (B)” do przycisku „Zaopalitkuj”.
+
+## [2026-11-21] Zaokrąglone przyciski akcji destrukcyjnych
+
+- Zaokrąglono rogi czerwonych przycisków akcji, w tym „❌ Matecznik się nie wygryzł (B)”.
+
+## [2026-11-21] Żółte przyciski przenoszenia ulików
+
+- Ustawiono żółte tło wszystkich przycisków z ikoną ciężarówki.
+
+## [2026-11-21] Wskaźnik ładowania pasieczysk
+
+- Podczas pobierania pasieczysk wyświetlaj krótkie animowane kółko zamiast komunikatu o pustej liście.
+
+## [2026-11-21] Styl przycisku wygryzienia matki
+
+- Dopasowano kolor i wygląd przycisku „🦋 Matka się wygryzła (N)” do przycisku „Zasoby”.
+
+## [2026-11-21] Żółte przyciski edycji
+
+- Ujednolicono tło, kolor i obramowanie przycisków z ikoną ✏️ ze stylem „🏷️ Zaopalitkuj”.
+
+## [2026-11-21] Styl przycisków anulowania
+
+- Ujednolicono kolor i wygląd przycisków „Anuluj” ze stylem przycisku „Usuń konto”.
+
+## [2026-11-21] Czerwone przyciski usuwania
+
+- Ustawiono czerwone tło wszystkich przycisków z ikoną kosza.
+
+## [2026-11-21] Uproszczenie edytora korpusów
+
+- Przeniesiono opis edytora korpusów do dymku informacyjnego obok tytułu.
+
+## [2026-11-21] Wysokość przycisków akcji destrukcyjnych
+
+- Ustawiono minimalną wysokość przycisku „Matecznik się nie wygryzł (B)” na 36 px, zgodnie z przyciskiem opróżniania ulika.
+
+## [2026-11-21] Wysokość przycisku usuwania konta
+
+- Ustawiono minimalną wysokość przycisku „Usuń konto” na 36 px, zgodnie z przyciskiem opróżniania ulika.
+
+## [2026-11-21] Styl przycisku nieudanego matecznika
+
+- Dopasowano przycisk „❌ Matecznik się nie wygryzł (B)” do stylu „🧹 Opróżnij ulik (P)”.
+
+## [2026-11-21] Styl przycisku dyktowania
+
+- Dopasowano kolor i wygląd przycisku „🎤 Dyktuj” do przycisku „Zaopalitkuj”.
+
+## [2026-11-21] Styl przycisku zrzutu ula
+
+- Dopasowano kolor i wygląd przycisku „📸 Zrzut Ula” do przycisku „Zaopalitkuj”.
+
+## [2026-11-21] Styl przycisku zapisywania notatki
+
+- Ujednolicono wygląd przycisku „Zapisz Notatkę” ze stylem przycisków zapisu w widoku Zasobów.
+
+## [2026-11-21] Pionowy układ przycisków stanu ulika
+
+- Ułożono przyciski zarządzania stanem ulika weselnego jeden pod drugim.
+
+## [2026-11-21] Aktualizacja testu edytora korpusów
+
+- Dostosowano oczekiwaną kolejność po upuszczeniu korpusu pod korpusem z matką.
+
+## [2026-11-21] Przyciski stanów ulika w dwóch kolumnach
+
+- Ułożono akcje zarządzania stanem ulika weselnego obok siebie w siatce dwóch kolumn.
+
+## [2026-11-21] Styl przycisku opróżniania ulika
+
+- Dopasowano wygląd i kolor przycisku „Opróżnij ulik (P)” do przycisku „Usuń konto”.
+
+## [2026-11-21] Styl przycisku utraty matki
+
+- Dopasowano wygląd i kolor przycisku „Matka strutowiała / zniknęła (B)” do przycisku „Usuń konto”.
+
+## [2026-11-21] Styl przycisku unasiennienia matki
+
+- Ujednolicono wygląd i kolor przycisku „Matka się unasienniła (UNC)” z przyciskiem „Zasoby”.
+
+## [2026-11-21] Przeciąganie korpusów ula
+
+- Ujednolicono przeciąganie i upuszczanie korpusów z mechanizmem używanym na listach pasieczysk i uli.
+
+## [2026-11-21] Styl przycisku zaopalitkowania
+
+- Dopasowano wygląd przycisku „Zaopalitkuj” do przycisku „Poddano matecznik”.
+
+## [2026-11-21] Styl przycisku opróżniania ulika
+
+- Dopasowano wygląd przycisku „Opróżnij ulik” do przycisku „Poddano matecznik”.
+
+## [2026-11-21] Kolor przycisku unasiennienia matki
+
+- Dopasowano tło przycisku „Matka się unasienniła” do przycisku „Zasoby”.
+
+## [2026-11-21] Zaokrąglony przycisk usuwania konta
+
+- Dopasowano zaokrąglenie przycisku „Usuń konto” do przycisku „Zasoby”.
+
 ## [2026-11-21] Akcje ulików weselnych obok nazwy
 
 - Przeniesiono przyciski przenoszenia, edycji i usuwania do nagłówka karty ulika, obok jego nazwy.
@@ -318,3 +642,15 @@
 ## [2026-11-21] Ujednolicenie stylu przycisków
 
 - Przyciski dodawania, zapisywania i przenoszenia ulika otrzymały wspólny styl akcji z widoku hodowli matek.
+
+## [2026-11-21] Styl przycisku kopiowania NFC
+
+- Przyciski kopiowania linku NFC mają teraz ten sam żółty styl co „Zaopalitkuj”.
+
+## [2026-11-21] Pionowy formularz nowej serii matek
+
+- Pola i przycisk tworzenia serii w widoku Hodowla matek są teraz ułożone jeden pod drugim.
+
+## [2026-11-21] Oś czasu harmonogramu hodowli matek
+
+- Ustawienia hodowli matek pokazują oś czasu z opisem dnia przekładania, przeniesienia do startera, izolacji i wygryzienia.

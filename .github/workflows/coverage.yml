@@ -8,7 +8,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          # elm-coverage's instrumentation currently breaks elm-test's port
+          # bootstrap on Node 24. Keep coverage on the compatible Node LTS.
+          node-version: '20'
           cache: npm
       - uses: jorelali/setup-elm@v6
         with:

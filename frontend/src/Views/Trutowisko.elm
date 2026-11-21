@@ -304,9 +304,9 @@ ulikCardView t apiaryId model ulik =
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "gap" "8px" ]
             ([ h3 [ style "margin" "0", style "color" headingColor, style "flex" "1", style "min-width" "0" ] [ text ulik.name ]
              , div [ style "display" "flex", style "align-items" "center", style "flex-shrink" "0" ]
-                [ button [ attribute "data-testid" "MoveMatingHive", stopPropagationOn "click" (Decode.succeed (OpenMoveUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveMatingHive ] [ text (t.localize "🚚") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
+                [ button [ attribute "data-testid" "MoveMatingHive", stopPropagationOn "click" (Decode.succeed (OpenMoveUlikModal apiaryId ulik, True)), style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveMatingHive ] [ text (t.localize "🚚") ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
                 ]
              ]
                 ++ (let

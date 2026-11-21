@@ -48,7 +48,7 @@ hiveCardView t apiaryId model hive =
         ]
         [ div [ style "display" "flex", style "align-items" "center", style "justify-content" "space-between", style "gap" "12px" ]
             [ h3 [ style "margin" "0", style "color" headingColor ] [ text hive.name ]
-            , button [ attribute "data-testid" "delete-hive-trigger", stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
+            , button [ attribute "data-testid" "delete-hive-trigger", stopPropagationOn "click" (Decode.succeed (OpenDeleteHiveModal apiaryId hive, True)), style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
             ]
         , p [ style "margin" "5px 0", style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#555") ] [ text (t.frameType ++ " " ++ hive.frameType) ]
         , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "6px", style "border-radius" "4px", style "color" textColor ]

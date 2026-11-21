@@ -34,7 +34,10 @@ apiariesView t model =
             [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text (if model.apiaryFilter == "trutowisko" then t.matingApiariesHeading else if model.apiaryFilter == "towarowe" then t.commercialApiariesHeading else t.apiaries) ]
             , button [ onClick OpenNewApiaryModal ] [ text t.addApiary ]
             ]
-        , if List.isEmpty filteredApiaries then
+        , if not model.apiariesLoaded then
+            div [ attribute "role" "status", attribute "aria-label" (if t.isEnglish then "Loading apiaries" else "Ładowanie pasieczysk"), style "display" "flex", style "justify-content" "center", style "padding" "24px" ]
+                [ span [ class "loading-spinner", attribute "aria-hidden" "true" ] [] ]
+          else if List.isEmpty filteredApiaries then
             p [ attribute "data-testid" "apiary-empty-state" ] [ text (if model.apiaryFilter == "trutowisko" then t.noMatingApiaries else if model.apiaryFilter == "towarowe" then t.noCommercialApiaries else t.noApiaries) ]
           else text ""
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "15px" ]
@@ -137,8 +140,8 @@ apiaryCardView t model apiary =
                 , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
                     [ span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                     , div [ style "display" "flex", style "align-items" "center", style "gap" "8px", stopPropagationOn "click" (Decode.succeed ( NoOp, True )) ]
-                        [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
-                        , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
+                        [ button [ onClick (OpenEditApiaryModal apiary), style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "14px", style "padding" "6px", title t.edit ] [ text "✏️" ]
+                        , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "14px", style "padding" "6px", title t.delete ] [ text "🗑️" ]
                         ]
                     ]
                 ]

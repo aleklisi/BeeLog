@@ -14,29 +14,29 @@ suite =
     describe "Queen rearing domain"
         [ test "provides the approved defaults" <|
             \_ ->
-                Expect.equal { graftCount = 24, starterDurationDays = 2, isolationDay = 10, emergenceDay = 11 } Domain.defaultSettings
+                Expect.equal { graftCount = 24, starterDurationDays = 1, isolationDay = 10, emergenceDay = 12 } Domain.defaultSettings
         , test "validates schedule bounds and ordering" <|
             \_ ->
                 Expect.all
                     [ \_ -> Expect.equal True (Domain.validDefaults Domain.defaultSettings)
-                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 0, starterDurationDays = 2, isolationDay = 10, emergenceDay = 11 })
+                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 0, starterDurationDays = 1, isolationDay = 10, emergenceDay = 12 })
                     , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 24, starterDurationDays = 11, isolationDay = 12, emergenceDay = 13 })
-                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 24, starterDurationDays = 2, isolationDay = 2, emergenceDay = 11 })
-                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 24, starterDurationDays = 2, isolationDay = 10, emergenceDay = 9 })
+                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 24, starterDurationDays = 1, isolationDay = 1, emergenceDay = 12 })
+                    , \_ -> Expect.equal False (Domain.validDefaults { graftCount = 24, starterDurationDays = 1, isolationDay = 10, emergenceDay = 9 })
                     ]
                     ()
-        , test "adds local calendar days across month and leap-year boundaries" <|
+        , test "adds calendar days across month and leap-year boundaries" <|
             \_ ->
                 Expect.all
-                    [ \_ -> Expect.equal "2026-03-30T10:00" (Domain.addCalendarDays 2 "2026-03-28T10:00")
-                    , \_ -> Expect.equal "2024-03-01T08:30" (Domain.addCalendarDays 1 "2024-02-29T08:30")
+                    [ \_ -> Expect.equal "2026-03-30" (Domain.addCalendarDays 2 "2026-03-28")
+                    , \_ -> Expect.equal "2024-03-01" (Domain.addCalendarDays 1 "2024-02-29")
                     ]
                     ()
-        , test "calculates all saved schedule dates while keeping wall time" <|
+        , test "calculates schedule dates without a time" <|
             \_ ->
-                case Domain.calculateSchedule Domain.defaultSettings "2026-05-10T10:00" of
+                case Domain.calculateSchedule Domain.defaultSettings "2026-05-10" of
                     Just schedule ->
-                        Expect.equal ( "2026-05-12T10:00", "2026-05-20T10:00", "2026-05-21T10:00" )
+                        Expect.equal ( "2026-05-11", "2026-05-20", "2026-05-22" )
                             ( schedule.starterTransferAt, schedule.isolationAt, schedule.emergenceAt )
 
                     Nothing ->
@@ -71,7 +71,7 @@ suite =
                     , \_ -> Expect.equal Domain.NoDeadline (Domain.classifyUrgency 0 Nothing)
                     ]
                     ()
-        , test "sorts overdue and upcoming before planned and completed batches" <|
+        , test "sorts batches by descending series number regardless of status" <|
             \_ ->
                 let
                     batches =
@@ -81,28 +81,28 @@ suite =
                         , { number = "2026/01", status = Domain.InFinisher, nextActionAt = Just 900 }
                         ]
                 in
-                Expect.equal [ "2026/01", "2026/02", "2026/03", "2026/04" ]
+                Expect.equal [ "2026/04", "2026/03", "2026/02", "2026/01" ]
                     (List.map .number (Domain.sortBatches 1000 batches))
         , test "decodes legacy colonies with available defaults and encodes owned records" <|
             \_ ->
-                case Decode.decodeString Records.colonyDecoder "{\"id\":\"starter-1\",\"hiveNumber\":\"S-1\"}" of
+                case Decode.decodeString Records.colonyDecoder "{\"id\":\"starter-1\",\"hiveNumber\":1}" of
                     Ok colony ->
-                        Expect.equal "{\"id\":\"starter-1\",\"hiveNumber\":\"S-1\",\"availability\":\"PUSTY\",\"completedSeries\":0,\"activeBatchId\":null}"
+                        Expect.equal "{\"id\":\"starter-1\",\"name\":\"\",\"hiveNumber\":1,\"availability\":\"PUSTY\",\"completedSeries\":0,\"activeBatchId\":null}"
                             (Encode.encode 0 (Records.colonyEncoder colony))
 
                     Err error ->
                         Expect.fail (Decode.errorToString error)
-        , test "round trips batch status, saved schedule, and time zone" <|
+        , test "round trips batch status, date-only schedule, and time zone" <|
             \_ ->
                 let
-                    batchJson = "{\"id\":\"batch-1\",\"number\":\"2026/01\",\"status\":\"W_STARTERZE\",\"breederQueenId\":\"queen-1\",\"starterColonyId\":\"starter-1\",\"graftCount\":24,\"acceptedCount\":20,\"graftedAt\":\"2026-05-10T10:00\",\"timeZone\":\"Europe/Warsaw\",\"starterDurationDays\":2,\"isolationDay\":10,\"emergenceDay\":11,\"starterTransferAt\":\"2026-05-12T10:00\",\"isolationAt\":\"2026-05-20T10:00\",\"emergenceAt\":\"2026-05-21T10:00\"}"
+                    batchJson = "{\"id\":\"batch-1\",\"number\":\"2026/01\",\"status\":\"W_STARTERZE\",\"breederQueenId\":\"queen-1\",\"starterColonyId\":\"starter-1\",\"graftCount\":24,\"acceptedCount\":20,\"graftedAt\":\"2026-05-10\",\"timeZone\":\"Europe/Warsaw\",\"starterDurationDays\":2,\"isolationDay\":10,\"emergenceDay\":11,\"starterTransferAt\":\"2026-05-12\",\"isolationAt\":\"2026-05-20\",\"emergenceAt\":\"2026-05-21\"}"
                 in
                 case Decode.decodeString Records.batchDecoder batchJson of
                     Ok batch ->
                         Expect.all
                             [ \_ -> Expect.equal Domain.InStarter batch.status
                             , \_ -> Expect.equal "Europe/Warsaw" batch.timeZone
-                            , \_ -> Expect.equal (Just "2026-05-21T10:00") batch.emergenceAt
+                            , \_ -> Expect.equal (Just "2026-05-21") batch.emergenceAt
                             , \_ -> Expect.equal True (String.contains "\"starterColonyId\":\"starter-1\"" (Encode.encode 0 (Records.batchEncoder batch)))
                             , \_ -> Expect.equal True (String.contains "\"timeZone\":\"Europe/Warsaw\"" (Encode.encode 0 (Records.batchEncoder batch)))
                             ]

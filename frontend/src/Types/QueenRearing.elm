@@ -23,14 +23,15 @@ type alias BreederQueen =
     , line : String
     , markingColor : String
     , markingCode : String
-    , hiveNumber : String
+    , hiveNumber : Int
     , active : Bool
     }
 
 
 type alias Colony =
     { id : String
-    , hiveNumber : String
+    , name : String
+    , hiveNumber : Int
     , availability : Domain.ColonyAvailability
     , completedSeries : Int
     , activeBatchId : Maybe String
@@ -81,7 +82,7 @@ breederQueenDecoder =
         |> andMap (fieldDefault "line" Decode.string "")
         |> andMap (fieldDefault "markingColor" Decode.string "")
         |> andMap (fieldDefault "markingCode" Decode.string "")
-        |> andMap (fieldDefault "hiveNumber" Decode.string "")
+        |> andMap (fieldDefault "hiveNumber" hiveNumberDecoder 0)
         |> andMap (fieldDefault "active" Decode.bool True)
 
 
@@ -93,7 +94,7 @@ breederQueenEncoder queen =
         , ( "line", Encode.string queen.line )
         , ( "markingColor", Encode.string queen.markingColor )
         , ( "markingCode", Encode.string queen.markingCode )
-        , ( "hiveNumber", Encode.string queen.hiveNumber )
+        , ( "hiveNumber", Encode.int queen.hiveNumber )
         , ( "active", Encode.bool queen.active )
         ]
 
@@ -102,8 +103,19 @@ colonyDecoder : Decode.Decoder Colony
 colonyDecoder =
     Decode.succeed Colony
         |> andMap (fieldDefault "id" Decode.string "")
-        |> andMap (fieldDefault "hiveNumber" Decode.string "")
-        |> andMap (fieldDefault "availability" Decode.string "PUSTY" |> Decode.map (\value -> if value == "ZAJETY" then Domain.Reserved else Domain.Available))
+        |> andMap (fieldDefault "name" Decode.string "")
+        |> andMap (fieldDefault "hiveNumber" hiveNumberDecoder 0)
+        |> andMap
+            (fieldDefault "availability" Decode.string "PUSTY"
+                |> Decode.map
+                    (\value ->
+                        if value == "ZAJETY" then
+                            Domain.Reserved
+
+                        else
+                            Domain.Available
+                    )
+            )
         |> andMap (fieldDefault "completedSeries" Decode.int 0)
         |> andMap (optionalField "activeBatchId" Decode.string)
 
@@ -112,8 +124,17 @@ colonyEncoder : Colony -> Encode.Value
 colonyEncoder colony =
     Encode.object
         [ ( "id", Encode.string colony.id )
-        , ( "hiveNumber", Encode.string colony.hiveNumber )
-        , ( "availability", Encode.string (if colony.availability == Domain.Reserved then "ZAJETY" else "PUSTY") )
+        , ( "name", Encode.string colony.name )
+        , ( "hiveNumber", Encode.int colony.hiveNumber )
+        , ( "availability"
+          , Encode.string
+                (if colony.availability == Domain.Reserved then
+                    "ZAJETY"
+
+                 else
+                    "PUSTY"
+                )
+          )
         , ( "completedSeries", Encode.int colony.completedSeries )
         , ( "activeBatchId", maybeString colony.activeBatchId )
         ]
@@ -126,6 +147,14 @@ dataDecoder =
         (fieldDefault "starterColonies" (Decode.list colonyDecoder) [])
         (fieldDefault "finisherColonies" (Decode.list colonyDecoder) [])
         (fieldDefault "rearingBatches" (Decode.list batchDecoder) [])
+
+
+hiveNumberDecoder : Decode.Decoder Int
+hiveNumberDecoder =
+    Decode.oneOf
+        [ Decode.int
+        , Decode.string |> Decode.map (String.toInt >> Maybe.withDefault 0)
+        ]
 
 
 batchDecoder : Decode.Decoder RepeatingBatch
@@ -143,9 +172,9 @@ batchDecoder =
         |> andMap (optionalField "incubatorBar" Decode.string)
         |> andMap (fieldDefault "graftedAt" Decode.string "")
         |> andMap (fieldDefault "timeZone" Decode.string "UTC")
-        |> andMap (fieldDefault "starterDurationDays" Decode.int 2)
+        |> andMap (fieldDefault "starterDurationDays" Decode.int 1)
         |> andMap (fieldDefault "isolationDay" Decode.int 10)
-        |> andMap (fieldDefault "emergenceDay" Decode.int 11)
+        |> andMap (fieldDefault "emergenceDay" Decode.int 12)
         |> andMap (optionalField "starterTransferAt" Decode.string)
         |> andMap (optionalField "isolationAt" Decode.string)
         |> andMap (optionalField "emergenceAt" Decode.string)
@@ -200,18 +229,36 @@ maybeInt value =
 decodeStatus : String -> Domain.BatchStatus
 decodeStatus value =
     case value of
-        "W_STARTERZE" -> Domain.InStarter
-        "W_FINISHERZE" -> Domain.InFinisher
-        "W_CIEPLARCE" -> Domain.InIncubator
-        "ZAKONCZONA" -> Domain.Completed
-        _ -> Domain.Planned
+        "W_STARTERZE" ->
+            Domain.InStarter
+
+        "W_FINISHERZE" ->
+            Domain.InFinisher
+
+        "W_CIEPLARCE" ->
+            Domain.InIncubator
+
+        "ZAKONCZONA" ->
+            Domain.Completed
+
+        _ ->
+            Domain.Planned
 
 
 encodeStatus : Domain.BatchStatus -> String
 encodeStatus status =
     case status of
-        Domain.Planned -> "ZAPLANOWANA"
-        Domain.InStarter -> "W_STARTERZE"
-        Domain.InFinisher -> "W_FINISHERZE"
-        Domain.InIncubator -> "W_CIEPLARCE"
-        Domain.Completed -> "ZAKONCZONA"
+        Domain.Planned ->
+            "ZAPLANOWANA"
+
+        Domain.InStarter ->
+            "W_STARTERZE"
+
+        Domain.InFinisher ->
+            "W_FINISHERZE"
+
+        Domain.InIncubator ->
+            "W_CIEPLARCE"
+
+        Domain.Completed ->
+            "ZAKONCZONA"

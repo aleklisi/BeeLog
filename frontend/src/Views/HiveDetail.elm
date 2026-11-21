@@ -94,7 +94,7 @@ hiveDetailView t user info model =
                         , label [] [ text (t.localize "Link do NFC:") ]
                         , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "10px", style "flex-wrap" "wrap" ]
                             [ input [ type_ "text", value hive.nfcLink, placeholder (t.localize "Brak linku"), readonly True, style "flex" "1", style "min-width" "200px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
-                            , button [ onClick (CopyText hive.nfcLink), style "padding" "10px 16px", style "background" "#2980b9", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "📋 Kopiuj link do NFC") ]
+                            , button [ class "mating-state-m", onClick (CopyText hive.nfcLink), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "📋 Kopiuj link do NFC") ]
                             ]
                         ]
                     , div []
@@ -124,11 +124,27 @@ hiveDetailView t user info model =
                 , hr [] []
                 , if hive.hiveType == "korpusowy" then
                     div []
-                        [ h3 [ style "color" headingColor ] [ text (t.localize "Edytor Korpusów (Stan Ula)") ]
-                        , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ]
-                            [ text (t.localize "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi.")
-                            , br [] []
-                            , text (t.localize "Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim.")
+                        [ h3 [ style "color" headingColor ]
+                            [ text (t.localize "Edytor Korpusów")
+                            , span
+                                [ title
+                                    (t.localize "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi."
+                                        ++ " "
+                                        ++ t.localize "Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim."
+                                    )
+                                , attribute "aria-label" (t.localize "Informacje o edytorze korpusów")
+                                , style "display" "inline-flex"
+                                , style "align-items" "center"
+                                , style "justify-content" "center"
+                                , style "width" "18px"
+                                , style "height" "18px"
+                                , style "margin-left" "8px"
+                                , style "border" "1px solid currentColor"
+                                , style "border-radius" "50%"
+                                , style "font-size" "12px"
+                                , style "cursor" "help"
+                                ]
+                                [ text "i" ]
                             ]
                         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                             [ Keyed.node "div" []
@@ -212,9 +228,9 @@ hiveDetailView t user info model =
                 , div [ style "margin-bottom" "15px" ]
                     [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder (t.localize "Wpisz notatkę lub użyj dyktowania głosowego..."), style "width" "100%", style "height" "80px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
                     , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px", style "flex-wrap" "wrap" ]
-                        [ button [ onClick StartSpeechDictation, style "padding" "10px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "🎤 Dyktuj") ]
-                        , button [ class "save-action", onClick (SubmitSaveNote actualApiaryId info.hiveId model.newNoteText user.uid user.email), style "padding" "10px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "Zapisz Notatkę") ]
-                        , button [ onClick (SubmitHiveSnapshot actualApiaryId info.hiveId user), style "padding" "10px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px", title (t.localize "Zapisz pełny stan ula jako notatkę") ] [ text (t.localize "📸 Zrzut Ula") ]
+                        [ button [ class "mating-state-m", onClick StartSpeechDictation, style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "🎤 Dyktuj") ]
+                        , button [ class "save-action", onClick (SubmitSaveNote actualApiaryId info.hiveId model.newNoteText user.uid user.email) ] [ text (t.localize "Zapisz Notatkę") ]
+                        , button [ class "mating-state-m", onClick (SubmitHiveSnapshot actualApiaryId info.hiveId user), style "padding" "8px 14px", style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px", title (t.localize "Zapisz pełny stan ula jako notatkę") ] [ text (t.localize "📸 Zrzut Ula") ]
                         ]
                     ]
                 , div []
@@ -237,16 +253,16 @@ noteItemView t apiaryId hiveId model note =
         (if isEditing then
             [ textarea [ value model.editNoteText, onInput UpdateEditNoteText, style "width" "100%", style "height" "60px", style "padding" "8px", style "font-size" "16px", style "margin-bottom" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
             , div [ style "display" "flex", style "gap" "8px", style "flex-wrap" "wrap" ]
-                [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id) ] [ text (t.localize "Zapisz") ]
-                , button [ class "secondary-action", onClick CancelEditNote, style "padding" "8px 14px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "Anuluj") ]
+                [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id), style "flex" "1" ] [ text (t.localize "Zapisz") ]
+                , button [ class "destructive-action", onClick CancelEditNote, style "flex" "1" ] [ text (t.localize "Anuluj") ]
                 ]
             ]
          else
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "4px", style "flex-wrap" "wrap" ]
                 [ span [ style "font-size" "12px", style "color" (if model.darkMode then "#95a5a6" else "#7f8c8d") ] [ text (note.authorEmail ++ " (" ++ note.timestamp ++ ")") ]
                 , div [ style "display" "flex", style "gap" "8px" ]
-                    [ button [ onClick (StartEditNote note), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "16px", style "padding" "4px", title (t.localize "Edytuj") ] [ text (t.localize "✏️") ]
-                    , button [ onClick (SubmitDeleteNote apiaryId hiveId note.id), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "16px", style "padding" "4px", title (t.localize "Usuń") ] [ text (t.localize "🗑️") ]
+                    [ button [ onClick (StartEditNote note), style "background" "#f7dc6f", style "color" "#422006", style "border" "2px solid #b88900", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "16px", style "padding" "4px", title (t.localize "Edytuj") ] [ text (t.localize "✏️") ]
+                    , button [ onClick (SubmitDeleteNote apiaryId hiveId note.id), style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "font-size" "16px", style "padding" "4px", title (t.localize "Usuń") ] [ text (t.localize "🗑️") ]
                     ]
                 ]
             , div [ style "white-space" "pre-wrap", style "word-break" "break-word" ] [ text note.text ]
@@ -295,11 +311,11 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
         , div [ style "background" boxBg, style "border" ("1px solid " ++ borderColor), style "padding" "14px", style "border-radius" "6px", style "color" textColor ]
             [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "8px", style "flex-wrap" "wrap", style "gap" "8px" ]
                 [ span [ style "font-weight" "bold" ] [ text (t.localize "Korpus #" ++ korpus.id) ]
-                , button [ attribute "data-korpus-drag-handle" korpus.id, class "transition-transform duration-150 hover:scale-110 active:scale-95", on "pointerdown" (Decode.succeed (StartKorpusDrag korpus.id)), style "touch-action" "none", style "cursor" (if model.draggedKorpusId == Just korpus.id then "grabbing" else "grab"), style "font-size" "18px", style "padding" "6px 10px", style "border" "1px solid #aaa", style "border-radius" "4px", title (t.localize "Przeciągnij korpus, aby zmienić jego położenie") ] [ text "⠿" ]
+                , button [ attribute "data-korpus-drag-handle" korpus.id, draggable "true", class "transition-transform duration-150 hover:scale-110 active:scale-95", on "dragstart" (Decode.succeed (StartKorpusDrag korpus.id)), on "dragend" (Decode.succeed EndKorpusDrag), style "cursor" (if model.draggedKorpusId == Just korpus.id then "grabbing" else "grab"), style "font-size" "18px", style "padding" "6px 10px", style "border" "1px solid #aaa", style "border-radius" "4px", title (t.localize "Przeciągnij korpus, aby zmienić jego położenie") ] [ text "⠿" ]
                 , div [ style "display" "flex", style "gap" "6px", style "align-items" "center", style "flex-wrap" "wrap" ]
                     [ button [ class "korpus-action min-h-9 rounded-md bg-green-100 px-2.5 py-1.5 font-semibold text-green-900 shadow-sm transition-colors hover:bg-green-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600", onClick (AddKorpusAbove apiaryId hiveId korpus.id), title (t.localize "Dodaj korpus nad") ] [ text (t.localize "+ ⬆️") ]
                     , button [ class "korpus-action min-h-9 rounded-md bg-green-100 px-2.5 py-1.5 font-semibold text-green-900 shadow-sm transition-colors hover:bg-green-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600", onClick (AddKorpusBelow apiaryId hiveId korpus.id), title (t.localize "Dodaj korpus pod") ] [ text (t.localize "+ ⬇️") ]
-                    , button [ class "destructive-action", onClick (DeleteKorpus apiaryId hiveId korpus.id), disabled (totalCount <= 1), style "padding" "6px 10px", style "background" (if totalCount <= 1 then "#bdc3c7" else "#c0392b"), style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if totalCount <= 1 then "not-allowed" else "pointer"), style "min-height" "36px", title (if totalCount <= 1 then "W ulu musi pozostać co najmniej jeden korpus" else "Usuń ten korpus") ] [ text (t.localize "🗑️") ]
+                    , button [ class "destructive-action", onClick (DeleteKorpus apiaryId hiveId korpus.id), disabled (totalCount <= 1), style "padding" "6px 10px", style "background" "#c0392b", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if totalCount <= 1 then "not-allowed" else "pointer"), style "opacity" (if totalCount <= 1 then "0.6" else "1"), style "min-height" "36px", title (if totalCount <= 1 then "W ulu musi pozostać co najmniej jeden korpus" else "Usuń ten korpus") ] [ text (t.localize "🗑️") ]
                     ]
                 ]
             , div [ style "display" "flex", style "flex-direction" "column", style "gap" "8px", style "margin-top" "8px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]

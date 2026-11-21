@@ -41,6 +41,14 @@ settingsView t user model =
 
         moduleToggleClass = "size-5 shrink-0 cursor-pointer accent-blue-600"
 
+        scheduleStep day title description =
+            div [ style "position" "relative", style "min-width" "135px", style "flex" "1", style "padding-top" "24px" ]
+                [ span [ style "position" "absolute", style "top" "5px", style "left" "0", style "width" "12px", style "height" "12px", style "border-radius" "50%", style "background" (if model.darkMode then "#86efac" else "#16a34a"), style "box-shadow" (if model.darkMode then "0 0 0 4px #14532d" else "0 0 0 4px #dcfce7") ] []
+                , strong [ style "display" "block", style "font-size" "14px", style "color" headingColor ] [ text ((if t.isEnglish then "Day " else "Dzień ") ++ String.fromInt day) ]
+                , span [ style "display" "block", style "font-weight" "600", style "font-size" "13px", style "margin-top" "3px" ] [ text title ]
+                , span [ style "display" "block", style "font-size" "12px", style "margin-top" "3px", style "color" (if model.darkMode then "#b0b0b0" else "#666") ] [ text description ]
+                ]
+
         infoIcon explanation =
             span
                 [ title explanation
@@ -267,6 +275,20 @@ settingsView t user model =
                             , label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.isolationDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.isolationDay), onInput (UpdateQueenSetting "isolation"), class numericInputClass ] [] ]
                             , label [ style "display" "flex", style "flex-direction" "column", style "gap" "6px" ] [ text t.emergenceDay, input [ type_ "number", Html.Attributes.min "2", value (String.fromInt model.emergenceDay), onInput (UpdateQueenSetting "emergence"), class numericInputClass ] [] ]
                             ]
+                        , div [ attribute "data-testid" "queen-rearing-schedule-timeline", style "overflow-x" "auto", style "padding" "12px 8px", style "border-radius" "8px", style "background" (if model.darkMode then "#1e293b" else "#f8fafc") ]
+                            [ p [ style "margin" "0 0 8px 0", style "font-size" "13px", style "font-weight" "600", style "color" headingColor ] [ text (if t.isEnglish then "Batch schedule from grafting (day 0)" else "Harmonogram serii od przekładania larw (dzień 0)") ]
+                            , div [ style "display" "flex", style "position" "relative", style "min-width" "580px", style "gap" "12px" ]
+                                [ div [ style "position" "absolute", style "top" "10px", style "left" "6px", style "right" "6px", style "height" "2px", style "background" (if model.darkMode then "#475569" else "#bbf7d0") ] []
+                                , scheduleStep 0
+                                    (if t.isEnglish then "Grafting and placing in the starter" else "Przekładanie larw i umieszczenie w starterze")
+                                    (if t.isEnglish then "Start of the batch" else "Początek serii")
+                                , scheduleStep (model.starterDurationDays + 1)
+                                    (if t.isEnglish then "Transfer to finisher" else "Przeniesienie do finiszera")
+                                    (if t.isEnglish then "Starter work ends" else "Koniec pracy startera")
+                                , scheduleStep model.isolationDay (if t.isEnglish then "Isolation" else "Izolacja") (if t.isEnglish then "Queen cells are isolated" else "Odizolowanie mateczników")
+                                , scheduleStep model.emergenceDay (if t.isEnglish then "Emergence" else "Wygryzienie") (if t.isEnglish then "Expected queen emergence" else "Przewidywane wygryzienie matek")
+                                ]
+                            ]
                         ]
                   else
                     text ""
@@ -303,7 +325,7 @@ settingsView t user model =
                         , input [ type_ "text", value model.deletionPhrase, onInput UpdateDeletionPhrase, disabled model.deletionBusy, attribute "autocomplete" "off", attribute "data-testid" "delete-account-phrase", style "width" "100%", style "padding" "8px", style "box-sizing" "border-box" ] []
                         , case model.deletionError of
                             Just err ->
-                                p [ style "color" "#dc2626" ] [ text err ]
+                                p [ style "color" "#dc2626" ] [ text (t.localize err) ]
 
                             Nothing ->
                                 text ""

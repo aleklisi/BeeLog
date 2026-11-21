@@ -102,10 +102,16 @@ localizeText : Language -> String -> String
 localizeText language value =
     case language of
         PL ->
-            value
+            translatePolishError value
 
         EN ->
             case value of
+                "Biały opalitek" -> "⚪ Biały opalitek"
+                "white" -> "⚪ Biały"
+                "yellow" -> "🟡 Żółty"
+                "red" -> "🔴 Czerwony"
+                "green" -> "🟢 Zielony"
+                "blue" -> "🔵 Niebieski"
                 "Prywatność i zgody" -> "Privacy & Consent"
                 "Niezbędna pamięć przeglądarki" -> "Essential browser storage"
                 "Zawsze aktywna: logowanie Firebase, ustawienia interfejsu i zapis tej decyzji." -> "Always active: Firebase sign-in, interface preferences and this choice."
@@ -135,6 +141,11 @@ localizeText language value =
                 "Karta Ula: " -> "Hive details: "
                 "Ulik Weselny: " -> "Mating hive: "
                 "Matka: " -> "Queen: "
+                "Biały" -> "⚪ White"
+                "Żółty" -> "🟡 Yellow"
+                "Czerwony" -> "🔴 Red"
+                "Zielony" -> "🟢 Green"
+                "Niebieski" -> "🔵 Blue"
                 "Stan: " -> "Status: "
                 "Aktualny stan: " -> "Current status: "
                 "Teraz: " -> "Now: "
@@ -195,15 +206,11 @@ localizeText language value =
                 "Nie / Czarny opalitek" -> "No / black tag"
                 "Kolor Opalitka:" -> "Tag color:"
                 "Numer Opalitka:" -> "Tag number:"
-                "Biały" -> "White"
-                "Żółty" -> "Yellow"
-                "Czerwony" -> "Red"
-                "Zielony" -> "Green"
-                "Niebieski" -> "Blue"
-                "Edytor Korpusów (Stan Ula)" -> "Hive body editor (hive state)"
-                "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi. " -> "Manage hive bodies, queen location, and queen excluders. "
+                "Edytor Korpusów" -> "Hive body editor"
+                "Informacje o edytorze korpusów" -> "Hive body editor information"
+                "Zarządzaj korpusami ula, obecnością matki w poszczególnych korpusach oraz kratami odgrodowymi." -> "Manage hive bodies, queen location, and queen excluders."
                 "Chwyć korpus i przeciągnij go na inny, aby zmienić kolejność." -> "Drag a hive body to reorder it."
-                " Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim." -> " Drop it in the upper zone to move it above another body, or in the lower zone to place it below."
+                "Przeciągnij korpus i upuść w górnej strefie, aby przenieść go nad inny, lub w dolnej strefie, aby umieścić go pod nim." -> "Drop it in the upper zone to move it above another body, or in the lower zone to place it below."
                 "Konfiguracja Gniazda i Nadstawek" -> "Brood nest and supers"
                 "Gniazdo:" -> "Brood nest:"
                 "Nadstawka:" -> "Super:"
@@ -308,6 +315,119 @@ localizeText language value =
                 "Błąd dekodowania ulików weselnych" -> "Could not read mating hives"
                 "Błąd dekodowania notatek" -> "Could not read notes"
                 _ -> translateErrorPrefix value
+
+
+translatePolishError : String -> String
+translatePolishError value =
+    case value of
+        "Enter a valid graft date." ->
+            "Wprowadź prawidłową datę przekładania larw."
+
+        "Invalid confirmation phrase." ->
+            "Wpisana fraza jest nieprawidłowa."
+
+        "No authenticated user." ->
+            "Nie znaleziono zalogowanego użytkownika."
+
+        "This colony is reserved by an active batch." ->
+            "Ten ulik jest zarezerwowany przez aktywną serię."
+
+        "A breeder queen referenced by a batch cannot be deleted. Retire it instead." ->
+            "Nie można usunąć matki reprodukcyjnej powiązanej z serią. Zamiast tego ją wycofaj."
+
+        "Select an active breeder queen." ->
+            "Wybierz aktywną matkę reprodukcyjną."
+
+        "Batch or starter is unavailable." ->
+            "Seria lub starter jest niedostępny."
+
+        "Only a planned batch can be started." ->
+            "Można rozpocząć tylko zaplanowaną serię."
+
+        "The selected starter is already reserved." ->
+            "Wybrany starter jest już zarezerwowany."
+
+        "Batch not found." ->
+            "Nie znaleziono serii."
+
+        "Accepted cell count must be between 1 and the graft count." ->
+            "Liczba przyjętych mateczników musi wynosić od 1 do liczby przełożonych larw."
+
+        "The selected finisher is already reserved." ->
+            "Wybrany finisher jest już zarezerwowany."
+
+        "Only a zero-acceptance starter batch can complete this way." ->
+            "W ten sposób można zakończyć tylko serię, w której starter nie przyjął żadnego matecznika."
+
+        "Enter an incubator bar number for an accepted batch." ->
+            "Podaj numer listwy inkubacyjnej dla serii z przyjętymi matecznikami."
+
+        "Emergence count is outside the accepted count." ->
+            "Liczba wygryzionych matek wykracza poza liczbę przyjętych mateczników."
+
+        "Unsupported batch transition." ->
+            "Ta zmiana etapu serii nie jest obsługiwana."
+
+        "Batch resource reservation is inconsistent." ->
+            "Rezerwacja zasobu serii jest niespójna."
+
+        "Isolation must follow starter transfer and emergence must not precede isolation." ->
+            "Izolacja musi nastąpić po przeniesieniu do startera, a wygryzienie nie może jej poprzedzać."
+
+        "Choose a breeder queen and enter a positive whole graft count." ->
+            "Wybierz matkę reprodukcyjną i podaj dodatnią, całkowitą liczbę larw do przełożenia."
+
+        "The queen-rearing schedule defaults are invalid." ->
+            "Domyślne wartości harmonogramu hodowli matek są nieprawidłowe."
+
+        "Enter a whole-number count for this transition." ->
+            "Podaj całkowitą liczbę dla tego etapu."
+
+        "Invalid document reference. Document references must have an even number of segments, but starterColonies has 1." ->
+            "Nieprawidłowe odwołanie do dokumentu. Ścieżka dokumentu musi zawierać parzystą liczbę segmentów."
+
+        "Missing or insufficient permissions." ->
+            "Brak uprawnień do wykonania tej operacji."
+
+        "The operation could not be completed because the network is unavailable." ->
+            "Nie można wykonać operacji, ponieważ sieć jest niedostępna."
+
+        _ ->
+            translatePolishErrorPrefix value
+
+
+translatePolishErrorPrefix : String -> String
+translatePolishErrorPrefix value =
+    let
+        translatePrefix english polish =
+            if String.startsWith english value then
+                polish ++ String.dropLeft (String.length english) value
+            else
+                ""
+
+        translated =
+            [ translatePrefix "Invalid document reference. Document references must have an even number of segments" "Nieprawidłowe odwołanie do dokumentu. Ścieżka dokumentu musi zawierać parzystą liczbę segmentów"
+            , translatePrefix "Queen-rearing data could not be read: " "Nie udało się odczytać danych hodowli matek: "
+            , translatePrefix "Cannot migrate " "Nie można przenieść danych "
+            ]
+                |> List.filter ((/=) "")
+
+        firebaseError =
+            [ ( "auth/invalid-credential", "Nieprawidłowy adres e-mail lub hasło." )
+            , ( "auth/wrong-password", "Nieprawidłowy adres e-mail lub hasło." )
+            , ( "auth/user-not-found", "Nie znaleziono konta dla tego adresu e-mail." )
+            , ( "auth/user-disabled", "To konto zostało wyłączone." )
+            , ( "auth/email-already-in-use", "Konto z tym adresem e-mail już istnieje." )
+            , ( "auth/weak-password", "Hasło jest zbyt słabe." )
+            , ( "auth/too-many-requests", "Zbyt wiele prób. Spróbuj ponownie później." )
+            , ( "auth/network-request-failed", "Nie udało się połączyć z usługą. Sprawdź połączenie internetowe." )
+            , ( "firestore/permission-denied", "Brak uprawnień do wykonania tej operacji." )
+            , ( "firestore/unavailable", "Usługa jest chwilowo niedostępna. Spróbuj ponownie później." )
+            ]
+                |> List.filter (\( code, _ ) -> String.contains code value)
+    in
+    List.head translated
+        |> Maybe.withDefault (List.head firebaseError |> Maybe.map Tuple.second |> Maybe.withDefault value)
 
 
 translateErrorPrefix : String -> String

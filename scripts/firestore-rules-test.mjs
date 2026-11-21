@@ -34,7 +34,7 @@ try {
     await createUserWithEmailAndPassword(otherAuth, 'other@beelog.test', 'test-password-123');
     const ownerUid = ownerAuth.currentUser.uid;
     const otherUid = otherAuth.currentUser.uid;
-    const collections = ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches', 'rearingSequences'];
+    const collections = ['breederQueens', 'starterColonies', 'finisherColonies', 'rearingBatches'];
 
     const apiaryRef = doc(ownerDb, 'pasieczyska', 'owner-apiary');
     await setDoc(apiaryRef, { name: 'Owner apiary', adminId: ownerUid });
@@ -67,16 +67,16 @@ try {
     );
 
     for (const name of collections) {
-        const ownerRef = doc(ownerDb, 'users', ownerUid, name, 'authorized-record');
-        await setDoc(ownerRef, { ownerUid, kind: name });
+        const ownerRef = doc(ownerDb, name, 'authorized-record');
+        await setDoc(ownerRef, { userId: ownerUid, kind: name });
         assert((await getDoc(ownerRef)).exists(), `${name}: owner could not read their document`);
 
         await denied(
-            () => getDoc(doc(otherDb, 'users', ownerUid, name, 'authorized-record')),
+            () => getDoc(doc(otherDb, name, 'authorized-record')),
             `${name}: another user read an owner's document`
         );
         await denied(
-            () => setDoc(doc(otherDb, 'users', ownerUid, name, 'cross-user-write'), { ownerUid: otherUid }),
+            () => setDoc(doc(otherDb, name, 'cross-user-write'), { userId: ownerUid }),
             `${name}: another user wrote to an owner's collection`
         );
     }
@@ -87,31 +87,31 @@ try {
         const current = await transaction.get(sequenceRef);
         const nextNumber = (current.exists() ? current.data().lastNumber : 0) + 1;
         transaction.set(sequenceRef, { year: 2026, lastNumber: nextNumber });
-        transaction.set(doc(ownerDb, 'users', ownerUid, 'rearingBatches', batchId), { number: `2026/${String(nextNumber).padStart(2, '0')}` });
+        transaction.set(doc(ownerDb, 'rearingBatches', batchId), { userId: ownerUid, number: `2026/${String(nextNumber).padStart(2, '0')}` });
         return nextNumber;
     })));
     assert(new Set(allocations).size === 2, 'Concurrent batch allocations reused a sequence number');
     assert((await getDoc(sequenceRef)).data().lastNumber === 2, 'Concurrent batch allocations lost a sequence update');
 
-    const starterRef = doc(ownerDb, 'users', ownerUid, 'starterColonies', 'contended-starter');
-    await setDoc(starterRef, { availability: 'PUSTY' });
+    const starterRef = doc(ownerDb, 'starterColonies', 'contended-starter');
+    await setDoc(starterRef, { userId: ownerUid, availability: 'PUSTY' });
     const reservations = await Promise.allSettled(['reservation-a', 'reservation-b'].map((batchId) => runTransaction(ownerDb, async (transaction) => {
         const starter = await transaction.get(starterRef);
         if (!starter.exists() || starter.data().availability !== 'PUSTY' || starter.data().activeBatchId) {
             throw new Error('Starter is already reserved');
         }
         transaction.update(starterRef, { availability: 'ZAJETY', activeBatchId: batchId });
-        transaction.set(doc(ownerDb, 'users', ownerUid, 'rearingBatches', batchId), { status: 'W_STARTERZE', starterColonyId: 'contended-starter' });
+        transaction.set(doc(ownerDb, 'rearingBatches', batchId), { userId: ownerUid, status: 'W_STARTERZE', starterColonyId: 'contended-starter' });
     })));
     assert(reservations.filter((result) => result.status === 'fulfilled').length === 1, 'Concurrent starter reservation did not have exactly one winner');
     const winnerId = (await getDoc(starterRef)).data().activeBatchId;
-    assert((await getDoc(doc(ownerDb, 'users', ownerUid, 'rearingBatches', winnerId))).exists(), 'Starter reservation committed without its batch record');
+    assert((await getDoc(doc(ownerDb, 'rearingBatches', winnerId))).exists(), 'Starter reservation committed without its batch record');
     const loserId = winnerId === 'reservation-a' ? 'reservation-b' : 'reservation-a';
-    assert(!(await getDoc(doc(ownerDb, 'users', ownerUid, 'rearingBatches', loserId))).exists(), 'Losing reservation left a partial batch record');
+    assert(!(await getDoc(doc(ownerDb, 'rearingBatches', loserId))).exists(), 'Losing reservation left a partial batch record');
 
     await signOut(ownerAuth);
     await denied(
-        () => getDoc(doc(ownerDb, 'users', ownerUid, 'breederQueens', 'authorized-record')),
+        () => getDoc(doc(ownerDb, 'breederQueens', 'authorized-record')),
         'Unauthenticated user read a queen-rearing document'
     );
     await signOut(otherAuth);

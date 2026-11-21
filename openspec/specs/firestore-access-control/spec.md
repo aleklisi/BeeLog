@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines owner-only access to BeeLog apiaries, hives, and hive subcollection data stored in Firestore. Collaborator sharing is not supported.
+Defines owner-only access to BeeLog apiaries, hives, queen-rearing resources, and hive subcollection data stored in Firestore. Collaborator sharing is not supported.
 
 ## Requirements
 
@@ -34,6 +34,20 @@ The application SHALL load only apiaries owned by the authenticated user. It SHA
 - **WHEN** an authenticated user loads their apiary list
 - **THEN** the application queries and returns only apiaries whose `adminId` matches that user's UID
 - **AND** apiaries belonging to other users are not readable through the list query
+
+### Requirement: Queen-rearing collections are restricted to their owner
+
+Breeder queens, starter colonies, finisher colonies, and rearing batches SHALL be stored in top-level collections. Each document SHALL contain `userId` equal to the authenticated user's UID, and all reads and writes SHALL be restricted to that owner. Yearly sequence counters may remain under `users/{uid}/rearingSequences`.
+
+#### Scenario: Owner accesses queen-rearing records
+
+- **WHEN** an authenticated user queries or changes records whose `userId` matches their UID
+- **THEN** Firestore permits the operation
+
+#### Scenario: Another user accesses queen-rearing records
+
+- **WHEN** an authenticated user reads or changes a record owned by another UID, or creates a record claiming another UID
+- **THEN** Firestore denies the operation
 
 ### Requirement: Collaborator membership is unsupported
 
