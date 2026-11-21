@@ -302,7 +302,13 @@ ulikCardView t apiaryId model ulik =
         , on "mousedown" (Decode.succeed ResetCardClickSuppression)
         ]
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "gap" "8px" ]
-            ([ h3 [ style "margin" "0", style "color" headingColor ] [ text ulik.name ] ]
+            ([ h3 [ style "margin" "0", style "color" headingColor, style "flex" "1", style "min-width" "0" ] [ text ulik.name ]
+             , div [ style "display" "flex", style "align-items" "center", style "flex-shrink" "0" ]
+                [ button [ attribute "data-testid" "MoveMatingHive", stopPropagationOn "click" (Decode.succeed (OpenMoveUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveMatingHive ] [ text (t.localize "🚚") ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
+                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
+                ]
+             ]
                 ++ (let
                         reasons = ulikAttentionReasons model.currentDate ulik
                         combinedReason = String.join " / " (List.map t.localize reasons)
@@ -332,11 +338,4 @@ ulikCardView t apiaryId model ulik =
         , div [ style "margin-top" "10px", style "font-size" "12px", style "background" metaBg, style "padding" "6px", style "border-radius" "4px", style "color" textColor ]
             [ text (t.localize "Matka: " ++ (if ulik.hasQueen then (if ulik.queen.hasOpalit then t.localize "Opalit " ++ t.localize ulik.queen.color ++ " #" ++ ulik.queen.number else t.localize "Bez opalitka") ++ (if ulik.queen.breedLine /= "" then " (" ++ ulik.queen.breedLine ++ ")" else "") else t.localize "Brak matki")) ]
         , ulikTimelineView t model ulik
-        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "12px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "10px", style "flex-wrap" "wrap" ]
-            [ div [ style "display" "flex", style "gap" "12px" ]
-                [ button [ attribute "data-testid" "MoveMatingHive", stopPropagationOn "click" (Decode.succeed (OpenMoveUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.moveMatingHive ] [ text (t.localize "🚚") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (OpenRenameUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.edit ] [ text (t.localize "✏️") ]
-                , button [ stopPropagationOn "click" (Decode.succeed (OpenDeleteUlikModal apiaryId ulik, True)), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "18px", style "padding" "6px", title t.delete ] [ text (t.localize "🗑️") ]
-                ]
-            ]
         ]

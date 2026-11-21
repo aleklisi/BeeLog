@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-21] Akcje ulików weselnych obok nazwy
+
+- Przeniesiono przyciski przenoszenia, edycji i usuwania do nagłówka karty ulika, obok jego nazwy.
+
+## [2026-11-21] Akcje pasieczysk obok taga
+
+- Przeniesiono edycję i usuwanie pasiek towarowych oraz trutowisk do wiersza z tagiem typu pasieki, po jego prawej stronie.
+
 ## [2026-11-21] Akcje trutowisk w nagłówku karty
 
 - Przeniesiono edycję i usuwanie do prawej strony wiersza z tagiem, zaraz po nazwie.

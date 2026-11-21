@@ -134,12 +134,14 @@ apiaryCardView t model apiary =
                                 []
                            )
                     )
-                , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
-                ]
-            , div [ style "display" "flex", style "align-items" "center", style "gap" "8px", stopPropagationOn "click" (Decode.succeed ( NoOp, True )) ]
-                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
-                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
+                , div [ style "display" "flex", style "align-items" "center", style "gap" "8px" ]
+                    [ span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
+                    , div [ style "display" "flex", style "align-items" "center", style "gap" "8px", stopPropagationOn "click" (Decode.succeed ( NoOp, True )) ]
+                        [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
+                        , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
+                        ]
                     ]
+                ]
             , if isTrutowisko then
                 div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#1f3326" else "#ecfccb"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
                     [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.matingHivesTotal ++ String.fromInt totalUlikiCount ++ ")") ]
