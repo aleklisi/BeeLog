@@ -284,11 +284,12 @@ test('queen-rearing resources edit safely, protect active assignments, and delet
     await page.getByTestId(batchTestId).click();
     await page.getByTestId(batchTestId).getByTitle('Usuń serię').click();
     await expect(page.getByTestId(batchTestId)).toHaveCount(0);
-    await page.getByRole('button', { name: '← Lista serii' }).click();
+    // Deleting a batch navigates back to the batch list automatically.
+    await expect(page.getByRole('button', { name: 'Utwórz zaplanowaną serię' })).toBeVisible();
     await page.getByTestId(conflictingBatchTestId).click();
     await page.getByTestId(conflictingBatchTestId).getByTitle('Usuń serię').click();
     await expect(page.getByTestId(conflictingBatchTestId)).toHaveCount(0);
-    await page.getByRole('button', { name: '← Lista serii' }).click();
+    await expect(page.getByRole('button', { name: 'Utwórz zaplanowaną serię' })).toBeVisible();
     await page.getByRole('button', { name: 'Zasoby' }).click();
     const releasedStarter = page.locator(`[data-testid="qr-resource-${starterId}"]`);
     const releasedQueen = page.locator(`[data-testid="qr-resource-${queenId}"]`);

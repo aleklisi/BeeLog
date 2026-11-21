@@ -933,7 +933,21 @@ update msg model =
         DeleteQueenResource kind id ->
             case model.authState of
                 LoggedIn user ->
-                    ( model, jsDeleteQueenResource { uid = user.uid, kind = kind, id = id } )
+                    ( { model
+                        | viewState =
+                            case model.viewState of
+                                QueenResourceDetailView info ->
+                                    if info.kind == kind && info.id == id then
+                                        QueenRearingResourcesView
+
+                                    else
+                                        model.viewState
+
+                                _ ->
+                                    model.viewState
+                      }
+                    , jsDeleteQueenResource { uid = user.uid, kind = kind, id = id }
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -941,7 +955,9 @@ update msg model =
         CreatePlannedRearingBatch ->
             case ( model.authState, String.toInt (String.left 4 model.currentDate) ) of
                 ( LoggedIn user, Just year ) ->
-                    ( model, jsCreatePlannedRearingBatch { uid = user.uid, year = String.fromInt year, fields = Encode.object [ ( "createdAt", Encode.string model.currentDate ) ] } )
+                    ( { model | queenRearingForm = Dict.insert "graftCount" (String.fromInt model.defaultGraftCount) model.queenRearingForm }
+                    , jsCreatePlannedRearingBatch { uid = user.uid, year = String.fromInt year, fields = Encode.object [ ( "createdAt", Encode.string model.currentDate ) ] }
+                    )
 
                 _ ->
                     ( { model | errorMessage = Just "Choose a breeder queen and enter a positive whole graft count." }, Cmd.none )
@@ -1006,7 +1022,16 @@ update msg model =
         DeleteRearingBatch batchId ->
             case model.authState of
                 LoggedIn user ->
-                    ( model, jsDeleteRearingBatch { uid = user.uid, batchId = batchId } )
+                    ( { model
+                        | viewState =
+                            if model.viewState == QueenRearingBatchView batchId then
+                                QueenRearingView
+
+                            else
+                                model.viewState
+                      }
+                    , jsDeleteRearingBatch { uid = user.uid, batchId = batchId }
+                    )
 
                 _ ->
                     ( model, Cmd.none )

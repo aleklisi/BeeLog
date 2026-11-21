@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-11-21] Powrót po usunięciu zasobu hodowlanego
+
+- Kliknięcie kosza w szczegółach serii, matki reprodukcyjnej, startera lub finishera wraca do odpowiedniej listy.
+
 ## [2026-11-21] Naprawa ustawień i testów E2E hodowli matek
 
 - Przywrócono odczyt ustawienia włączającego hodowlę matek i zaktualizowano scenariusze E2E do tworzenia zaplanowanych serii.
@@ -654,3 +658,11 @@
 ## [2026-11-21] Oś czasu harmonogramu hodowli matek
 
 - Ustawienia hodowli matek pokazują oś czasu z opisem dnia przekładania, przeniesienia do startera, izolacji i wygryzienia.
+
+## [2026-11-21] Domyślna liczba larw w serii
+
+- Formularz uruchamiania serii uzupełnia liczbę przełożonych larw wartością z ustawień hodowli matek.
+
+## [2026-11-21] Naprawa testu usuwania serii matek
+
+- Test E2E sprawdza automatyczny powrót do listy po usunięciu serii.
