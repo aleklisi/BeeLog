@@ -38,7 +38,7 @@ queenRearingResourcesView t model =
                 , div [ class "flex flex-wrap gap-2" ]
                     ([ button [ class "bg-blue-600", onClick (EditQueenResource kind identifier) ] [ text (tr "Edit" "Edytuj") ] ]
                         ++ (if kind == "breederQueens" && active then [ button [ class "bg-amber-600", onClick (RetireBreederQueen identifier) ] [ text (tr "Retire" "Wycofaj") ] ] else [])
-                        ++ [ button [ class "bg-red-600", onClick (DeleteQueenResource kind identifier), attribute "title" (tr "Delete" "Usuń") ] [ text (tr "Delete" "Usuń") ] ]
+                        ++ [ button [ class "destructive-action", onClick (DeleteQueenResource kind identifier), attribute "title" (tr "Delete" "Usuń") ] [ text (tr "Delete" "Usuń") ] ]
                     )
                 ]
         editor kind =
@@ -57,7 +57,7 @@ queenRearingResourcesView t model =
                                 , field "markingCode" (tr "Marking number" "Numer na opalitku") "text"
                                 ]
                             else [])
-                save = button [ class "bg-green-700", onClick (SaveQueenResource kind), attribute "data-testid" ("qr-resource-save-" ++ kind) ] [ text (if editing then tr "Save changes" "Zapisz zmiany" else tr "Add" "Dodaj") ]
+                save = button [ class "save-action", onClick (SaveQueenResource kind), attribute "data-testid" ("qr-resource-save-" ++ kind) ] [ text (if editing then tr "Save changes" "Zapisz zmiany" else tr "Add" "Dodaj") ]
                 cancel = if editing then [ button [ class "bg-slate-600", onClick CancelQueenResourceEdit ] [ text (tr "Cancel" "Anuluj") ] ] else []
             in
             div []

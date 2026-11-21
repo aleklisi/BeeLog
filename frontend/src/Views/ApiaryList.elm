@@ -32,7 +32,7 @@ apiariesView t model =
     div []
         [ div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "15px" ]
             [ h2 [ style "margin" "0", style "color" (if model.darkMode then "#ffffff" else "inherit") ] [ text (if model.apiaryFilter == "trutowisko" then t.matingApiariesHeading else if model.apiaryFilter == "towarowe" then t.commercialApiariesHeading else t.apiaries) ]
-            , button [ onClick OpenNewApiaryModal, style "padding" "10px 16px", style "background-color" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.addApiary ]
+            , button [ onClick OpenNewApiaryModal ] [ text t.addApiary ]
             ]
         , if List.isEmpty filteredApiaries then
             p [ attribute "data-testid" "apiary-empty-state" ] [ text (if model.apiaryFilter == "trutowisko" then t.noMatingApiaries else if model.apiaryFilter == "towarowe" then t.noCommercialApiaries else t.noApiaries) ]
@@ -44,10 +44,9 @@ apiariesView t model =
 apiaryCardView : Translations -> Model -> Apiary -> Html Msg
 apiaryCardView t model apiary =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        cardBg = if model.darkMode then "#17231b" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
-        borderColor = if model.darkMode then "#333" else "#eee"
         isTrutowisko = apiary.apiaryType == "trutowisko"
         typeLabel = if isTrutowisko then t.matingApiaries else t.commercialApiaries
         typeBadgeBg = if isTrutowisko then "#8e44ad" else "#2980b9"
@@ -137,8 +136,12 @@ apiaryCardView t model apiary =
                     )
                 , span [ style "background" typeBadgeBg, style "color" "white", style "padding" "2px 8px", style "border-radius" "12px", style "font-size" "11px" ] [ text typeLabel ]
                 ]
+            , div [ style "display" "flex", style "align-items" "center", style "gap" "8px", stopPropagationOn "click" (Decode.succeed ( NoOp, True )) ]
+                    [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
+                    , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
+                    ]
             , if isTrutowisko then
-                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
+                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#1f3326" else "#ecfccb"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
                     [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.matingHivesTotal ++ String.fromInt totalUlikiCount ++ ")") ]
                     , div [ style "display" "flex", style "flex-wrap" "wrap", style "gap" "10px" ]
                         [ span [ title t.stateQueenless ] [ text ("(B) Bezmatek: " ++ String.fromInt bezmatekCount) ]
@@ -149,7 +152,7 @@ apiaryCardView t model apiary =
                         ]
                     ]
               else
-                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
+                div [ style "margin-top" "8px", style "font-size" "12px", style "background" (if model.darkMode then "#1f3326" else "#ecfccb"), style "padding" "8px", style "border-radius" "6px", style "color" textColor ]
                     [ div [ style "font-weight" "bold", style "margin-bottom" "4px" ] [ text (t.commercialHivesTotal ++ String.fromInt totalHivesCount ++ ")") ]
                     , if List.isEmpty allHivesTypeCounts then
                         div [ style "color" (if model.darkMode then "#888" else "#777"), style "font-style" "italic" ] [ text t.noHivesShort ]
@@ -162,11 +165,5 @@ apiaryCardView t model apiary =
                                 allHivesTypeCounts
                             )
                     ]
-            ]
-        , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-top" "10px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
-            [ div [ style "display" "flex", style "gap" "10px" ]
-                [ button [ onClick (OpenEditApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.edit ] [ text "✏️" ]
-                , button [ onClick (OpenDeleteApiaryModal apiary), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.delete ] [ text "🗑️" ]
-                ]
             ]
         ]

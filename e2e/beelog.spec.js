@@ -63,6 +63,55 @@ test.describe('BeeLog E2E Test Suite', () => {
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).not.toContainText('Pasieczyska towarowe');
   });
 
+  test('settings actions keep semantic colors and keyboard focus in both themes', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
+    await page.reload();
+    await page.evaluate(() => window.app.ports.authStateChanged.send({ uid: 'settings-colors-user', email: 'colors@beelog.test' }));
+    await page.getByTestId('main-menu-toggle').click();
+    await page.getByRole('button', { name: '⚙️ Ustawienia' }).click();
+
+    const backButton = page.getByRole('button', { name: '← Powrót' });
+    await expect(backButton).toHaveClass(/settings-primary-action/);
+    const generalToggle = page.getByTestId('settings-section-toggle-ogolne');
+    await expect(generalToggle).toHaveClass(/settings-secondary-action/);
+    await backButton.focus();
+    await page.keyboard.press('Tab');
+    await expect(generalToggle).toBeFocused();
+    expect(await generalToggle.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');
+
+    await generalToggle.click();
+    const themeButton = page.getByRole('button', { name: '✨ Zmień na tryb ciemny' });
+    await expect(themeButton).toHaveClass(/settings-preference-action/);
+    await page.getByTestId('settings-section-toggle-pasieczyska').click();
+    const addButton = page.getByRole('button', { name: 'Dodaj' }).first();
+    await expect(addButton).toHaveClass(/settings-primary-action/);
+
+    for (const darkMode of [false, true]) {
+      if (darkMode) {
+        await themeButton.click();
+        await expect(page.getByRole('button', { name: '☀️ Zmień na tryb jasny' })).toBeVisible();
+        await expect(page.locator('html')).toHaveClass(/dark/);
+      }
+      expect(await addButton.evaluate(element => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)');
+      const frameTypeInput = page.getByPlaceholder('Nowy rodzaj ramki (np. Dadant)');
+      await frameTypeInput.focus();
+      await page.keyboard.press('Tab');
+      await expect(addButton).toBeFocused();
+      expect(await addButton.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');
+      if (darkMode) {
+        await expect(page.locator('html')).toHaveClass(/dark/);
+      } else {
+        await expect(page.locator('html')).not.toHaveClass(/dark/);
+      }
+
+      await page.getByTestId('delete-account').click();
+      const cancelButton = page.getByRole('button', { name: 'Anuluj' });
+      await expect(cancelButton).toHaveClass(/destructive-action/);
+      expect(await cancelButton.evaluate(element => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)');
+      await cancelButton.click();
+    }
+  });
+
   test('language selection persists across refresh and sign in', async ({ page }) => {
     await page.evaluate(() => localStorage.removeItem('__E2E_STATE__'));
     await page.reload();
@@ -756,17 +805,21 @@ test.describe('BeeLog E2E Test Suite', () => {
 
     // Test przejść stanów
     await expect(page.locator('text=Aktualny stan: (B) Bezmatek')).toBeVisible();
+    await expect(page.getByTestId('mating-hive-current-status')).toHaveCSS('background-color', 'rgb(231, 76, 60)');
     await page.click('text=➕ Poddano matecznik (M)');
     await page.click('button:has-text("Zapisz")');
     await expect(page.locator('text=Aktualny stan: (M) Matecznik')).toBeVisible();
+    await expect(page.getByTestId('mating-hive-current-status')).toHaveCSS('background-color', 'rgb(247, 220, 111)');
     await expect(page.locator('text=(B) - Poddano Matecznik -> (M)')).toBeVisible();
 
     await page.click('text=🦋 Matka się wygryzła (N)');
     await expect(page.locator('text=Aktualny stan: (N) Matka nieunasienniona')).toBeVisible();
+    await expect(page.getByTestId('mating-hive-current-status')).toHaveCSS('background-color', 'rgb(212, 172, 13)');
     await expect(page.locator('text=(M) - Matka się wygryzła -> (N)')).toBeVisible();
 
     await page.click('text=👑 Matka się unasienniła (UNC)');
     await expect(page.locator('text=Aktualny stan: (UNC) Matka unasienniona')).toBeVisible();
+    await expect(page.getByTestId('mating-hive-current-status')).toHaveCSS('background-color', 'rgb(39, 174, 96)');
     await expect(page.locator('text=(N) - Matka się unasienniła (UNC) -> (UNC)')).toBeVisible();
 
     // Test przycisku "zabieram matkę" powracającego do stanu Bezmatek

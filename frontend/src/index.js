@@ -26,6 +26,12 @@ function saveE2EState(state) {
 const savedDarkMode = localStorage.getItem('beelog_darkMode') === 'true';
 const savedLanguage = localStorage.getItem('beelog_language') === 'en' ? 'en' : 'pl';
 
+function applyDarkMode(enabled) {
+    document.documentElement.classList.toggle('dark', Boolean(enabled));
+}
+
+applyDarkMode(savedDarkMode);
+
 let savedConsent = null;
 try {
     const rawConsent = localStorage.getItem('beelog_consent');
@@ -324,6 +330,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             , isolationDay: defaultIsolationDay, emergenceDay: defaultEmergenceDay
         };
         localStorage.setItem('beelog_darkMode', settings.darkMode ? 'true' : 'false');
+        applyDarkMode(settings.darkMode);
         localStorage.setItem('beelog_language', settings.language === 'en' ? 'en' : 'pl');
         app.ports.userSettingsReceived.send(settings);
         return;
@@ -380,6 +387,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
             await setDoc(docRef, { email: emailToSave, frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, language: languageVal, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal, enableQueenRearing: defaultEnableQueenRearing, defaultGraftCount, starterDurationDays: defaultStarterDurationDays, isolationDay: defaultIsolationDay, emergenceDay: defaultEmergenceDay });
         }
         localStorage.setItem('beelog_darkMode', currentDarkMode ? 'true' : 'false');
+        applyDarkMode(currentDarkMode);
         localStorage.setItem('beelog_language', languageVal);
         app.ports.userSettingsReceived.send({ frameTypes: frameTypesVal, ulikTypes: ulikTypesVal, breedLines: breedLinesVal, darkMode: currentDarkMode, language: languageVal, hatchingToMatingDays: hatchingToMatingDaysVal, maxUlikHistoryLimit: maxUlikHistoryLimitVal, enableTrutowiska: enableTrutowiskaVal, enablePasieczyskaTowarowe: enablePasieczyskaTowaroweVal, enableQueenRearing: enableQueenRearingVal, defaultGraftCount: defaultGraftCountVal, starterDurationDays: starterDurationDaysVal, isolationDay: isolationDayVal, emergenceDay: emergenceDayVal });
     } catch (error) {
@@ -390,6 +398,7 @@ app.ports.jsLoadUserSettings.subscribe(async ({ uid, email }) => {
 app.ports.jsSaveUserSettings.subscribe(async ({ uid, email, frameTypes, ulikTypes, breedLines, darkMode, language, hatchingToMatingDays, maxUlikHistoryLimit, enableTrutowiska, enablePasieczyskaTowarowe, enableQueenRearing, defaultGraftCount, starterDurationDays, isolationDay, emergenceDay }) => {
     if (darkMode !== undefined) {
         localStorage.setItem('beelog_darkMode', darkMode ? 'true' : 'false');
+        applyDarkMode(darkMode);
     }
     if (language !== undefined) localStorage.setItem('beelog_language', language === 'en' ? 'en' : 'pl');
     const defaultFrameTypes = ["Wielkopolska", "Wielkopolska 18", "Wielkopolska 1/2", "Warszawska zwykła", "MiniPlus", "Dadant"];

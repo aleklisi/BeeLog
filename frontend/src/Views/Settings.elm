@@ -12,7 +12,7 @@ import I18n exposing (Translations)
 settingsView : Translations -> User -> Model -> Html Msg
 settingsView t user model =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        cardBg = if model.darkMode then "#17231b" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         inputBg = if model.darkMode then "#2a2a2a" else "white"
@@ -75,13 +75,12 @@ settingsView t user model =
                 expanded = isExpanded section
             in
             button
-                [ onClick (ToggleSettingsSection section)
+                [ class "settings-secondary-action settings-section-toggle"
+                , onClick (ToggleSettingsSection section)
                 , style "display" "flex"
                 , style "align-items" "center"
                 , style "justify-content" "space-between"
                 , style "width" "100%"
-                , style "background" "none"
-                , style "border" "none"
                 , style "border-bottom" ("2px solid " ++ sectionBorderColor)
                 , style "padding" "0 0 8px 0"
                 , style "margin-bottom" (if expanded then "16px" else "0")
@@ -109,7 +108,7 @@ settingsView t user model =
     in
     div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
         [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px" ]
-            [ button [ onClick (NavigateTo ApiariesView), style "padding" "6px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.back ]
+            [ button [ class "settings-primary-action", onClick (NavigateTo ApiariesView), style "padding" "6px 12px" ] [ text t.back ]
             , h2 [ style "margin" "0", style "color" headingColor ] [ text t.settings ]
             ]
         , div [ style "display" "flex", style "flex-direction" "column", style "gap" "30px" ]
@@ -123,11 +122,11 @@ settingsView t user model =
                             , p [ style "font-size" "14px", style "color" (if model.darkMode then "#b0b0b0" else "#666"), style "margin" "0 0 8px 0" ] [ text t.signedInEmail ]
                             , div [ style "font-size" "16px", style "font-weight" "bold", style "color" headingColor, style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px", attribute "data-testid" "user-email" ]
                                 [ text user.email ]
-                            , button [ onClick OpenAccountDeletion, style "margin-top" "12px", style "padding" "9px 14px", style "background" "oklch(57.7% 0.245 27.325)", style "color" "white", style "border" "0", style "border-radius" "4px", attribute "data-testid" "delete-account" ] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
+                            , button [ class "destructive-action", onClick OpenAccountDeletion, style "margin-top" "12px", style "padding" "9px 14px", attribute "data-testid" "delete-account" ] [ text (if t.isEnglish then "Delete account" else "Usuń konto") ]
                             ]
                         , div []
                             [ settingHeader t.appearance ""
-                            , button [ onClick ToggleDarkMode, style "padding" "10px 16px", style "background-color" (if model.darkMode then "#f4e8b8" else "#172b4d"), style "background-image" (if model.darkMode then "none" else "radial-gradient(circle at 12px 10px, #fff 1px, transparent 1.5px), radial-gradient(circle at 34px 22px, #dbeafe 1px, transparent 1.5px), radial-gradient(circle at 52px 8px, #fff 1px, transparent 1.5px)"), style "background-size" "60px 32px", style "color" (if model.darkMode then "#263238" else "#ffffff"), style "border" (if model.darkMode then "1px solid #d8c98f" else "1px solid #314d78"), style "border-radius" "6px", style "cursor" "pointer", style "font-size" "14px", style "font-weight" "600", style "margin-top" "10px", style "box-shadow" "0 2px 5px #0002" ]
+                            , button [ class "settings-preference-action", onClick ToggleDarkMode, style "padding" "10px 16px", style "background-image" (if model.darkMode then "none" else "radial-gradient(circle at 12px 10px, #fff 1px, transparent 1.5px), radial-gradient(circle at 34px 22px, #dbeafe 1px, transparent 1.5px), radial-gradient(circle at 52px 8px, #fff 1px, transparent 1.5px)"), style "background-size" "60px 32px", style "margin-top" "10px" ]
                                 [ text (if model.darkMode then t.lightMode else t.darkMode) ]
                             ]
                         , div []
@@ -169,14 +168,14 @@ settingsView t user model =
                             [ settingHeader t.frameTypes t.frameTypesHelp
                             , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                                 [ input [ type_ "text", placeholder t.newFrameType, value model.newFrameTypeInput, onInput UpdateNewFrameTypeInput, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
-                                , button [ onClick (AddFrameType model.newFrameTypeInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.add ]
+                                , button [ class "settings-primary-action", onClick (AddFrameType model.newFrameTypeInput), style "padding" "8px 16px" ] [ text t.add ]
                                 ]
                             , ul [ style "list-style" "none", style "padding" "0", style "margin" "0", style "display" "flex", style "flex-direction" "column", style "gap" "8px" ]
                                 (List.map
                                     (\ft ->
                                         li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px" ]
                                             [ span [] [ text ft ]
-                                            , button [ onClick (RemoveFrameType ft), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.remove ] [ text "❌" ]
+                                            , button [ class "settings-icon-destructive-action", onClick (RemoveFrameType ft), style "font-size" "14px", title t.remove, attribute "aria-label" t.remove ] [ text "❌" ]
                                             ]
                                     )
                                     model.frameTypes
@@ -205,14 +204,14 @@ settingsView t user model =
                             [ settingHeader t.ulikTypes t.ulikTypesHelp
                             , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                                 [ input [ type_ "text", placeholder t.newUlikType, value model.newUlikTypeInput, onInput UpdateNewUlikTypeInput, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
-                                , button [ onClick (AddUlikType model.newUlikTypeInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.add ]
+                                , button [ class "settings-primary-action", onClick (AddUlikType model.newUlikTypeInput), style "padding" "8px 16px" ] [ text t.add ]
                                 ]
                             , ul [ style "list-style" "none", style "padding" "0", style "margin" "0", style "display" "flex", style "flex-direction" "column", style "gap" "8px" ]
                                 (List.map
                                     (\ut ->
                                         li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px" ]
                                             [ span [] [ text ut ]
-                                            , button [ onClick (RemoveUlikType ut), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.remove ] [ text "❌" ]
+                                            , button [ class "settings-icon-destructive-action", onClick (RemoveUlikType ut), style "font-size" "14px", title t.remove, attribute "aria-label" t.remove ] [ text "❌" ]
                                             ]
                                     )
                                     model.ulikTypes
@@ -222,14 +221,14 @@ settingsView t user model =
                             [ settingHeader t.breedLines t.breedLinesHelp
                             , div [ style "display" "flex", style "gap" "10px", style "margin-bottom" "15px", style "margin-top" "10px" ]
                                 [ input [ type_ "text", placeholder t.newBreedLine, value model.newBreedLineInput, onInput UpdateNewBreedLineInput, style "flex" "1", style "padding" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "border-radius" "4px" ] []
-                                , button [ onClick (AddBreedLine model.newBreedLineInput), style "padding" "8px 16px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text t.add ]
+                                , button [ class "settings-primary-action", onClick (AddBreedLine model.newBreedLineInput), style "padding" "8px 16px" ] [ text t.add ]
                                 ]
                             , ul [ style "list-style" "none", style "padding" "0", style "margin" "0", style "display" "flex", style "flex-direction" "column", style "gap" "8px" ]
                                 (List.map
                                     (\bl ->
                                         li [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "padding" "8px 12px", style "background" (if model.darkMode then "#2d2d2d" else "#f8f9fa"), style "border-radius" "4px" ]
                                             [ span [] [ text bl ]
-                                            , button [ onClick (RemoveBreedLine bl), style "background" "none", style "border" "none", style "cursor" "pointer", style "font-size" "14px", title t.remove ] [ text "❌" ]
+                                            , button [ class "settings-icon-destructive-action", onClick (RemoveBreedLine bl), style "font-size" "14px", title t.remove, attribute "aria-label" t.remove ] [ text "❌" ]
                                             ]
                                     )
                                     model.breedLines
@@ -309,8 +308,8 @@ settingsView t user model =
                             Nothing ->
                                 text ""
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "8px", style "margin-top" "16px" ]
-                            [ button [ onClick CloseAccountDeletion, disabled model.deletionBusy ] [ text (if t.isEnglish then "Cancel" else "Anuluj") ]
-                            , button [ onClick SubmitAccountDeletion, disabled model.deletionBusy, attribute "data-testid" "confirm-delete-account" ] [ text (if model.deletionBusy then (if t.isEnglish then "Deleting…" else "Usuwanie…") else (if t.isEnglish then "Delete" else "Usuń")) ]
+                            [ button [ class "destructive-action", onClick CloseAccountDeletion, disabled model.deletionBusy ] [ text (if t.isEnglish then "Cancel" else "Anuluj") ]
+                            , button [ class "destructive-action", onClick SubmitAccountDeletion, disabled model.deletionBusy, attribute "data-testid" "confirm-delete-account" ] [ text (if model.deletionBusy then (if t.isEnglish then "Deleting…" else "Usuwanie…") else (if t.isEnglish then "Delete" else "Usuń")) ]
                             ]
                         ]
                     ]

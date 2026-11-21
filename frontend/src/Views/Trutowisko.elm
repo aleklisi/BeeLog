@@ -95,7 +95,7 @@ validDateDays dateString =
 ulikListView : Translations -> User -> { apiaryId : String, apiaryName : String } -> Model -> Html Msg
 ulikListView t user info model =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        cardBg = if model.darkMode then "#17231b" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         borderColor = if model.darkMode then "#333" else "#eee"
@@ -122,12 +122,12 @@ ulikListView t user info model =
     in
     div []
         [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
-            [ button [ onClick (NavigateTo ApiariesView), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
+            [ button [ class "secondary-action", onClick (NavigateTo ApiariesView), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
             , h2 [ style "margin" "0", style "color" headingColor ] [ text (t.localize "Trutowisko: " ++ info.apiaryName) ]
             ]
         , div [ style "display" "flex", style "justify-content" "space-between", style "align-items" "center", style "margin-bottom" "20px", style "flex-wrap" "wrap", style "gap" "12px" ]
             [ div [ style "display" "flex", style "gap" "10px" ]
-                [ button [ onClick OpenNewUlikModal, style "padding" "12px 18px", style "background-color" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "44px", style "font-size" "15px" ] [ text t.addMatingHive ]
+                [ button [ onClick OpenNewUlikModal ] [ text t.addMatingHive ]
                 ]
             , div [ style "display" "flex", style "align-items" "center", style "gap" "16px", style "flex-wrap" "wrap" ]
                 [ label [ for "filter-action-required", style "display" "flex", style "align-items" "center", style "gap" "8px", style "cursor" "pointer", style "color" textColor, style "font-size" "14px", style "user-select" "none" ]
@@ -282,7 +282,7 @@ timelineLegendRow t color description =
 ulikCardView : Translations -> String -> Model -> UlikWeselny -> Html Msg
 ulikCardView t apiaryId model ulik =
     let
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        cardBg = if model.darkMode then "#17231b" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         borderColor = if model.darkMode then "#333" else "#eee"

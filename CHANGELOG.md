@@ -1,5 +1,54 @@
 # Changelog
 
+## [2026-11-21] Akcje trutowisk w nagłówku karty
+
+- Przeniesiono edycję i usuwanie do prawej strony wiersza z tagiem, zaraz po nazwie.
+
+## [2026-11-21] Akcje pasiek towarowych w nagłówku karty
+
+- Przeniesiono edycję i usuwanie obok taga typu pasieki, a tag ustawiono zaraz po nazwie.
+
+## [2026-11-21] Uproszczenie akcji na kartach uli towarowych
+
+- Usunięto przycisk edycji nazwy i przeniesiono kosz obok nazwy ula, po prawej stronie.
+
+## [2026-11-21] Uzupełnienie specyfikacji kolorów
+
+- Zastąpiono placeholder w sekcji Purpose specyfikacji `ui-theme-colors` opisem jej zakresu.
+
+## [2026-11-21] Semantyczne kolory akcji w Ustawieniach
+
+- Ujednolicono kolory nawigacji, dodawania, przełączania motywu, zwijania sekcji oraz czerwonych akcji usuwania i anulowania.
+- Dodano test E2E stylów, fokusu klawiatury i motywów jasnego oraz ciemnego.
+
+## [2026-11-21] Specyfikacja kolorów akcji pasieczysk i uli
+
+- Dodano zmianę OpenSpec opisującą semantyczne kolory akcji w pasieczyskach i ulach towarowych w obu motywach.
+
+## [2026-11-21] Specyfikacja kolorów przycisków Ustawień
+
+- Przeniesiono brief z TODO do zmiany OpenSpec opisującej role kolorów przycisków Ustawień w obu motywach.
+
+## [2026-11-20] Wyraźniejsze przyciski zapisu
+
+- Wzmocniono wygląd przycisków zapisu w formularzach i oknach dialogowych.
+
+## [2026-11-20] Zielona paleta i kolory stanów ulików
+
+- Ujednolicono zielone akcje, czerwone usuwanie oraz kolory i wyróżnienie aktualnego stanu uliku weselnego.
+
+## [2026-11-20] Przyciemnienie przycisków
+
+- Zmieniono wspólny kolor przycisków na ciemny grafit, dopasowany do ikony menu.
+
+## [2026-11-20] Poprawka trybów kolorystycznych Tailwind
+
+- Powiązano wariant `dark:` Tailwinda z klasą `.dark` i synchronizowano ją z zapamiętanym ustawieniem motywu.
+
+## [2026-11-20] Zmiana koloru przycisków
+
+- Ustawiono wspólny kolor przycisków na `oklch(52.7% 0.154 150.069)`, zachowując wcześniej ustalone wyjątki.
+
 ## [2026-11-20] Doprecyzowanie przycisku przenoszenia ulika
 
 - Zmieniono nazwę testową kontrolki na `MoveMatingHive` i dodano podpowiedź „Przenieś ulik na inne trutowisko”.
@@ -257,3 +306,7 @@
 ## [2026-11-20] Naprawa testów E2E
 
 - Testy aplikacji akceptują niezbędną pamięć, a sortowanie uli zachowuje osobną kolejność dla każdej pasieki.
+
+## [2026-11-21] Ujednolicenie stylu przycisków
+
+- Przyciski dodawania, zapisywania i przenoszenia ulika otrzymały wspólny styl akcji z widoku hodowli matek.

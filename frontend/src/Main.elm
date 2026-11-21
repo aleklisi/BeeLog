@@ -1818,11 +1818,11 @@ privacyPolicyView t model =
         in
         div [ style "position" "fixed", style "inset" "0", style "z-index" "2000", style "display" "grid", style "place-items" "center", style "padding" "16px", style "background" "rgba(0,0,0,.6)", attribute "data-testid" "privacy-policy-modal" ]
             [ div [ attribute "role" "dialog", attribute "aria-modal" "true", attribute "aria-labelledby" "privacy-policy-title", style "position" "relative", style "background" (if model.darkMode then "#1e1e1e" else "white"), style "color" (if model.darkMode then "#eee" else "#222"), style "padding" "24px", style "border-radius" "8px", style "width" "min(720px, 94vw)", style "max-height" "88vh", style "overflow-y" "auto" ]
-                [ button [ onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy", attribute "aria-label" (if t.isEnglish then "Close policy" else "Zamknij politykę"), style "float" "right" ] [ text "✕" ]
+                [ button [ class "secondary-action", onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy", attribute "aria-label" (if t.isEnglish then "Close policy" else "Zamknij politykę"), style "float" "right" ] [ text "✕" ]
                 , h2 [ id "privacy-policy-title" ] [ text titleText ]
                 , p [] [ text (if t.isEnglish then "Last updated: 20 November 2026." else "Aktualizacja: 20 listopada 2026 r.") ]
                 , div [] (List.map renderSection sections)
-                , button [ onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy-btn" ] [ text (if t.isEnglish then "Close" else "Zamknij") ]
+                , button [ class "secondary-action", onClick ClosePrivacyPolicy, attribute "data-testid" "close-privacy-policy-btn" ] [ text (if t.isEnglish then "Close" else "Zamknij") ]
                 ]
             ]
 
@@ -1872,8 +1872,8 @@ modalsView t model =
                             )
                         )
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                        , button [ onClick SubmitCreateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                        [ button [ class "secondary-action", onClick CloseNewApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        , button [ onClick SubmitCreateApiary ] [ text (t.localize "Zapisz") ]
                         ]
                     ]
                 ]
@@ -1886,8 +1886,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Edytuj Nazwę Pasieczyska") ]
                         , input [ type_ "text", value model.editApiaryNameInput, onInput UpdateEditApiaryNameInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick SubmitUpdateApiary, style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                            [ button [ class "secondary-action", onClick CloseEditApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick SubmitUpdateApiary ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
@@ -1900,8 +1900,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń Pasieczysko") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć pasieczysko \"" ++ apiary.name ++ t.localize "\" wraz ze wszystkimi ulami i notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick (SubmitDeleteApiary apiary.id), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
+                            [ button [ class "secondary-action", onClick CloseDeleteApiaryModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ class "destructive-action", onClick (SubmitDeleteApiary apiary.id), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
@@ -1965,10 +1965,10 @@ modalsView t model =
                             , input [ type_ "number", attribute "min" "0", value (String.fromInt model.newHiveSuperCount), onInput (\val -> UpdateNewHiveSuperCount (Basics.max 0 (Maybe.withDefault 0 (String.toInt val)))), style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                             ]
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        [ button [ class "secondary-action", onClick CloseNewHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             HiveListView info ->
-                                button [ onClick (SubmitCreateHive info.apiaryId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                                button [ onClick (SubmitCreateHive info.apiaryId) ] [ text (t.localize "Zapisz") ]
                             _ ->
                                 text (t.localize "")
                         ]
@@ -1986,10 +1986,10 @@ modalsView t model =
                     , select [ value model.newUlikHiveType, onInput UpdateNewUlikHiveType, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                         (List.map (\ut -> option [ value ut, selected (model.newUlikHiveType == ut) ] [ text ut ]) model.ulikTypes)
                     , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                        [ button [ onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                        [ button [ class "secondary-action", onClick CloseNewUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                         , case model.viewState of
                             UlikListView info ->
-                                button [ onClick (SubmitCreateUlik info.apiaryId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                                button [ onClick (SubmitCreateUlik info.apiaryId) ] [ text (t.localize "Zapisz") ]
                             _ ->
                                 text (t.localize "")
                         ]
@@ -2004,8 +2004,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę ula") ]
                         , input [ type_ "text", value model.renameHiveInput, onInput UpdateRenameHiveInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                            [ button [ class "secondary-action", onClick CloseRenameHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitRenameHive info.apiaryId info.hiveId) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
@@ -2018,8 +2018,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ul") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć ul \"" ++ info.hiveName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ attribute "data-testid" "confirm-delete-hive", onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
+                            [ button [ class "secondary-action", onClick CloseDeleteHiveModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ class "destructive-action", attribute "data-testid" "confirm-delete-hive", onClick (SubmitDeleteHive info.apiaryId info.hiveId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
@@ -2032,8 +2032,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Zmień nazwę uliku") ]
                         , input [ type_ "text", value model.renameUlikInput, onInput UpdateRenameUlikInput, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "box-sizing" "border-box", style "background" inputBg, style "color" inputColor, style "border" inputBorder ] []
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                            [ button [ class "secondary-action", onClick CloseRenameUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitRenameUlik info.apiaryId info.ulikId) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]
@@ -2046,8 +2046,8 @@ modalsView t model =
                         [ h3 [ style "color" headingColor ] [ text (t.localize "Usuń ulik weselny") ]
                         , p [] [ text (t.localize "Czy na pewno chcesz usunąć ulik \"" ++ info.ulikName ++ t.localize "\" wraz ze wszystkimi notatkami?") ]
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
+                            [ button [ class "secondary-action", onClick CloseDeleteUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ class "destructive-action", onClick (SubmitDeleteUlik info.apiaryId info.ulikId), style "padding" "8px 12px", style "background" "#e74c3c", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Potwierdź usunięcie") ]
                             ]
                         ]
                     ]
@@ -2078,7 +2078,7 @@ modalsView t model =
                             select [ onInput SelectMoveUlikTargetApiary, style "width" "100%", style "padding" "8px", style "margin-bottom" "15px", style "background" inputBg, style "color" inputColor, style "border" inputBorder ]
                                 (List.map (\a -> option [ value a.id, selected (targetId == a.id) ] [ text a.name ]) otherTrutowiska)
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            [ button [ class "secondary-action", onClick CloseMoveUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
                             , if not (List.isEmpty otherTrutowiska) then
                                 button [ attribute "data-testid" "submit-move-mating-hive", onClick (SubmitMoveUlik info.sourceApiaryId info.ulikId targetId), style "padding" "8px 12px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Przenieś") ]
                               else
@@ -2135,8 +2135,8 @@ modalsView t model =
                           else
                             text (t.localize "")
                         , div [ style "display" "flex", style "justify-content" "flex-end", style "gap" "10px" ]
-                            [ button [ onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
-                            , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType), style "padding" "8px 12px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Zapisz") ]
+                            [ button [ class "secondary-action", onClick CloseUlikModal, style "padding" "8px 12px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer" ] [ text (t.localize "Anuluj") ]
+                            , button [ onClick (SubmitUlikModal info.apiaryId info.ulikId info.modalType) ] [ text (t.localize "Zapisz") ]
                             ]
                         ]
                     ]

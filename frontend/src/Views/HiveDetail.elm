@@ -21,7 +21,7 @@ hiveDetailView t user info model =
         apiaryName = case maybeApiary of
             Just a -> a.name
             Nothing -> "Pasieka"
-        cardBg = if model.darkMode then "#1e1e1e" else "white"
+        cardBg = if model.darkMode then "#17231b" else "#f0fdf4"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         headingColor = if model.darkMode then "#ffffff" else "#2c3e50"
         inputBg = if model.darkMode then "#2a2a2a" else "white"
@@ -32,7 +32,7 @@ hiveDetailView t user info model =
         Just hive ->
             div [ style "background" cardBg, style "padding" "20px", style "border-radius" "8px", style "box-shadow" "0 1px 3px rgba(0,0,0,0.1)", style "color" textColor ]
                 [ div [ style "display" "flex", style "align-items" "center", style "gap" "15px", style "margin-bottom" "20px", style "flex-wrap" "wrap" ]
-                    [ button [ onClick (NavigateTo (HiveListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
+                    [ button [ class "secondary-action", onClick (NavigateTo (HiveListView { apiaryId = actualApiaryId, apiaryName = apiaryName })), style "padding" "10px 16px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text t.back ]
                     , h2 [ style "margin" "0", style "color" headingColor ] [ text (t.localize "Karta Ula: " ++ hive.name) ]
                     ]
                 , div [ style "display" "flex", style "flex-direction" "column", style "gap" "20px", style "margin-bottom" "20px" ]
@@ -213,7 +213,7 @@ hiveDetailView t user info model =
                     [ textarea [ value model.newNoteText, onInput UpdateNewNoteText, placeholder (t.localize "Wpisz notatkę lub użyj dyktowania głosowego..."), style "width" "100%", style "height" "80px", style "padding" "10px", style "font-size" "16px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
                     , div [ style "display" "flex", style "gap" "10px", style "margin-top" "10px", style "flex-wrap" "wrap" ]
                         [ button [ onClick StartSpeechDictation, style "padding" "10px 14px", style "background" "#e67e22", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "🎤 Dyktuj") ]
-                        , button [ onClick (SubmitSaveNote actualApiaryId info.hiveId model.newNoteText user.uid user.email), style "padding" "10px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "Zapisz Notatkę") ]
+                        , button [ class "save-action", onClick (SubmitSaveNote actualApiaryId info.hiveId model.newNoteText user.uid user.email), style "padding" "10px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px" ] [ text (t.localize "Zapisz Notatkę") ]
                         , button [ onClick (SubmitHiveSnapshot actualApiaryId info.hiveId user), style "padding" "10px 14px", style "background" "#8e44ad", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "40px", title (t.localize "Zapisz pełny stan ula jako notatkę") ] [ text (t.localize "📸 Zrzut Ula") ]
                         ]
                     ]
@@ -227,7 +227,7 @@ noteItemView : Translations -> String -> String -> Model -> Note -> Html Msg
 noteItemView t apiaryId hiveId model note =
     let
         isEditing = model.editingNoteId == Just note.id
-        cardBg = if model.darkMode then "#242424" else "#f8f9f9"
+        cardBg = if model.darkMode then "#1f3326" else "#ecfccb"
         textColor = if model.darkMode then "#e0e0e0" else "#333"
         inputBg = if model.darkMode then "#2a2a2a" else "white"
         inputColor = if model.darkMode then "#e0e0e0" else "#333"
@@ -237,8 +237,8 @@ noteItemView t apiaryId hiveId model note =
         (if isEditing then
             [ textarea [ value model.editNoteText, onInput UpdateEditNoteText, style "width" "100%", style "height" "60px", style "padding" "8px", style "font-size" "16px", style "margin-bottom" "8px", style "background" inputBg, style "color" inputColor, style "border" inputBorder, style "box-sizing" "border-box" ] []
             , div [ style "display" "flex", style "gap" "8px", style "flex-wrap" "wrap" ]
-                [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id), style "padding" "8px 14px", style "background" "#27ae60", style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "Zapisz") ]
-                , button [ onClick CancelEditNote, style "padding" "8px 14px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "Anuluj") ]
+                [ button [ onClick (SubmitUpdateNote apiaryId hiveId note.id) ] [ text (t.localize "Zapisz") ]
+                , button [ class "secondary-action", onClick CancelEditNote, style "padding" "8px 14px", style "background" "#bdc3c7", style "border" "none", style "border-radius" "4px", style "cursor" "pointer", style "min-height" "36px" ] [ text (t.localize "Anuluj") ]
                 ]
             ]
          else
@@ -299,7 +299,7 @@ korpusItemView t apiaryId hiveId totalCount model korpus =
                 , div [ style "display" "flex", style "gap" "6px", style "align-items" "center", style "flex-wrap" "wrap" ]
                     [ button [ class "korpus-action min-h-9 rounded-md bg-green-100 px-2.5 py-1.5 font-semibold text-green-900 shadow-sm transition-colors hover:bg-green-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600", onClick (AddKorpusAbove apiaryId hiveId korpus.id), title (t.localize "Dodaj korpus nad") ] [ text (t.localize "+ ⬆️") ]
                     , button [ class "korpus-action min-h-9 rounded-md bg-green-100 px-2.5 py-1.5 font-semibold text-green-900 shadow-sm transition-colors hover:bg-green-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600", onClick (AddKorpusBelow apiaryId hiveId korpus.id), title (t.localize "Dodaj korpus pod") ] [ text (t.localize "+ ⬇️") ]
-                    , button [ onClick (DeleteKorpus apiaryId hiveId korpus.id), disabled (totalCount <= 1), style "padding" "6px 10px", style "background" (if totalCount <= 1 then "#bdc3c7" else "#c0392b"), style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if totalCount <= 1 then "not-allowed" else "pointer"), style "min-height" "36px", title (if totalCount <= 1 then "W ulu musi pozostać co najmniej jeden korpus" else "Usuń ten korpus") ] [ text (t.localize "🗑️") ]
+                    , button [ class "destructive-action", onClick (DeleteKorpus apiaryId hiveId korpus.id), disabled (totalCount <= 1), style "padding" "6px 10px", style "background" (if totalCount <= 1 then "#bdc3c7" else "#c0392b"), style "color" "white", style "border" "none", style "border-radius" "4px", style "cursor" (if totalCount <= 1 then "not-allowed" else "pointer"), style "min-height" "36px", title (if totalCount <= 1 then "W ulu musi pozostać co najmniej jeden korpus" else "Usuń ten korpus") ] [ text (t.localize "🗑️") ]
                     ]
                 ]
             , div [ style "display" "flex", style "flex-direction" "column", style "gap" "8px", style "margin-top" "8px", style "border-top" ("1px solid " ++ borderColor), style "padding-top" "8px" ]
