@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-11-21] Walidacja nowych specyfikacji OpenSpec
+
+- Doprecyzowano scenariusze filtrów, niepełnych danych analitycznych, eksportu Google oraz powiązanie zmian kolorów z istniejącymi wymaganiami.
+
+## [2026-11-21] Specyfikacja eksportu serii do Google Calendar
+
+- Dodano zmianę OpenSpec opisującą eksport terminów serii hodowlanej jako wydarzeń Google Calendar i zadań Google Tasks.
+
+## [2026-11-21] Specyfikacja alertów serii hodowlanych
+
+- Dodano zmianę OpenSpec opisującą czerwony wykrzyknik przy aktywnych seriach z działaniem zaplanowanym na dziś lub po terminie.
+
+## [2026-11-21] Standard komponentów i przycisków
+
+- Dodano propozycję OpenSpec ujednolicenia wyglądu komponentów oraz rozmieszczenia akcji.
+
+## [2026-11-21] Propozycje usprawnień Hodowli matek
+
+- Dodano osobne zmiany OpenSpec dla wyszukiwania i filtrowania serii, kalendarza prac oraz zestawień skuteczności hodowli.
+
 ## [2026-11-21] Powrót po usunięciu zasobu hodowlanego
 
 - Kliknięcie kosza w szczegółach serii, matki reprodukcyjnej, startera lub finishera wraca do odpowiedniej listy.
@@ -666,3 +686,7 @@
 ## [2026-11-21] Naprawa testu usuwania serii matek
 
 - Test E2E sprawdza automatyczny powrót do listy po usunięciu serii.
+
+## [2026-11-21] Specyfikacja obecnej hodowli matek
+
+- Uaktualniono bazową specyfikację OpenSpec do aktualnych wartości domyślnych harmonogramu i sortowania serii.

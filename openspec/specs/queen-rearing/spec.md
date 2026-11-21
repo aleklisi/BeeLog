@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Defines how users manage queen-rearing resources and batches from grafting through emergence, including resource availability, schedule dates, and operational alerts.
+Defines the currently implemented queen-rearing module: its settings, resources, batch workflow, schedule display, and next-action urgency.
+
+The separate OpenSpec changes for calendar, filtering, outcome analytics, action alerts, and Google Calendar export describe proposed or in-progress work and are not part of this implemented baseline.
 
 ## Requirements
 
@@ -11,7 +13,7 @@ Users SHALL be able to configure the default graft count and day offsets for the
 
 #### Scenario: Provide default queen-rearing settings
 - **WHEN** the queen-rearing settings have not been configured
-- **THEN** the default graft count is 24, starter duration is 2 days, isolation is day 10, and expected emergence is day 11
+- **THEN** the default graft count is 24, starter duration is 1 day, isolation is day 10, and expected emergence is day 12
 
 #### Scenario: Validate schedule settings
 - **WHEN** a user saves schedule settings
@@ -42,9 +44,9 @@ A user SHALL be able to create a uniquely numbered planned batch and start it wi
 - **THEN** it receives the next unused number in `YYYY/NN` format for that user and calendar year and has status `ZAPLANOWANA`
 
 #### Scenario: Start a batch and calculate its schedule
-- **GIVEN** the user has configured 2 starter days, 10 days to isolation, and 11 days to emergence
-- **WHEN** the user starts a batch at 2026-05-10 10:00 in `Europe/Warsaw`
-- **THEN** the batch enters `W_STARTERZE`, reserves the selected free starter, and calculates dates of 2026-05-12 10:00, 2026-05-20 10:00, and 2026-05-21 10:00 in that time zone
+- **GIVEN** the user has configured 1 starter day, 10 days to isolation, and 12 days to emergence
+- **WHEN** the user starts a batch on 2026-05-10
+- **THEN** the batch enters `W_STARTERZE`, reserves the selected free starter, and calculates dates of 2026-05-11, 2026-05-20, and 2026-05-22
 
 #### Scenario: Preserve the batch schedule after settings change
 - **GIVEN** a batch has started with saved schedule durations
@@ -98,18 +100,18 @@ Users SHALL progress batches through `ZAPLANOWANA`, `W_STARTERZE`, `W_FINISHERZE
 - **WHEN** the user records an emerged queen count and completes the batch without an incubator
 - **THEN** the batch enters `ZAKONCZONA`, the finisher is released with its counter increased by one, and the incubator bar number remains empty
 
-### Requirement: Prioritize batches by next action
-The batch list SHALL show the next action date for active batches and sort overdue batches first, then upcoming active batches by nearest deadline, then planned batches, then completed batches. For equal priority, batches SHALL sort by next-action date and then by batch number.
+### Requirement: Show batch schedule and next-action urgency
+The batch list and details SHALL show each batch's stage dates and a timeline. Active batches SHALL identify the next action date and show whether it is overdue, due within 24 hours, or later. The list SHALL sort batches by series number in descending order.
 
 #### Scenario: Show the next action and urgency
 - **GIVEN** batches are in starter, finisher, and incubator states
 - **WHEN** the user views the batch list
 - **THEN** their next actions are based on transfer-to-finisher, isolation, and emergence dates respectively, with overdue alerts red, deadlines within 24 hours yellow, and later deadlines green
 
-#### Scenario: Sort batches by urgency
-- **GIVEN** one active batch is overdue, two active batches have future deadlines, and one batch is planned
+#### Scenario: Sort batches by series number
+- **GIVEN** batches have different series numbers and statuses
 - **WHEN** the user views the batch list
-- **THEN** the overdue batch appears first, future deadlines are ordered nearest-first, and the planned batch appears after active batches
+- **THEN** batches appear in descending series-number order regardless of status or deadline
 
 #### Scenario: Format time remaining
 - **WHEN** an active batch has a next-action deadline
